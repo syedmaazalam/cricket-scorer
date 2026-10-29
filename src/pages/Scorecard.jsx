@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trophy, Award, Share2, Check, Download, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { computeInningsStats } from '../engine/stats.js';
+import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
+import { formatOvers } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -12,8 +13,40 @@ export default function Scorecard({ matchState, onBack }) {
   const [isExporting, setIsExporting] = useState(false);
   const scorecardRef = useRef(null);
 
-  const inn1 = matchState.innings?.[0] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: '', bowlingTeam: '' };
-  const inn2 = matchState.innings?.[1] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: '', bowlingTeam: '' };
+  const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
+
+  if (isLoading) {
+    return (
+      <div
+        style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+        className="min-h-screen flex flex-col p-4 max-w-lg mx-auto select-none transition-colors"
+      >
+        <div style={{ borderColor: 'var(--border)' }} className="flex items-center justify-between pb-3 border-b">
+          <button
+            onClick={onBack}
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-2xl border transition-all active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="text-center">
+            <h2 style={{ color: 'var(--text)' }} className="text-base font-black m-0">Full Scorecard</h2>
+          </div>
+          <ThemeToggle />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }}
+          />
+          <span style={{ color: 'var(--muted)' }} className="text-xs font-semibold">Loading live scorecard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const inn1 = matchState?.innings?.[0] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: 'Team 1', bowlingTeam: 'Team 2' };
+  const inn2 = matchState?.innings?.[1] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: 'Team 2', bowlingTeam: 'Team 1' };
 
   const stats1 = computeInningsStats(inn1);
   const stats2 = computeInningsStats(inn2);
@@ -74,11 +107,11 @@ export default function Scorecard({ matchState, onBack }) {
   const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3);
 
   // Generate direct watch URL
-  const shareUrl = `${window.location.origin}/?watch=${matchState.code || ''}`;
+  const shareUrl = `${window.location.origin}/?watch=${matchState?.code || ''}`;
 
   const handleShare = () => {
-    const title = `Cricket Match: ${matchState.teams?.[0]?.name} vs ${matchState.teams?.[1]?.name}`;
-    const text = `Watch live cricket score! Match Code: ${matchState.code}\n${currentInn.battingTeam} ${currentInn.score}/${currentInn.wickets}\n`;
+    const title = `Scorecard: ${matchState?.teams?.[0]?.name} vs ${matchState?.teams?.[1]?.name}`;
+    const text = `Full Cricket Scorecard (Code: ${matchState?.code}):\n${currentInn.battingTeam} ${currentInn.score}/${currentInn.wickets}\n`;
 
     if (navigator.share) {
       navigator.share({ title, text, url: shareUrl }).catch(() => {});
@@ -94,9 +127,9 @@ export default function Scorecard({ matchState, onBack }) {
     if (!scorecardRef.current || isExporting) return;
     try {
       setIsExporting(true);
-      const isDark = document.documentElement.classList.contains('dark') || !document.documentElement.classList.contains('light');
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const canvas = await html2canvas(scorecardRef.current, {
-        backgroundColor: isDark ? '#020617' : '#f8fafc',
+        backgroundColor: isDark ? '#1B232C' : '#E0E1EE',
         scale: 2,
         useCORS: true,
         logging: false
@@ -104,7 +137,7 @@ export default function Scorecard({ matchState, onBack }) {
 
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      const cleanTeams = `${matchState.teams?.[0]?.name || 'TeamA'}-vs-${matchState.teams?.[1]?.name || 'TeamB'}`;
+      const cleanTeams = `${matchState?.teams?.[0]?.name || 'TeamA'}-vs-${matchState?.teams?.[1]?.name || 'TeamB'}`;
       link.download = `scorecard-${cleanTeams}.png`;
       link.href = image;
       link.click();
@@ -116,44 +149,68 @@ export default function Scorecard({ matchState, onBack }) {
     }
   };
 
+  const inn1ScoreAtPoint = (inn2?.legalBalls > 0)
+    ? getScoreAtLegalBalls(inn1, inn2.legalBalls)
+    : null;
+
   return (
-    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-900 flex flex-col p-4 max-w-lg mx-auto transition-colors">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800 dark:border-slate-800 light:border-slate-200">
+    <div
+      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+      className="min-h-screen flex flex-col p-4 max-w-lg mx-auto select-none transition-colors"
+    >
+      {/* 1. Header */}
+      <div
+        style={{ borderColor: 'var(--border)' }}
+        className="flex items-center justify-between pb-3 border-b"
+      >
         <button
           onClick={onBack}
-          className="p-2 rounded-2xl bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 text-slate-400 hover:text-white"
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          className="p-2 rounded-2xl border transition-all active:scale-95"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         <div className="text-center">
-          <h2 className="text-base font-black text-white dark:text-white light:text-slate-900 m-0">Full Scorecard</h2>
-          <span className="text-[10px] font-mono text-amber-400 font-bold">CODE: {matchState.code}</span>
+          <h2 style={{ color: 'var(--text)' }} className="text-base font-black m-0">Full Scorecard</h2>
+          {matchState?.code ? (
+            <span style={{ color: 'var(--orange)' }} className="text-[10px] font-mono font-bold">
+              CODE: {matchState.code}
+            </span>
+          ) : (
+            <span style={{ color: 'var(--muted)' }} className="text-[10px]">
+              {matchState?.teams?.[0]?.name} vs {matchState?.teams?.[1]?.name}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
           <button
             onClick={handleShare}
-            title="Share Match Link"
-            className="p-2 rounded-2xl bg-slate-900 dark:bg-slate-900 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 text-slate-400 hover:text-white"
+            title="Share Scorecard Link"
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-2xl border transition-all active:scale-95"
           >
-            {copied ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
+            {copied ? <Check className="w-5 h-5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-5 h-5" style={{ color: 'var(--muted)' }} />}
           </button>
         </div>
       </div>
 
-      {/* Export & Action Pill */}
+      {/* 2. Export Button Bar: Export PNG button in --primary bg, white text */}
       <div className="flex items-center justify-between pt-3 pb-1">
-        <div className="text-xs text-slate-400">
-          Innings details and graphs
+        <div style={{ color: 'var(--muted)' }} className="text-xs">
+          Match statistics and over charts
         </div>
 
         <button
           onClick={handleExportPNG}
           disabled={isExporting}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/40 active:scale-95 transition-all"
+          style={{
+            backgroundColor: 'var(--primary)',
+            color: '#FFFFFF'
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all"
         >
           {isExporting ? (
             <span>Generating PNG...</span>
@@ -168,102 +225,181 @@ export default function Scorecard({ matchState, onBack }) {
 
       {/* Printable / Exportable Region */}
       <div ref={scorecardRef} className="flex flex-col gap-4 mt-2">
-        {/* Result Banner */}
-        {matchState.resultSummary && (
-          <div className="bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border border-amber-500/40 rounded-2xl p-3 text-center">
-            <div className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
+        {/* Match Result Banner (Solid --card) */}
+        {matchState?.resultSummary && (
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card p-3 text-center flex flex-col items-center gap-0.5"
+          >
+            <div style={{ color: 'var(--orange)' }} className="text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
               <Trophy className="w-4 h-4" />
               <span>Match Result</span>
             </div>
-            <div className="text-base font-black text-white dark:text-white light:text-slate-900 mt-0.5">{matchState.resultSummary}</div>
+            <div style={{ color: 'var(--text)' }} className="text-base font-black">
+              {matchState.resultSummary}
+            </div>
           </div>
         )}
 
-        {/* Charts: Run Rate & Worm Comparison */}
+        {/* Charts: Over-by-Over & Worm Comparison */}
         <MatchCharts matchState={matchState} />
 
-        {/* Innings Tabs */}
+        {/* Previous Team Score at this point when looking at 2nd innings */}
+        {inn2?.balls?.length > 0 && (
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--text)'
+            }}
+            className="app-card py-2 px-3 text-xs flex items-center justify-between font-semibold"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span style={{ color: 'var(--muted)' }}>
+                1st Inn: {inn1.battingTeam} {inn1.score}/{inn1.wickets}
+              </span>
+              <span style={{ color: 'var(--primary)' }}>
+                2nd Inn: {inn2.battingTeam} {inn2.score}/{inn2.wickets}
+              </span>
+            </div>
+            {inn1ScoreAtPoint && (
+              <div className="text-right text-[11px] shrink-0 font-medium" style={{ color: 'var(--muted)' }}>
+                1st Inn at {formatOvers(inn2.legalBalls)} ov:{' '}
+                <strong style={{ color: 'var(--orange)' }}>
+                  {inn1ScoreAtPoint.score}/{inn1ScoreAtPoint.wickets}
+                </strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Innings Tabs per spec:
+            Active: --primary bg, white text;
+            Inactive: --card bg, --text text */}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setActiveTab(0)}
-            className={`py-2.5 px-3 rounded-2xl font-bold text-xs transition-all border ${
-              activeTab === 0
-                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-950'
-                : 'bg-slate-900 dark:bg-slate-900 light:bg-white text-slate-400 border-slate-800 dark:border-slate-800 light:border-slate-200 hover:bg-slate-850'
-            }`}
+            style={{
+              backgroundColor: activeTab === 0 ? 'var(--primary)' : 'var(--card)',
+              color: activeTab === 0 ? '#FFFFFF' : 'var(--text)',
+              borderColor: 'var(--border)'
+            }}
+            className="py-2.5 px-3 rounded-2xl font-bold text-xs transition-all border shadow-sm"
           >
             {inn1.battingTeam || 'Innings 1'} ({inn1.score}/{inn1.wickets})
           </button>
           <button
             onClick={() => setActiveTab(1)}
-            className={`py-2.5 px-3 rounded-2xl font-bold text-xs transition-all border ${
-              activeTab === 1
-                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-950'
-                : 'bg-slate-900 dark:bg-slate-900 light:bg-white text-slate-400 border-slate-800 dark:border-slate-800 light:border-slate-200 hover:bg-slate-850'
-            }`}
+            style={{
+              backgroundColor: activeTab === 1 ? 'var(--primary)' : 'var(--card)',
+              color: activeTab === 1 ? '#FFFFFF' : 'var(--text)',
+              borderColor: 'var(--border)'
+            }}
+            className="py-2.5 px-3 rounded-2xl font-bold text-xs transition-all border shadow-sm"
           >
             {inn2.battingTeam || 'Innings 2'} ({inn2.score}/{inn2.wickets})
           </button>
         </div>
 
-        {/* Batting Section */}
-        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Batting — {currentInn.battingTeam}</h3>
+        {/* Batting Section (Solid --card, headers in --muted) */}
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-4"
+        >
+          <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
+            Batting — {currentInn.battingTeam}
+          </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-slate-500 border-b border-slate-800 dark:border-slate-800 light:border-slate-200 pb-1 text-[10px] uppercase">
-                  <th className="py-1">Batter</th>
+                <tr
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                  className="border-b pb-1 text-[10px] uppercase font-bold"
+                >
+                  <th className="py-1">BATTER</th>
                   <th className="py-1 text-right">R</th>
                   <th className="py-1 text-right">B</th>
-                  <th className="py-1 text-right">4s</th>
-                  <th className="py-1 text-right">6s</th>
+                  <th className="py-1 text-right">4S</th>
+                  <th className="py-1 text-right">6S</th>
                   <th className="py-1 text-right">SR</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850 dark:divide-slate-850 light:divide-slate-100">
-                {Object.values(currentStats.batting).map((b) => (
-                  <tr key={b.name} className="py-1.5">
-                    <td className="py-1.5 font-semibold text-white dark:text-white light:text-slate-900">
-                      <div>{b.name}</div>
-                      <div className="text-[10px] text-slate-400 font-normal">
-                        {b.isOut ? (b.dismissal || 'out') : 'not out'}
-                      </div>
+              <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
+                {Object.values(currentStats.batting).length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
+                      No batting entries recorded yet.
                     </td>
-                    <td className="py-1.5 text-right font-black text-white dark:text-white light:text-slate-900">{b.runs}</td>
-                    <td className="py-1.5 text-right text-slate-400">{b.balls}</td>
-                    <td className="py-1.5 text-right text-slate-400">{b.fours}</td>
-                    <td className="py-1.5 text-right text-slate-400">{b.sixes}</td>
-                    <td className="py-1.5 text-right text-slate-400">{b.strikeRate}</td>
                   </tr>
-                ))}
+                ) : (
+                  Object.values(currentStats.batting).map((b) => (
+                    <tr key={b.name} className="py-1.5">
+                      <td className="py-1.5 font-semibold" style={{ color: 'var(--text)' }}>
+                        <div>{b.name}</div>
+                        <div style={{ color: 'var(--muted)' }} className="text-[10px] font-normal">
+                          {b.isOut ? (b.dismissal || 'out') : 'not out'}
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-black">{b.runs}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.strikeRate}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800 dark:border-slate-800 light:border-slate-200 mt-2">
+          {/* Extras row in --muted */}
+          <div
+            style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+            className="flex items-center justify-between text-xs pt-3 border-t mt-2 font-medium"
+          >
             <span>Extras</span>
-            <span className="font-bold text-white dark:text-white light:text-slate-900">
+            <span style={{ color: 'var(--text)' }} className="font-bold">
               {currentStats.extras.total} (wd {currentStats.extras.wides}, nb {currentStats.extras.noBalls}, b {currentStats.extras.byes}, lb {currentStats.extras.legByes})
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-sm font-black text-white dark:text-white light:text-slate-900 pt-2 border-t border-slate-700/60 mt-1">
-            <span>Total</span>
-            <span className="text-amber-400">
-              {currentInn.score}/{currentInn.wickets} ({Math.floor(currentInn.legalBalls / 6)}.{currentInn.legalBalls % 6} ov)
+          {/* Total row: Total "0/0 (0.0 ov)" in --orange */}
+          <div
+            style={{ borderColor: 'var(--border)' }}
+            className="flex items-center justify-between text-sm font-black pt-2 border-t mt-1"
+          >
+            <span style={{ color: 'var(--text)' }}>Total</span>
+            <span style={{ color: 'var(--orange)' }}>
+              {currentInn.score}/{currentInn.wickets} ({formatOvers(currentInn.legalBalls)} ov)
             </span>
           </div>
         </div>
 
-        {/* Bowling Section */}
-        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Bowling — {currentInn.bowlingTeam}</h3>
+        {/* Bowling Section (Solid --card) */}
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-4"
+        >
+          <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
+            Bowling — {currentInn.bowlingTeam}
+          </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-slate-500 border-b border-slate-800 dark:border-slate-800 light:border-slate-200 pb-1 text-[10px] uppercase">
-                  <th className="py-1">Bowler</th>
+                <tr
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                  className="border-b pb-1 text-[10px] uppercase font-bold"
+                >
+                  <th className="py-1">BOWLER</th>
                   <th className="py-1 text-right">O</th>
                   <th className="py-1 text-right">M</th>
                   <th className="py-1 text-right">R</th>
@@ -271,76 +407,141 @@ export default function Scorecard({ matchState, onBack }) {
                   <th className="py-1 text-right">ECON</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850 dark:divide-slate-850 light:divide-slate-100">
-                {Object.values(currentStats.bowling).map((bw) => (
-                  <tr key={bw.name} className="py-1.5">
-                    <td className="py-1.5 font-semibold text-white dark:text-white light:text-slate-900">{bw.name}</td>
-                    <td className="py-1.5 text-right font-mono text-slate-300 dark:text-slate-300 light:text-slate-700">{bw.overs}</td>
-                    <td className="py-1.5 text-right text-slate-400">{bw.maidens}</td>
-                    <td className="py-1.5 text-right text-slate-300 dark:text-slate-300 light:text-slate-700">{bw.runsConceded}</td>
-                    <td className="py-1.5 text-right font-black text-rose-400">{bw.wickets}</td>
-                    <td className="py-1.5 text-right text-slate-400">{bw.economy}</td>
+              <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
+                {Object.values(currentStats.bowling).length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
+                      No bowling entries recorded yet.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  Object.values(currentStats.bowling).map((bw) => (
+                    <tr key={bw.name} className="py-1.5">
+                      <td style={{ color: 'var(--blue)' }} className="py-1.5 font-semibold">{bw.name}</td>
+                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-mono">{bw.overs}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.maidens}</td>
+                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right">{bw.runsConceded}</td>
+                      <td style={{ color: 'var(--red)' }} className="py-1.5 text-right font-black">{bw.wickets}</td>
+                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.economy}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Fall of Wickets */}
+        {/* Fall of Wickets (Solid --card) */}
         {currentStats.fow.length > 0 && (
-          <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-sm">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fall of Wickets</h3>
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card p-4"
+          >
+            <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
+              Fall of Wickets
+            </h3>
             <div className="flex flex-wrap gap-2 text-xs">
               {currentStats.fow.map((f) => (
-                <div key={f.wicketNumber} className="bg-slate-950 dark:bg-slate-950 light:bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-800 dark:border-slate-800 light:border-slate-200">
-                  <span className="font-bold text-rose-400">{f.score}-{f.wicketNumber}</span>{' '}
-                  <span className="text-slate-300 dark:text-slate-300 light:text-slate-700">({f.playerOut}, {f.overs} ov)</span>
+                <div
+                  key={f.wicketNumber}
+                  style={{
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)'
+                  }}
+                  className="px-2.5 py-1 rounded-xl border flex items-center gap-1.5"
+                >
+                  <span style={{ color: 'var(--red)' }} className="font-bold">{f.score}-{f.wicketNumber}</span>
+                  <span style={{ color: 'var(--text)' }}>({f.playerOut}, {f.overs} ov)</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Top 3 Players of the Match */}
+        {/* Top 3 Players of the Match (Solid --card) */}
         {topPlayers.length > 0 && (
-          <div className="bg-gradient-to-b from-slate-900 to-slate-920 dark:from-slate-900 dark:to-slate-920 light:from-white light:to-slate-50 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="w-5 h-5 text-amber-400" />
-              <h3 className="text-sm font-black text-white dark:text-white light:text-slate-900">Top 3 Players of the Match</h3>
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card p-4 flex flex-col gap-3"
+          >
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5" style={{ color: 'var(--orange)' }} />
+              <h3 style={{ color: 'var(--text)' }} className="text-sm font-black">
+                Top 3 Players of the Match
+              </h3>
             </div>
 
             <div className="flex flex-col gap-2.5">
               {topPlayers.map((p, idx) => {
                 const medals = ['🥇', '🥈', '🥉'];
-                const badgeBgs = ['border-amber-500/50 bg-amber-500/10', 'border-slate-500/50 bg-slate-500/10', 'border-amber-700/50 bg-amber-700/10'];
                 return (
                   <div
                     key={p.playerId}
-                    className={`p-3 rounded-2xl border ${badgeBgs[idx] || 'border-slate-800'} flex flex-col gap-1.5`}
+                    style={{
+                      backgroundColor: 'var(--card-alt)',
+                      borderColor: 'var(--border)'
+                    }}
+                    className="p-3 rounded-2xl border flex flex-col gap-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{medals[idx]}</span>
                         <div>
-                          <div className="font-black text-sm text-white dark:text-white light:text-slate-900">{p.name}</div>
-                          <div className="text-[10px] text-slate-400">{p.team}</div>
+                          <div style={{ color: 'var(--text)' }} className="font-black text-sm">{p.name}</div>
+                          <div style={{ color: 'var(--muted)' }} className="text-[10px]">{p.team}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-base font-black text-amber-400">{p.totalPoints} pts</div>
-                        <div className="text-[10px] text-slate-400">Total Points</div>
+                        <div style={{ color: 'var(--orange)' }} className="text-base font-black">{p.totalPoints} pts</div>
+                        <div style={{ color: 'var(--muted)' }} className="text-[10px]">Total Points</div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1 text-[10px] text-slate-300 dark:text-slate-300 light:text-slate-600 pt-1 border-t border-slate-800/80">
-                      {p.breakdown.runs > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">Runs: +{p.breakdown.runs}</span>}
-                      {p.breakdown.boundaries > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">Boundaries: +{p.breakdown.boundaries}</span>}
-                      {p.breakdown.strikeRateBonus > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">SR Bonus: +{p.breakdown.strikeRateBonus}</span>}
-                      {p.breakdown.wickets > 0 && <span className="bg-rose-950/60 dark:bg-rose-950/60 light:bg-rose-100 text-rose-300 dark:text-rose-300 light:text-rose-700 border border-rose-800/40 px-1.5 py-0.5 rounded">Wickets: +{p.breakdown.wickets}</span>}
-                      {p.breakdown.maidens > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">Maidens: +{p.breakdown.maidens}</span>}
-                      {p.breakdown.economyBonus > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">Economy: +{p.breakdown.economyBonus}</span>}
-                      {p.breakdown.fielding > 0 && <span className="bg-slate-800 dark:bg-slate-800 light:bg-slate-200 px-1.5 py-0.5 rounded">Fielding: +{p.breakdown.fielding}</span>}
+                    <div
+                      style={{ borderColor: 'var(--border)' }}
+                      className="flex flex-wrap gap-1 text-[10px] pt-1.5 border-t"
+                    >
+                      {p.breakdown.runs > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          Runs: +{p.breakdown.runs}
+                        </span>
+                      )}
+                      {p.breakdown.boundaries > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          Boundaries: +{p.breakdown.boundaries}
+                        </span>
+                      )}
+                      {p.breakdown.strikeRateBonus > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          SR Bonus: +{p.breakdown.strikeRateBonus}
+                        </span>
+                      )}
+                      {p.breakdown.wickets > 0 && (
+                        <span style={{ backgroundColor: 'color-mix(in srgb, var(--red) 15%, transparent)', color: 'var(--red)', borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)' }} className="px-1.5 py-0.5 rounded border font-bold">
+                          Wickets: +{p.breakdown.wickets}
+                        </span>
+                      )}
+                      {p.breakdown.maidens > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          Maidens: +{p.breakdown.maidens}
+                        </span>
+                      )}
+                      {p.breakdown.economyBonus > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          Economy: +{p.breakdown.economyBonus}
+                        </span>
+                      )}
+                      {p.breakdown.fielding > 0 && (
+                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                          Fielding: +{p.breakdown.fielding}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -350,8 +551,11 @@ export default function Scorecard({ matchState, onBack }) {
         )}
 
         {/* Footer Credit */}
-        <footer className="mt-4 pt-4 pb-2 text-center text-xs text-slate-500 border-t border-slate-900 dark:border-slate-900 light:border-slate-200">
-          Cricket Scorer • Developed with 🏏 by <span className="text-slate-300 dark:text-slate-300 light:text-slate-800 font-bold">Syed Maaz Alam</span>
+        <footer
+          style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+          className="mt-4 pt-4 pb-2 text-center text-xs border-t"
+        >
+          Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
         </footer>
       </div>
     </div>

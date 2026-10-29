@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Share2, FileText, Check, Trophy, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Share2, FileText, Check, Trophy } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
 import WicketModal from '../components/WicketModal.jsx';
@@ -7,7 +7,7 @@ import BowlerModal from '../components/BowlerModal.jsx';
 import NewBatterModal from '../components/NewBatterModal.jsx';
 import InningsBreakModal from '../components/InningsBreakModal.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
-import { computeInningsStats } from '../engine/stats.js';
+import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 
 export default function Scoring({
@@ -36,6 +36,8 @@ export default function Scoring({
     bowlingTeam: ''
   };
 
+  const prevInnings = curInnIndex === 1 ? matchState.innings?.[0] : null;
+
   const maxWickets = getMaxWickets(matchState.playersPerTeam);
   const innStats = computeInningsStats(currentInnings);
 
@@ -59,7 +61,6 @@ export default function Scoring({
   const battingSquad = currentBattingTeamObj?.players || [];
   const bowlingSquad = currentBowlingTeamObj?.players || [];
 
-  // Available bench batters
   const dismissedBatters = innStats.fow.map(f => f.playerOut);
   const activeBatters = [matchState.striker, matchState.nonStriker].filter(Boolean);
   const availableBatters = battingSquad.filter(p => !dismissedBatters.includes(p) && !activeBatters.includes(p));
@@ -68,15 +69,12 @@ export default function Scoring({
   const crr = calculateCRR(currentInnings.score, currentInnings.legalBalls);
   const rrr = matchState.target ? calculateRRR(matchState.target, currentInnings.score, currentInnings.legalBalls, matchState.overs) : null;
 
-  // Balls remaining in 2nd innings
   const totalBallsAllowed = matchState.overs * 6;
   const ballsRemaining = Math.max(0, totalBallsAllowed - currentInnings.legalBalls);
   const runsNeeded = matchState.target ? Math.max(0, matchState.target - currentInnings.score) : null;
 
-  // Recent 8 balls
   const recentBalls = (currentInnings.balls || []).slice(-8);
 
-  // Direct share link
   const shareUrl = `${window.location.origin}/?watch=${matchState.code || ''}`;
 
   const handleShareLink = () => {
@@ -94,24 +92,36 @@ export default function Scoring({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-900 flex flex-col justify-between max-w-lg mx-auto select-none transition-colors">
+    <div
+      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+      className="min-h-screen flex flex-col justify-between max-w-lg mx-auto select-none transition-colors"
+    >
       {/* 1. Header Bar */}
-      <div className="p-3 bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border-b border-slate-800 dark:border-slate-800 light:border-slate-200 flex items-center justify-between gap-2">
+      <div
+        style={{ borderColor: 'var(--border)' }}
+        className="p-3 border-b flex items-center justify-between gap-2"
+      >
         <button
           onClick={() => onNavigate('home')}
-          className="p-2 rounded-xl bg-slate-800 dark:bg-slate-800 light:bg-slate-100 text-slate-400 hover:text-white"
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+          className="p-2 rounded-xl border transition-all active:scale-95"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        {/* Match Code & Direct Link Pill */}
+        {/* Match Code Pill */}
         <button
           onClick={handleShareLink}
           title="Click to copy live shareable link"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 dark:bg-slate-800/80 light:bg-slate-100 border border-slate-700 dark:border-slate-700 light:border-slate-300 text-xs font-mono font-bold text-amber-400 hover:bg-slate-800"
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)',
+            color: 'var(--orange)'
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-mono font-bold"
         >
           <span>{matchState.code || 'MATCH'}</span>
-          {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-slate-400" />}
+          {copiedCode ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />}
         </button>
 
         {/* Sync Status Badge */}
@@ -122,7 +132,8 @@ export default function Scoring({
           {/* Scorecard Button */}
           <button
             onClick={onOpenScorecard}
-            className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-bold flex items-center gap-1"
+            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
           >
             <FileText className="w-4 h-4" />
             <span className="hidden sm:inline">Scorecard</span>
@@ -134,102 +145,195 @@ export default function Scoring({
       <div className="p-4 flex flex-col gap-3">
         {/* Match Result Banner if finished */}
         {matchState.status === 'completed' && (
-          <div className="bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border border-amber-500/40 rounded-2xl p-3 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-amber-400 font-extrabold text-sm uppercase">
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card p-3 text-center flex flex-col items-center gap-0.5"
+          >
+            <div style={{ color: 'var(--orange)' }} className="flex items-center justify-center gap-1.5 font-extrabold text-sm uppercase">
               <Trophy className="w-4 h-4" />
               <span>Match Finished</span>
             </div>
-            <div className="text-base font-black text-white dark:text-white light:text-slate-900 mt-0.5">{matchState.resultSummary}</div>
+            <div style={{ color: 'var(--text)' }} className="text-base font-black mt-0.5">{matchState.resultSummary}</div>
           </div>
         )}
 
-        {/* Primary Score Board */}
-        <div className="bg-gradient-to-b from-slate-900 to-slate-920 dark:from-slate-900 dark:to-slate-920 light:from-white light:to-slate-50 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-xl">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider pb-1">
-            <span>{currentInnings.battingTeam} · Innings {curInnIndex + 1}</span>
-            <span className="text-slate-500">Max Wickets: {maxWickets}</span>
+        {/* Primary Score Board (Solid --card, no gradients) */}
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-4 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
+            <span style={{ color: 'var(--text)' }}>
+              {currentInnings.battingTeam} · Innings {curInnIndex + 1}
+            </span>
+            <span style={{ color: 'var(--muted)' }}>Max Wickets: {maxWickets}</span>
           </div>
 
+          {/* Score numbers: Score in --text, /wickets in --red, overs in --orange */}
           <div className="flex items-baseline justify-between py-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-white dark:text-white light:text-slate-900 tracking-tight">
+              <span style={{ color: 'var(--text)' }} className="text-5xl font-black tracking-tight">
                 {currentInnings.score}
               </span>
-              <span className="text-3xl font-extrabold text-rose-500">
-                / {currentInnings.wickets}
+              <span style={{ color: 'var(--red)' }} className="text-3xl font-extrabold">
+                /{currentInnings.wickets}
               </span>
             </div>
 
             <div className="text-right">
-              <div className="text-2xl font-black text-amber-400 font-mono">
-                {formatOvers(currentInnings.legalBalls)} <span className="text-sm text-slate-400 font-normal">/ {matchState.overs} ov</span>
+              <div style={{ color: 'var(--orange)' }} className="text-2xl font-black font-mono">
+                {formatOvers(currentInnings.legalBalls)}{' '}
+                <span style={{ color: 'var(--muted)' }} className="text-sm font-normal">
+                  / {matchState.overs} ov
+                </span>
               </div>
             </div>
           </div>
 
+          {/* Previous Team Batting Score in 2nd Innings & comparative score at this point */}
+          {prevInnings && (
+            <div
+              style={{
+                backgroundColor: 'var(--card-alt)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
+              className="py-1 px-3 rounded-xl border text-xs flex items-center justify-between font-semibold"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <span style={{ color: 'var(--muted)' }}>1st Inn: {prevInnings.battingTeam}</span>
+                <span style={{ color: 'var(--blue)' }} className="font-bold">
+                  {prevInnings.score}/{prevInnings.wickets} ({formatOvers(prevInnings.legalBalls)} ov)
+                </span>
+              </div>
+              {currentInnings.legalBalls > 0 && (
+                <div className="text-right text-[11px] shrink-0 font-medium" style={{ color: 'var(--muted)' }}>
+                  At {formatOvers(currentInnings.legalBalls)} ov:{' '}
+                  <strong style={{ color: 'var(--orange)' }}>
+                    {getScoreAtLegalBalls(prevInnings, currentInnings.legalBalls).score}/{getScoreAtLegalBalls(prevInnings, currentInnings.legalBalls).wickets}
+                  </strong>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* CRR & RRR / Target info */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 text-xs font-semibold">
-            <div className="text-slate-400">
-              CRR: <strong className="text-white dark:text-white light:text-slate-900">{crr}</strong>
+          <div
+            style={{ borderColor: 'var(--border)' }}
+            className="flex items-center justify-between pt-2 border-t text-xs font-semibold"
+          >
+            <div>
+              <span style={{ color: 'var(--muted)' }}>CRR: </span>
+              <strong style={{ color: 'var(--text)' }}>{crr}</strong>
             </div>
 
             {matchState.target ? (
-              <div className="text-amber-400 font-bold">
-                Need {runsNeeded} runs from {ballsRemaining} balls (RRR {rrr})
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Need </span>
+                <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
+                <span style={{ color: 'var(--muted)' }}> from </span>
+                <strong style={{ color: 'var(--orange)' }}>{ballsRemaining}b</strong>
+                <span style={{ color: 'var(--muted)' }}> (RRR </span>
+                <strong style={{ color: 'var(--primary)' }}>{rrr}</strong>
+                <span style={{ color: 'var(--muted)' }}>)</span>
               </div>
             ) : (
-              <div className="text-slate-400">
-                Projected: <strong className="text-white dark:text-white light:text-slate-900">{Math.round(crr * matchState.overs)}</strong>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Projected: </span>
+                <strong style={{ color: 'var(--text)' }}>{Math.round(crr * matchState.overs)}</strong>
               </div>
             )}
           </div>
         </div>
 
-        {/* 3. Batters Card */}
-        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-3 flex flex-col gap-2 shadow-sm">
-          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-200">
-            <span className="col-span-6">Batter</span>
+        {/* 3. Batters Card (Solid --card) */}
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-3 flex flex-col gap-2"
+        >
+          <div
+            style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+            className="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider pb-1 border-b"
+          >
+            <span className="col-span-6">BATTER</span>
             <span className="col-span-2 text-right">R</span>
             <span className="col-span-2 text-right">B</span>
-            <span className="col-span-1 text-right">4s</span>
-            <span className="col-span-1 text-right">6s</span>
+            <span className="col-span-1 text-right">4S</span>
+            <span className="col-span-1 text-right">6S</span>
           </div>
 
-          {/* Striker */}
-          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-emerald-950/40 dark:bg-emerald-950/40 light:bg-emerald-50 border border-emerald-500/30">
-            <div className="col-span-6 font-bold text-emerald-400 dark:text-emerald-300 light:text-emerald-700 flex items-center gap-1.5 truncate">
+          {/* Striker: --green 15% opacity bg, name in --green */}
+          <div
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--green) 15%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--green) 30%, transparent)'
+            }}
+            className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border"
+          >
+            <div
+              style={{ color: 'var(--green)' }}
+              className="col-span-6 font-bold flex items-center gap-1.5 truncate"
+            >
               <span>🏏</span>
               <span className="truncate">{matchState.striker || 'Select Striker'}</span>
-              <span className="text-[9px] font-bold bg-emerald-500/20 px-1 py-0.2 rounded">*</span>
+              <span className="text-[9px] font-bold px-1 py-0.2 rounded">*</span>
             </div>
-            <span className="col-span-2 text-right font-black text-white dark:text-white light:text-slate-900">{strikerStat.runs}</span>
-            <span className="col-span-2 text-right text-slate-400">{strikerStat.balls}</span>
-            <span className="col-span-1 text-right text-slate-400">{strikerStat.fours}</span>
-            <span className="col-span-1 text-right text-slate-400">{strikerStat.sixes}</span>
+            <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black">{strikerStat.runs}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">{strikerStat.balls}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">{strikerStat.fours}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">{strikerStat.sixes}</span>
           </div>
 
-          {/* Non-Striker */}
-          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-slate-800/40 dark:bg-slate-800/40 light:bg-slate-100">
-            <div className="col-span-6 font-semibold text-slate-200 dark:text-slate-200 light:text-slate-800 truncate">
+          {/* Non-Striker: --card-alt bg */}
+          <div
+            style={{
+              backgroundColor: 'var(--card-alt)',
+              borderColor: 'var(--border)',
+              color: 'var(--text)'
+            }}
+            className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border"
+          >
+            <div className="col-span-6 font-semibold truncate">
               <span className="truncate">{matchState.nonStriker || 'Select Non-Striker'}</span>
             </div>
-            <span className="col-span-2 text-right font-bold text-white dark:text-white light:text-slate-900">{nonStrikerStat.runs}</span>
-            <span className="col-span-2 text-right text-slate-400">{nonStrikerStat.balls}</span>
-            <span className="col-span-1 text-right text-slate-400">{nonStrikerStat.fours}</span>
-            <span className="col-span-1 text-right text-slate-400">{nonStrikerStat.sixes}</span>
+            <span className="col-span-2 text-right font-bold">{nonStrikerStat.runs}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">{nonStrikerStat.balls}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">{nonStrikerStat.fours}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">{nonStrikerStat.sixes}</span>
           </div>
 
           {/* Current Partnership */}
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200">
-            <span>Partnership: <strong className="text-white dark:text-white light:text-slate-900">{innStats.partnership.runs}</strong> runs ({innStats.partnership.balls}b)</span>
-            <span>Extras: <strong className="text-white dark:text-white light:text-slate-900">{innStats.extras.total}</strong></span>
+          <div
+            style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+            className="text-[11px] flex items-center justify-between pt-1 border-t"
+          >
+            <span>Partnership: <strong style={{ color: 'var(--text)' }}>{innStats.partnership.runs}</strong> runs ({innStats.partnership.balls}b)</span>
+            <span>Extras: <strong style={{ color: 'var(--text)' }}>{innStats.extras.total}</strong></span>
           </div>
         </div>
 
-        {/* 4. Current Bowler Card */}
-        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-3 flex flex-col gap-1.5 shadow-sm">
-          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-200">
-            <span className="col-span-5">Bowler</span>
+        {/* 4. Current Bowler Card (Solid --card): Bowler name in --blue, wickets in --red */}
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-3 flex flex-col gap-1.5"
+        >
+          <div
+            style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+            className="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider pb-1 border-b"
+          >
+            <span className="col-span-5">BOWLER</span>
             <span className="col-span-2 text-right">O</span>
             <span className="col-span-1 text-right">M</span>
             <span className="col-span-2 text-right">R</span>
@@ -237,48 +341,43 @@ export default function Scoring({
           </div>
 
           <div className="grid grid-cols-12 items-center text-xs py-0.5">
-            <div className="col-span-5 font-bold text-cyan-400 dark:text-cyan-300 light:text-cyan-700 truncate">
+            <div style={{ color: 'var(--blue)' }} className="col-span-5 font-bold truncate">
               {matchState.currentBowler || 'Select Bowler'}
             </div>
-            <span className="col-span-2 text-right font-mono text-white dark:text-white light:text-slate-900">{bowlerStat.overs}</span>
-            <span className="col-span-1 text-right text-slate-400">{bowlerStat.maidens}</span>
-            <span className="col-span-2 text-right text-slate-300 dark:text-slate-300 light:text-slate-700">{bowlerStat.runsConceded}</span>
-            <span className="col-span-2 text-right font-black text-rose-500">{bowlerStat.wickets}</span>
+            <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-mono">{bowlerStat.overs}</span>
+            <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">{bowlerStat.maidens}</span>
+            <span style={{ color: 'var(--text)' }} className="col-span-2 text-right">{bowlerStat.runsConceded}</span>
+            <span style={{ color: 'var(--red)' }} className="col-span-2 text-right font-black">{bowlerStat.wickets}</span>
           </div>
         </div>
 
         {/* 5. Recent Deliveries Strip */}
         <div className="flex items-center gap-2 overflow-x-auto py-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 shrink-0">Recent:</span>
+          <span style={{ color: 'var(--muted)' }} className="text-[10px] font-bold uppercase tracking-wider shrink-0">Recent:</span>
           {recentBalls.length === 0 ? (
-            <span className="text-xs text-slate-500">No balls yet in this innings</span>
+            <span style={{ color: 'var(--muted)' }} className="text-xs">No balls yet in this innings</span>
           ) : (
-            recentBalls.map((b, i) => {
-              const isW = b.isWicket;
-              const is4 = b.runs === 4 && !b.extraType;
-              const is6 = b.runs === 6 && !b.extraType;
-              const isEx = Boolean(b.extraType);
-              return (
-                <div
-                  key={i}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                    isW
-                      ? 'bg-rose-600 text-white shadow-sm shadow-rose-900'
-                      : is6
-                      ? 'bg-purple-600 text-white'
-                      : is4
-                      ? 'bg-blue-600 text-white'
-                      : isEx
-                      ? 'bg-amber-600 text-white'
-                      : b.runs === 0
-                      ? 'bg-slate-800 dark:bg-slate-800 light:bg-slate-200 text-slate-400 border border-slate-700 dark:border-slate-700 light:border-slate-300'
-                      : 'bg-slate-700 dark:bg-slate-700 light:bg-slate-300 text-white dark:text-white light:text-slate-900'
-                  }`}
-                >
-                  {b.shortLabel}
-                </div>
-              );
-            })
+            recentBalls.map((b, i) => (
+              <div
+                key={i}
+                style={{
+                  backgroundColor: b.isWicket
+                    ? 'var(--red)'
+                    : b.runs === 6
+                    ? 'var(--purple)'
+                    : b.runs === 4
+                    ? 'var(--blue)'
+                    : b.extraType
+                    ? 'var(--orange)'
+                    : 'var(--card-alt)',
+                  color: b.runs === 0 && !b.extraType && !b.isWicket ? 'var(--muted)' : '#FFFFFF',
+                  borderColor: 'var(--border)'
+                }}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 border"
+              >
+                {b.shortLabel}
+              </div>
+            ))
           )}
         </div>
       </div>

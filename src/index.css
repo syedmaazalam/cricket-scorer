@@ -2,68 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+:root[data-theme="light"],
 :root {
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
+  --bg: #E0E1EE;
+  --card: #FFFFFF;
+  --card-alt: #EEF0F7;
+  --border: #DADCE8;
+  --primary: #8574FF;
+  --text: #2B2D6E;
+  --muted: #8A8DB3;
+  --blue: #5B9BFF;
+  --purple: #7B61F0;
+  --orange: #FFB155;
+  --red: #FF6B8B;
+  --green: #1DB954;
+  --card-shadow: 0 10px 25px -5px rgba(43, 45, 110, 0.07), 0 8px 10px -6px rgba(43, 45, 110, 0.05);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1B232C;
+  --card: #232E3A;
+  --card-alt: #2A3642;
+  --border: #34424F;
+  --primary: #1FA84F;
+  --text: #FFFFFF;
+  --muted: #8FA0B0;
+  --blue: #2D7BFF;
+  --purple: #6BD13F;
+  --orange: #F2C14E;
+  --red: #FF4D6D;
+  --green: #22C55E;
+  --card-shadow: none;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: var(--bg);
+  color: var(--text);
   overflow-x: hidden;
   touch-action: manipulation;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-/* Light Mode Overrides */
-html.light body {
-  background-color: #f8fafc;
-  color: #0f172a;
+/* Card base styling per spec: 20px radius, solid background, theme-aware shadow/border */
+.app-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow);
+  color: var(--text);
 }
 
-html.light .bg-slate-950 {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-}
-
-html.light .bg-slate-900,
-html.light .bg-slate-900\/90,
-html.light .bg-slate-920 {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #e2e8f0 !important;
-}
-
-html.light .bg-slate-800,
-html.light .bg-slate-800\/80,
-html.light .bg-slate-800\/40 {
-  background-color: #f1f5f9 !important;
-  color: #1e293b !important;
-  border-color: #cbd5e1 !important;
-}
-
-html.light .text-white {
-  color: #0f172a !important;
-}
-
-html.light .text-slate-100 {
-  color: #1e293b !important;
-}
-
-html.light .text-slate-200 {
-  color: #334155 !important;
-}
-
-html.light .text-slate-300 {
-  color: #475569 !important;
-}
-
-html.light .border-slate-800,
-html.light .border-slate-700 {
-  border-color: #e2e8f0 !important;
+.app-card-alt {
+  background-color: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text);
 }
 
 /* Safe area insets for mobile / Capacitor */
@@ -74,7 +76,6 @@ html.light .border-slate-700 {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Big touch target styling for 1-hand scoring */
 .touch-target {
   min-height: 48px;
   touch-action: manipulation;

@@ -275,3 +275,37 @@ export function computeInningsStats(inningsData) {
     overSummaries
   };
 }
+
+/**
+ * Calculates the score and wickets of an innings up to a specified number of legal balls.
+ * Used for comparative score ("score of previous team batting at that point").
+ */
+export function getScoreAtLegalBalls(innings, targetLegalBalls) {
+  if (!innings || !innings.balls || targetLegalBalls <= 0) {
+    return { score: 0, wickets: 0, overs: '0.0' };
+  }
+  let legalCount = 0;
+  let score = 0;
+  let wickets = 0;
+
+  for (const b of innings.balls) {
+    score = b.scoreAtBall || (score + (b.runs || 0) + (b.extraRuns || 0));
+    if (b.isWicket) wickets++;
+    if (b.isLegal) {
+      legalCount++;
+      if (legalCount >= targetLegalBalls) {
+        return {
+          score,
+          wickets,
+          overs: formatOvers(targetLegalBalls)
+        };
+      }
+    }
+  }
+
+  return {
+    score: innings.score || score,
+    wickets: innings.wickets || wickets,
+    overs: formatOvers(innings.legalBalls || legalCount)
+  };
+}
