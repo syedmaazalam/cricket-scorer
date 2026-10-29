@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCcw, ArrowLeftRight, AlertCircle, ShieldAlert } from 'lucide-react';
+import { RotateCcw, ArrowLeftRight, ShieldAlert, Users, Clock } from 'lucide-react';
 import { EXTRA_TYPES } from '../engine/constants.js';
 
 export default function RunPad({
@@ -7,17 +7,18 @@ export default function RunPad({
   onOpenWicket,
   onSwapBatter,
   onUndo,
+  onOpenTimeDeclare,
+  onOpenSquad,
   isFreeHit,
   disabled
 }) {
   const [extraMode, setExtraMode] = useState(null); // 'wide' | 'no_ball' | 'bye' | 'leg_bye' | null
 
-  // Quick 1-tap runs
+  // 1-tap run handler
   const handleRunClick = (runs) => {
     if (disabled) return;
 
     if (!extraMode) {
-      // Direct 1-tap normal runs
       onScoreBall({
         runs,
         extraType: null,
@@ -25,18 +26,16 @@ export default function RunPad({
         isWicket: false
       });
     } else if (extraMode === EXTRA_TYPES.WIDE) {
-      // Wide with additional runs (2 taps total)
       onScoreBall({
         runs: 0,
         extraType: EXTRA_TYPES.WIDE,
-        extraRuns: runs, // additional overthrows/byes
+        extraRuns: runs,
         isWicket: false
       });
       setExtraMode(null);
     } else if (extraMode === EXTRA_TYPES.NO_BALL) {
-      // No ball with bat runs
       onScoreBall({
-        runs: runs,
+        runs,
         extraType: EXTRA_TYPES.NO_BALL,
         extraRuns: 0,
         isWicket: false
@@ -61,152 +60,279 @@ export default function RunPad({
     }
   };
 
-  // Quick single tap extra (1 Wide or 1 No Ball)
   const handleQuickExtra = (type) => {
     if (disabled) return;
-    if (extraMode === type) {
-      setExtraMode(null);
-    } else {
-      setExtraMode(type);
-    }
+    setExtraMode(extraMode === type ? null : type);
   };
 
   return (
-    <div className="w-full bg-slate-900/90 border-t border-slate-800 p-3 pb-6 flex flex-col gap-2.5 backdrop-blur-md">
-      {/* Free Hit Banner if active */}
+    <div
+      style={{
+        backgroundColor: 'var(--card)',
+        borderColor: 'var(--border)'
+      }}
+      className="w-full border-t p-3 sm:p-4 pb-6 flex flex-col gap-2.5 shadow-lg backdrop-blur-md rounded-t-3xl"
+    >
+      {/* Free Hit Banner */}
       {isFreeHit && (
-        <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-500/20 border border-amber-400/40 rounded-xl py-1.5 px-3 text-amber-300 font-bold text-xs tracking-wider uppercase animate-pulse">
-          <ShieldAlert className="w-4 h-4 text-amber-400" />
+        <div
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--orange) 20%, transparent)',
+            borderColor: 'var(--orange)',
+            color: 'var(--orange)'
+          }}
+          className="flex items-center justify-center gap-2 border rounded-xl py-1.5 px-3 font-bold text-xs tracking-wider uppercase animate-pulse"
+        >
+          <ShieldAlert className="w-4 h-4" />
           <span>FREE HIT DELIVERY — No dismissal except Run Out</span>
         </div>
       )}
 
-      {/* Extra selection prompt when extraMode is active */}
+      {/* Extra selection prompt */}
       {extraMode && (
-        <div className="flex items-center justify-between bg-indigo-950/80 border border-indigo-500/30 rounded-xl px-3 py-1.5 text-xs text-indigo-200">
-          <span className="font-medium">
-            Select additional runs for <strong className="text-white uppercase">{extraMode.replace('_', ' ')}</strong>:
+        <div
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--primary) 20%, transparent)',
+            borderColor: 'var(--primary)',
+            color: 'var(--text)'
+          }}
+          className="flex items-center justify-between border rounded-xl px-3 py-1.5 text-xs font-semibold"
+        >
+          <span>
+            Select additional runs for <strong className="uppercase" style={{ color: 'var(--orange)' }}>{extraMode.replace('_', ' ')}</strong>:
           </span>
           <button
             onClick={() => setExtraMode(null)}
-            className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded hover:bg-slate-700"
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted)' }}
+            className="text-xs px-2 py-0.5 rounded-lg border font-bold hover:text-[var(--text)]"
           >
             Cancel
           </button>
         </div>
       )}
 
-      {/* Primary Run Grid (0, 1, 2, 3, 4, 6) */}
-      <div className="grid grid-cols-6 gap-2">
-        {[0, 1, 2, 3, 4, 6].map((run) => {
-          const isFour = run === 4;
-          const isSix = run === 6;
-          return (
-            <button
-              key={run}
-              disabled={disabled}
-              onClick={() => handleRunClick(run)}
-              className={`h-16 rounded-2xl font-black text-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-lg select-none ${
-                isSix
-                  ? 'bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-purple-900/30 hover:brightness-110'
-                  : isFour
-                  ? 'bg-gradient-to-br from-blue-600 to-cyan-700 text-white shadow-blue-900/30 hover:brightness-110'
-                  : run === 0
-                  ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700/60'
-                  : 'bg-slate-700 hover:bg-slate-650 text-white border border-slate-600/60'
-              } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-            >
-              <span>{run}</span>
-              {run === 0 && <span className="text-[10px] font-normal text-slate-400 -mt-1">DOT</span>}
-              {isFour && <span className="text-[10px] font-bold text-cyan-200 -mt-1">FOUR</span>}
-              {isSix && <span className="text-[10px] font-bold text-purple-200 -mt-1">SIX</span>}
-            </button>
-          );
-        })}
+      {/* Row 1: 0 (DOT), 1, 2, 3, 4 (FOUR), 6 (SIX) - Matching Image */}
+      <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+        {/* DOT */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(0)}
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="h-16 rounded-2xl border flex flex-col items-center justify-center font-black text-xl active:scale-95 transition-all shadow-sm group hover:border-[var(--primary)]"
+        >
+          <span className="w-2.5 h-2.5 rounded-full mb-1" style={{ backgroundColor: 'var(--muted)' }} />
+          <span className="text-[10px] font-bold" style={{ color: 'var(--muted)' }}>DOT</span>
+        </button>
+
+        {/* 1 */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(1)}
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+        >
+          1
+        </button>
+
+        {/* 2 */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(2)}
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+        >
+          2
+        </button>
+
+        {/* 3 */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(3)}
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+        >
+          3
+        </button>
+
+        {/* 4 (FOUR) - Blue accent card matching Image */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(4)}
+          style={{
+            backgroundColor: 'var(--blue)',
+            color: '#FFFFFF'
+          }}
+          className="h-16 rounded-2xl flex flex-col items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-md shadow-[var(--blue)]/30 hover:brightness-110"
+        >
+          <span>4</span>
+          <span className="text-[9px] font-black uppercase tracking-wider -mt-1 opacity-90">FOUR</span>
+        </button>
+
+        {/* 6 (SIX) - Purple accent card matching Image */}
+        <button
+          disabled={disabled}
+          onClick={() => handleRunClick(6)}
+          style={{
+            backgroundColor: 'var(--purple)',
+            color: '#FFFFFF'
+          }}
+          className="h-16 rounded-2xl flex flex-col items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-md shadow-[var(--purple)]/30 hover:brightness-110"
+        >
+          <span>6</span>
+          <span className="text-[9px] font-black uppercase tracking-wider -mt-1 opacity-90">SIX</span>
+        </button>
       </div>
 
-      {/* Extras & Action Row */}
-      <div className="grid grid-cols-5 gap-2">
-        {/* Wide button */}
+      {/* Row 2: WD, NB, BYE, LB, OUT - Matching Image */}
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+        {/* WD WIDE */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.WIDE)}
-          className={`h-12 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-            extraMode === EXTRA_TYPES.WIDE
-              ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold ring-2 ring-amber-400/50'
-              : 'bg-slate-800/80 text-amber-300 border-amber-500/30 hover:bg-slate-800'
-          }`}
+          style={{
+            backgroundColor: extraMode === EXTRA_TYPES.WIDE ? 'var(--orange)' : 'var(--card-alt)',
+            color: extraMode === EXTRA_TYPES.WIDE ? '#FFFFFF' : 'var(--orange)',
+            borderColor: 'var(--orange)'
+          }}
+          className="h-12 rounded-2xl border text-xs font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
         >
-          WD
+          <span>WD</span>
+          <span className="text-[8px] font-bold opacity-80 -mt-0.5">WIDE</span>
         </button>
 
-        {/* No Ball button */}
+        {/* NB NO BALL */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.NO_BALL)}
-          className={`h-12 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-            extraMode === EXTRA_TYPES.NO_BALL
-              ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold ring-2 ring-amber-400/50'
-              : 'bg-slate-800/80 text-amber-300 border-amber-500/30 hover:bg-slate-800'
-          }`}
+          style={{
+            backgroundColor: extraMode === EXTRA_TYPES.NO_BALL ? 'var(--orange)' : 'var(--card-alt)',
+            color: extraMode === EXTRA_TYPES.NO_BALL ? '#FFFFFF' : 'var(--orange)',
+            borderColor: 'var(--orange)'
+          }}
+          className="h-12 rounded-2xl border text-xs font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
         >
-          NB
+          <span>NB</span>
+          <span className="text-[8px] font-bold opacity-80 -mt-0.5">NO BALL</span>
         </button>
 
-        {/* Bye button */}
+        {/* BYE */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.BYE)}
-          className={`h-12 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-            extraMode === EXTRA_TYPES.BYE
-              ? 'bg-indigo-500 text-white border-indigo-400 font-extrabold ring-2 ring-indigo-400/50'
-              : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:bg-slate-800'
-          }`}
+          style={{
+            backgroundColor: extraMode === EXTRA_TYPES.BYE ? 'var(--primary)' : 'var(--card-alt)',
+            color: extraMode === EXTRA_TYPES.BYE ? '#FFFFFF' : 'var(--text)',
+            borderColor: 'var(--border)'
+          }}
+          className="h-12 rounded-2xl border text-xs font-bold flex items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           BYE
         </button>
 
-        {/* Leg Bye button */}
+        {/* LB LEG BYE */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.LEG_BYE)}
-          className={`h-12 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
-            extraMode === EXTRA_TYPES.LEG_BYE
-              ? 'bg-indigo-500 text-white border-indigo-400 font-extrabold ring-2 ring-indigo-400/50'
-              : 'bg-slate-800/80 text-slate-300 border-slate-700/60 hover:bg-slate-800'
-          }`}
+          style={{
+            backgroundColor: extraMode === EXTRA_TYPES.LEG_BYE ? 'var(--primary)' : 'var(--card-alt)',
+            color: extraMode === EXTRA_TYPES.LEG_BYE ? '#FFFFFF' : 'var(--text)',
+            borderColor: 'var(--border)'
+          }}
+          className="h-12 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
-          LB
+          <span>LB</span>
+          <span className="text-[8px] font-bold opacity-80 -mt-0.5">LEG BYE</span>
         </button>
 
-        {/* Wicket button */}
+        {/* OUT (Wicket) - Red Card matching Image */}
         <button
           disabled={disabled}
           onClick={onOpenWicket}
-          className="h-12 rounded-xl bg-gradient-to-r from-rose-600 to-red-700 text-white text-xs font-extrabold tracking-wider border border-rose-500/40 shadow-lg shadow-rose-900/40 active:scale-95 hover:brightness-110 flex items-center justify-center gap-1"
+          style={{
+            backgroundColor: 'var(--red)',
+            color: '#FFFFFF'
+          }}
+          className="h-12 rounded-2xl flex items-center justify-center gap-1 font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-md shadow-[var(--red)]/30 hover:brightness-110"
         >
+          <span>⚡</span>
           <span>OUT</span>
         </button>
       </div>
 
-      {/* Utility Controls: 1-Tap Swap Batter & 1-Tap Undo */}
+      {/* Row 3: Swap Batter & Undo (Matching Image layout) */}
       <div className="grid grid-cols-2 gap-2 pt-0.5">
         <button
           onClick={onSwapBatter}
           disabled={disabled}
-          className="h-11 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/80 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="h-11 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
-          <ArrowLeftRight className="w-4 h-4 text-emerald-400" />
-          <span>Swap Batter (1-Tap)</span>
+          <ArrowLeftRight className="w-4 h-4" style={{ color: 'var(--blue)' }} />
+          <span>Swap Batter</span>
         </button>
 
         <button
           onClick={onUndo}
           disabled={disabled}
-          className="h-11 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700/80 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--orange)',
+            color: 'var(--text)'
+          }}
+          className="h-11 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm hover:border-[var(--orange)]"
         >
-          <RotateCcw className="w-4 h-4 text-amber-400" />
+          <RotateCcw className="w-4 h-4" style={{ color: 'var(--orange)' }} />
           <span>Undo Last Ball</span>
+        </button>
+      </div>
+
+      {/* Row 4: Advanced Match Controls: Time Declare & Squad / Edit Players */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onOpenTimeDeclare}
+          disabled={disabled}
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--orange) 10%, var(--card-alt))',
+            borderColor: 'var(--border)',
+            color: 'var(--orange)'
+          }}
+          className="h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:border-[var(--orange)]"
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>Time Declare / Retire</span>
+        </button>
+
+        <button
+          onClick={onOpenSquad}
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--primary) 10%, var(--card-alt))',
+            borderColor: 'var(--border)',
+            color: 'var(--primary)'
+          }}
+          className="h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:border-[var(--primary)]"
+        >
+          <Users className="w-3.5 h-3.5" />
+          <span>Squad & Edit Players</span>
         </button>
       </div>
     </div>

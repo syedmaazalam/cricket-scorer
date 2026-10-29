@@ -201,6 +201,10 @@ export function useMatch(matchId, isViewerMode = false) {
     return dispatch(EVENT_TYPES.RETIRE_BATTER, { batter: batterName, reason, nextBatter });
   }, [dispatch]);
 
+  const editPlayer = useCallback((oldName, newName, role) => {
+    return dispatch(EVENT_TYPES.EDIT_PLAYER, { oldName, newName, role });
+  }, [dispatch]);
+
   const endInnings = useCallback((inningsPayload) => {
     return dispatch(EVENT_TYPES.END_INNINGS, inningsPayload);
   }, [dispatch]);
@@ -232,6 +236,7 @@ export function useMatch(matchId, isViewerMode = false) {
     changeBowler,
     addNewBatter,
     retireBatter,
+    editPlayer,
     endInnings,
     undo
   };

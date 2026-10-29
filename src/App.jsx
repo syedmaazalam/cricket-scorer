@@ -94,6 +94,7 @@ export default function App() {
     changeBowler,
     addNewBatter,
     retireBatter,
+    editPlayer,
     endInnings,
     undo
   } = useMatch(activeMatchId, isSpectator);
@@ -205,6 +206,8 @@ export default function App() {
           onSwapBatter={swapBatter}
           onChangeBowler={changeBowler}
           onAddNewBatter={addNewBatter}
+          onRetireBatter={retireBatter}
+          onEditPlayer={editPlayer}
           onEndInnings={endInnings}
           onUndo={undo}
           onNavigate={handleGoHome}

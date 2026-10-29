@@ -340,10 +340,15 @@ export function applyEvent(state, event) {
 
     case EVENT_TYPES.NEW_BATTER: {
       const slot = event.payload.slot || next.vacantBatterSlot || 'striker';
+      const batterName = event.payload.batter;
       if (slot === 'striker') {
-        next.striker = event.payload.batter;
+        next.striker = batterName;
       } else {
-        next.nonStriker = event.payload.batter;
+        next.nonStriker = batterName;
+      }
+      // If returning from time declare / retired hurt, remove from bench retired list
+      if (next.retiredHurtBatters) {
+        next.retiredHurtBatters = next.retiredHurtBatters.filter(b => b !== batterName);
       }
       next.needsNewBatter = false;
       next.vacantBatterSlot = null;
@@ -359,11 +364,20 @@ export function applyEvent(state, event) {
       if (reason === 'out' && curInn) {
         curInn.wickets += 1;
         checkInningsEnd(next);
+      } else if (reason === 'time_declare' || reason === 'retired_hurt') {
+        // Time declare: Can return at anytime when team needs him
+        next.retiredHurtBatters = next.retiredHurtBatters || [];
+        if (!next.retiredHurtBatters.includes(batter)) {
+          next.retiredHurtBatters.push(batter);
+        }
       }
 
       if (incomingBatter) {
         if (slot === 'striker') next.striker = incomingBatter;
         else next.nonStriker = incomingBatter;
+        if (next.retiredHurtBatters) {
+          next.retiredHurtBatters = next.retiredHurtBatters.filter(b => b !== incomingBatter);
+        }
         next.needsNewBatter = false;
         next.vacantBatterSlot = null;
       } else {
@@ -371,6 +385,41 @@ export function applyEvent(state, event) {
         else next.nonStriker = null;
         next.needsNewBatter = true;
         next.vacantBatterSlot = slot;
+      }
+      break;
+    }
+
+    case EVENT_TYPES.EDIT_PLAYER: {
+      const { oldName, newName, role } = event.payload;
+      if (oldName && newName && oldName !== newName) {
+        if (next.teams) {
+          next.teams.forEach(t => {
+            if (t.players) {
+              const idx = t.players.indexOf(oldName);
+              if (idx !== -1) t.players[idx] = newName;
+            }
+          });
+        }
+        if (next.striker === oldName) next.striker = newName;
+        if (next.nonStriker === oldName) next.nonStriker = newName;
+        if (next.currentBowler === oldName) next.currentBowler = newName;
+        if (next.previousBowler === oldName) next.previousBowler = newName;
+        if (next.retiredHurtBatters) {
+          const rIdx = next.retiredHurtBatters.indexOf(oldName);
+          if (rIdx !== -1) next.retiredHurtBatters[rIdx] = newName;
+        }
+        if (next.innings) {
+          next.innings.forEach(inn => {
+            if (inn.balls) {
+              inn.balls.forEach(b => {
+                if (b.striker === oldName) b.striker = newName;
+                if (b.nonStriker === oldName) b.nonStriker = newName;
+                if (b.bowler === oldName) b.bowler = newName;
+                if (b.dismissedPlayer === oldName) b.dismissedPlayer = newName;
+              });
+            }
+          });
+        }
       }
       break;
     }

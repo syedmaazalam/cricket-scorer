@@ -1,16 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
+import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
+import SquadModal from '../components/SquadModal.jsx';
 
 export default function Scorecard({ matchState, onBack }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
+  const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const scorecardRef = useRef(null);
 
   const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
@@ -25,7 +29,7 @@ export default function Scorecard({ matchState, onBack }) {
           <button
             onClick={onBack}
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-2xl border transition-all active:scale-95"
+            className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -156,7 +160,7 @@ export default function Scorecard({ matchState, onBack }) {
   return (
     <div
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen flex flex-col p-4 max-w-lg mx-auto select-none transition-colors"
+      className="min-h-screen flex flex-col p-2 sm:p-4 max-w-6xl mx-auto select-none transition-colors"
     >
       {/* 1. Header */}
       <div
@@ -166,7 +170,7 @@ export default function Scorecard({ matchState, onBack }) {
         <button
           onClick={onBack}
           style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-          className="p-2 rounded-2xl border transition-all active:scale-95"
+          className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -186,21 +190,33 @@ export default function Scorecard({ matchState, onBack }) {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
+
+          {/* Squads Button */}
+          <button
+            onClick={() => setIsSquadModalOpen(true)}
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
+          >
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">Squads</span>
+          </button>
+
+          {/* Share Button */}
           <button
             onClick={handleShare}
             title="Share Scorecard Link"
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-2xl border transition-all active:scale-95"
+            className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
           >
             {copied ? <Check className="w-5 h-5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-5 h-5" style={{ color: 'var(--muted)' }} />}
           </button>
         </div>
       </div>
 
-      {/* 2. Export Button Bar: Export PNG button in --primary bg, white text */}
+      {/* 2. Export Button Bar */}
       <div className="flex items-center justify-between pt-3 pb-1">
         <div style={{ color: 'var(--muted)' }} className="text-xs">
-          Match statistics and over charts
+          Match statistics, over charts & individual batsman breakdowns (tap any batter)
         </div>
 
         <button
@@ -225,7 +241,7 @@ export default function Scorecard({ matchState, onBack }) {
 
       {/* Printable / Exportable Region */}
       <div ref={scorecardRef} className="flex flex-col gap-4 mt-2">
-        {/* Match Result Banner (Solid --card) */}
+        {/* Match Result Banner */}
         {matchState?.resultSummary && (
           <div
             style={{
@@ -243,9 +259,6 @@ export default function Scorecard({ matchState, onBack }) {
             </div>
           </div>
         )}
-
-        {/* Charts: Over-by-Over & Worm Comparison */}
-        <MatchCharts matchState={matchState} />
 
         {/* Previous Team Score at this point when looking at 2nd innings */}
         {inn2?.balls?.length > 0 && (
@@ -276,9 +289,7 @@ export default function Scorecard({ matchState, onBack }) {
           </div>
         )}
 
-        {/* Innings Tabs per spec:
-            Active: --primary bg, white text;
-            Inactive: --card bg, --text text */}
+        {/* Innings Tabs */}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setActiveTab(0)}
@@ -304,251 +315,277 @@ export default function Scorecard({ matchState, onBack }) {
           </button>
         </div>
 
-        {/* Batting Section (Solid --card, headers in --muted) */}
-        <div
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--border)'
-          }}
-          className="app-card p-4"
-        >
-          <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
-            Batting — {currentInn.battingTeam}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-                  className="border-b pb-1 text-[10px] uppercase font-bold"
-                >
-                  <th className="py-1">BATTER</th>
-                  <th className="py-1 text-right">R</th>
-                  <th className="py-1 text-right">B</th>
-                  <th className="py-1 text-right">4S</th>
-                  <th className="py-1 text-right">6S</th>
-                  <th className="py-1 text-right">SR</th>
-                </tr>
-              </thead>
-              <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
-                {Object.values(currentStats.batting).length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
-                      No batting entries recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  Object.values(currentStats.batting).map((b) => (
-                    <tr key={b.name} className="py-1.5">
-                      <td className="py-1.5 font-semibold" style={{ color: 'var(--text)' }}>
-                        <div>{b.name}</div>
-                        <div style={{ color: 'var(--muted)' }} className="text-[10px] font-normal">
-                          {b.isOut ? (b.dismissal || 'out') : 'not out'}
-                        </div>
-                      </td>
-                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-black">{b.runs}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.strikeRate}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          {/* LEFT COLUMN: Batting Table, Extras, Total, Fall of Wickets */}
+          <div className="flex flex-col gap-4">
+            {/* Batting Section */}
+            <div
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)'
+              }}
+              className="app-card p-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider m-0">
+                  Batting — {currentInn.battingTeam}
+                </h3>
+                <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                  Tap batter for career/match breakdown
+                </span>
+              </div>
 
-          {/* Extras row in --muted */}
-          <div
-            style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-            className="flex items-center justify-between text-xs pt-3 border-t mt-2 font-medium"
-          >
-            <span>Extras</span>
-            <span style={{ color: 'var(--text)' }} className="font-bold">
-              {currentStats.extras.total} (wd {currentStats.extras.wides}, nb {currentStats.extras.noBalls}, b {currentStats.extras.byes}, lb {currentStats.extras.legByes})
-            </span>
-          </div>
-
-          {/* Total row: Total "0/0 (0.0 ov)" in --orange */}
-          <div
-            style={{ borderColor: 'var(--border)' }}
-            className="flex items-center justify-between text-sm font-black pt-2 border-t mt-1"
-          >
-            <span style={{ color: 'var(--text)' }}>Total</span>
-            <span style={{ color: 'var(--orange)' }}>
-              {currentInn.score}/{currentInn.wickets} ({formatOvers(currentInn.legalBalls)} ov)
-            </span>
-          </div>
-        </div>
-
-        {/* Bowling Section (Solid --card) */}
-        <div
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--border)'
-          }}
-          className="app-card p-4"
-        >
-          <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
-            Bowling — {currentInn.bowlingTeam}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-                  className="border-b pb-1 text-[10px] uppercase font-bold"
-                >
-                  <th className="py-1">BOWLER</th>
-                  <th className="py-1 text-right">O</th>
-                  <th className="py-1 text-right">M</th>
-                  <th className="py-1 text-right">R</th>
-                  <th className="py-1 text-right">W</th>
-                  <th className="py-1 text-right">ECON</th>
-                </tr>
-              </thead>
-              <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
-                {Object.values(currentStats.bowling).length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
-                      No bowling entries recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  Object.values(currentStats.bowling).map((bw) => (
-                    <tr key={bw.name} className="py-1.5">
-                      <td style={{ color: 'var(--blue)' }} className="py-1.5 font-semibold">{bw.name}</td>
-                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-mono">{bw.overs}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.maidens}</td>
-                      <td style={{ color: 'var(--text)' }} className="py-1.5 text-right">{bw.runsConceded}</td>
-                      <td style={{ color: 'var(--red)' }} className="py-1.5 text-right font-black">{bw.wickets}</td>
-                      <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.economy}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Fall of Wickets (Solid --card) */}
-        {currentStats.fow.length > 0 && (
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4"
-          >
-            <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
-              Fall of Wickets
-            </h3>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {currentStats.fow.map((f) => (
-                <div
-                  key={f.wicketNumber}
-                  style={{
-                    backgroundColor: 'var(--card-alt)',
-                    borderColor: 'var(--border)'
-                  }}
-                  className="px-2.5 py-1 rounded-xl border flex items-center gap-1.5"
-                >
-                  <span style={{ color: 'var(--red)' }} className="font-bold">{f.score}-{f.wicketNumber}</span>
-                  <span style={{ color: 'var(--text)' }}>({f.playerOut}, {f.overs} ov)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Top 3 Players of the Match (Solid --card) */}
-        {topPlayers.length > 0 && (
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4 flex flex-col gap-3"
-          >
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5" style={{ color: 'var(--orange)' }} />
-              <h3 style={{ color: 'var(--text)' }} className="text-sm font-black">
-                Top 3 Players of the Match
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              {topPlayers.map((p, idx) => {
-                const medals = ['🥇', '🥈', '🥉'];
-                return (
-                  <div
-                    key={p.playerId}
-                    style={{
-                      backgroundColor: 'var(--card-alt)',
-                      borderColor: 'var(--border)'
-                    }}
-                    className="p-3 rounded-2xl border flex flex-col gap-1.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{medals[idx]}</span>
-                        <div>
-                          <div style={{ color: 'var(--text)' }} className="font-black text-sm">{p.name}</div>
-                          <div style={{ color: 'var(--muted)' }} className="text-[10px]">{p.team}</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div style={{ color: 'var(--orange)' }} className="text-base font-black">{p.totalPoints} pts</div>
-                        <div style={{ color: 'var(--muted)' }} className="text-[10px]">Total Points</div>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{ borderColor: 'var(--border)' }}
-                      className="flex flex-wrap gap-1 text-[10px] pt-1.5 border-t"
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr
+                      style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                      className="border-b pb-1 text-[10px] uppercase font-bold"
                     >
-                      {p.breakdown.runs > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          Runs: +{p.breakdown.runs}
-                        </span>
-                      )}
-                      {p.breakdown.boundaries > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          Boundaries: +{p.breakdown.boundaries}
-                        </span>
-                      )}
-                      {p.breakdown.strikeRateBonus > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          SR Bonus: +{p.breakdown.strikeRateBonus}
-                        </span>
-                      )}
-                      {p.breakdown.wickets > 0 && (
-                        <span style={{ backgroundColor: 'color-mix(in srgb, var(--red) 15%, transparent)', color: 'var(--red)', borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)' }} className="px-1.5 py-0.5 rounded border font-bold">
-                          Wickets: +{p.breakdown.wickets}
-                        </span>
-                      )}
-                      {p.breakdown.maidens > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          Maidens: +{p.breakdown.maidens}
-                        </span>
-                      )}
-                      {p.breakdown.economyBonus > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          Economy: +{p.breakdown.economyBonus}
-                        </span>
-                      )}
-                      {p.breakdown.fielding > 0 && (
-                        <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
-                          Fielding: +{p.breakdown.fielding}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                      <th className="py-1">BATTER</th>
+                      <th className="py-1 text-right">R</th>
+                      <th className="py-1 text-right">B</th>
+                      <th className="py-1 text-right">4S</th>
+                      <th className="py-1 text-right">6S</th>
+                      <th className="py-1 text-right">SR</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
+                    {Object.values(currentStats.batting).length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
+                          No batting entries recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      Object.values(currentStats.batting).map((b) => (
+                        <tr
+                          key={b.name}
+                          onClick={() => setSelectedBatterDetails(b.name)}
+                          className="py-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                          title="Click to view complete batter breakdown & bowler match-ups"
+                        >
+                          <td className="py-1.5 font-semibold" style={{ color: 'var(--text)' }}>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold">{b.name}</span>
+                              <span className="text-[9px]" style={{ color: 'var(--primary)' }}>📊</span>
+                            </div>
+                            <div style={{ color: 'var(--muted)' }} className="text-[10px] font-normal">
+                              {b.isOut ? (b.dismissal || 'out') : 'not out'}
+                            </div>
+                          </td>
+                          <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-black">{b.runs}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono">{b.strikeRate}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Extras row */}
+              <div
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                className="flex items-center justify-between text-xs pt-3 border-t mt-2 font-medium"
+              >
+                <span>Extras</span>
+                <span style={{ color: 'var(--text)' }} className="font-bold">
+                  {currentStats.extras.total} (wd {currentStats.extras.wides}, nb {currentStats.extras.noBalls}, b {currentStats.extras.byes}, lb {currentStats.extras.legByes})
+                </span>
+              </div>
+
+              {/* Total row */}
+              <div
+                style={{ borderColor: 'var(--border)' }}
+                className="flex items-center justify-between text-sm font-black pt-2 border-t mt-1"
+              >
+                <span style={{ color: 'var(--text)' }}>Total</span>
+                <span style={{ color: 'var(--orange)' }}>
+                  {currentInn.score}/{currentInn.wickets} ({formatOvers(currentInn.legalBalls)} ov)
+                </span>
+              </div>
             </div>
+
+            {/* Fall of Wickets */}
+            {currentStats.fow.length > 0 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--border)'
+                }}
+                className="app-card p-4"
+              >
+                <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
+                  Fall of Wickets
+                </h3>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {currentStats.fow.map((f) => (
+                    <div
+                      key={f.wicketNumber}
+                      style={{
+                        backgroundColor: 'var(--card-alt)',
+                        borderColor: 'var(--border)'
+                      }}
+                      className="px-2.5 py-1 rounded-xl border flex items-center gap-1.5"
+                    >
+                      <span style={{ color: 'var(--red)' }} className="font-bold">{f.score}-{f.wicketNumber}</span>
+                      <span style={{ color: 'var(--text)' }}>({f.playerOut}, {f.overs} ov)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* RIGHT COLUMN: Over & Worm Charts, Bowling Table, Top 3 POTM */}
+          <div className="flex flex-col gap-4">
+            {/* Charts: Over-by-Over & Worm Comparison */}
+            <MatchCharts matchState={matchState} />
+
+            {/* Bowling Section */}
+            <div
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)'
+              }}
+              className="app-card p-4"
+            >
+              <h3 style={{ color: 'var(--text)' }} className="text-xs font-bold uppercase tracking-wider mb-2">
+                Bowling — {currentInn.bowlingTeam}
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr
+                      style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                      className="border-b pb-1 text-[10px] uppercase font-bold"
+                    >
+                      <th className="py-1">BOWLER</th>
+                      <th className="py-1 text-right">O</th>
+                      <th className="py-1 text-right">M</th>
+                      <th className="py-1 text-right">R</th>
+                      <th className="py-1 text-right">W</th>
+                      <th className="py-1 text-right">ECON</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
+                    {Object.values(currentStats.bowling).length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-4 text-center">
+                          No bowling entries recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      Object.values(currentStats.bowling).map((bw) => (
+                        <tr key={bw.name} className="py-1.5">
+                          <td style={{ color: 'var(--blue)' }} className="py-1.5 font-semibold">{bw.name}</td>
+                          <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-mono">{bw.overs}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.maidens}</td>
+                          <td style={{ color: 'var(--text)' }} className="py-1.5 text-right">{bw.runsConceded}</td>
+                          <td style={{ color: 'var(--red)' }} className="py-1.5 text-right font-black">{bw.wickets}</td>
+                          <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.economy}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Top 3 Players of the Match */}
+            {topPlayers.length > 0 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--border)'
+                }}
+                className="app-card p-4 flex flex-col gap-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5" style={{ color: 'var(--orange)' }} />
+                  <h3 style={{ color: 'var(--text)' }} className="text-sm font-black">
+                    Top 3 Players of the Match
+                  </h3>
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  {topPlayers.map((p, idx) => {
+                    const medals = ['🥇', '🥈', '🥉'];
+                    return (
+                      <div
+                        key={p.playerId}
+                        style={{
+                          backgroundColor: 'var(--card-alt)',
+                          borderColor: 'var(--border)'
+                        }}
+                        className="p-3 rounded-2xl border flex flex-col gap-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{medals[idx]}</span>
+                            <div>
+                              <div style={{ color: 'var(--text)' }} className="font-black text-sm">{p.name}</div>
+                              <div style={{ color: 'var(--muted)' }} className="text-[10px]">{p.team}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div style={{ color: 'var(--orange)' }} className="text-base font-black">{p.totalPoints} pts</div>
+                            <div style={{ color: 'var(--muted)' }} className="text-[10px]">Total Points</div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{ borderColor: 'var(--border)' }}
+                          className="flex flex-wrap gap-1 text-[10px] pt-1.5 border-t"
+                        >
+                          {p.breakdown.runs > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              Runs: +{p.breakdown.runs}
+                            </span>
+                          )}
+                          {p.breakdown.boundaries > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              Boundaries: +{p.breakdown.boundaries}
+                            </span>
+                          )}
+                          {p.breakdown.strikeRateBonus > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              SR Bonus: +{p.breakdown.strikeRateBonus}
+                            </span>
+                          )}
+                          {p.breakdown.wickets > 0 && (
+                            <span style={{ backgroundColor: 'color-mix(in srgb, var(--red) 15%, transparent)', color: 'var(--red)', borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)' }} className="px-1.5 py-0.5 rounded border font-bold">
+                              Wickets: +{p.breakdown.wickets}
+                            </span>
+                          )}
+                          {p.breakdown.maidens > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              Maidens: +{p.breakdown.maidens}
+                            </span>
+                          )}
+                          {p.breakdown.economyBonus > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              Economy: +{p.breakdown.economyBonus}
+                            </span>
+                          )}
+                          {p.breakdown.fielding > 0 && (
+                            <span style={{ backgroundColor: 'var(--card)', color: 'var(--text)', borderColor: 'var(--border)' }} className="px-1.5 py-0.5 rounded border">
+                              Fielding: +{p.breakdown.fielding}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Footer Credit */}
         <footer
@@ -558,6 +595,28 @@ export default function Scorecard({ matchState, onBack }) {
           Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
         </footer>
       </div>
+
+      {/* Modals */}
+      {/* 1. Batter Career & Detailed Breakdown Modal */}
+      {selectedBatterDetails && (
+        <BatterDetailsModal
+          batterName={selectedBatterDetails}
+          innings={currentInn}
+          onClose={() => setSelectedBatterDetails(null)}
+        />
+      )}
+
+      {/* 2. Squad Modal */}
+      <SquadModal
+        isOpen={isSquadModalOpen}
+        onClose={() => setIsSquadModalOpen(false)}
+        matchState={matchState}
+        isManager={false}
+        onSelectBatterDetails={(playerName) => {
+          setIsSquadModalOpen(false);
+          setSelectedBatterDetails(playerName);
+        }}
+      />
     </div>
   );
 }

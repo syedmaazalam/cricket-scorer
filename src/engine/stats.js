@@ -309,3 +309,113 @@ export function getScoreAtLegalBalls(innings, targetLegalBalls) {
     overs: formatOvers(innings.legalBalls || legalCount)
   };
 }
+
+/**
+ * Computes deep career/innings breakdown for a batter:
+ * - Head-to-head match-up against every bowler faced (runs, balls, SR, dismissals)
+ * - Complete chronological ball-by-ball timeline
+ * - Scoring distribution (dots, 1s, 2s, 3s, 4s, 6s, boundary %, dot %)
+ */
+export function computeBatterDetails(innings, batterName) {
+  if (!batterName) return null;
+  const innStats = computeInningsStats(innings || {});
+  const batterSummary = innStats.batting[batterName] || createBattingStat(batterName);
+
+  const headToHead = {};
+  const timeline = [];
+  let cumulativeRuns = 0;
+  let singles = 0;
+  let twos = 0;
+  let threes = 0;
+  let dotCount = 0;
+
+  const balls = (innings && innings.balls) ? innings.balls : [];
+
+  balls.forEach((b, idx) => {
+    if (b.striker === batterName) {
+      const runsOffBat = b.runs || 0;
+      const bowler = b.bowler || 'Unknown';
+
+      if (!headToHead[bowler]) {
+        headToHead[bowler] = {
+          bowlerName: bowler,
+          runs: 0,
+          balls: 0,
+          dots: 0,
+          fours: 0,
+          sixes: 0,
+          isDismissed: false,
+          dismissalType: null,
+          strikeRate: 0
+        };
+      }
+
+      if (b.isLegal) {
+        headToHead[bowler].balls += 1;
+      }
+      headToHead[bowler].runs += runsOffBat;
+
+      if (runsOffBat === 0 && !b.extraType) {
+        headToHead[bowler].dots += 1;
+        dotCount++;
+      } else if (runsOffBat === 1) {
+        singles++;
+      } else if (runsOffBat === 2) {
+        twos++;
+      } else if (runsOffBat === 3) {
+        threes++;
+      } else if (runsOffBat === 4) {
+        headToHead[bowler].fours += 1;
+      } else if (runsOffBat === 6) {
+        headToHead[bowler].sixes += 1;
+      }
+
+      if (b.isWicket && b.dismissedPlayer === batterName) {
+        headToHead[bowler].isDismissed = true;
+        headToHead[bowler].dismissalType = b.wicketType || 'out';
+      }
+
+      if (headToHead[bowler].balls > 0) {
+        headToHead[bowler].strikeRate = Number(((headToHead[bowler].runs / headToHead[bowler].balls) * 100).toFixed(1));
+      }
+
+      cumulativeRuns += runsOffBat;
+
+      timeline.push({
+        deliveryIndex: idx + 1,
+        ballInOver: b.legalBallNumber ? `${Math.floor((b.legalBallNumber - 1) / 6)}.${((b.legalBallNumber - 1) % 6) + 1}` : `${timeline.length + 1}`,
+        bowler,
+        runs: runsOffBat,
+        cumulativeRuns,
+        extraType: b.extraType,
+        shortLabel: b.shortLabel || (b.isWicket ? 'W' : `${runsOffBat}`),
+        isWicket: b.isWicket && b.dismissedPlayer === batterName,
+        isFour: runsOffBat === 4,
+        isSix: runsOffBat === 6,
+        isDot: runsOffBat === 0 && !b.extraType
+      });
+    }
+  });
+
+  const totalRuns = batterSummary.runs || 0;
+  const totalBalls = batterSummary.balls || 0;
+  const boundaryRuns = ((batterSummary.fours || 0) * 4) + ((batterSummary.sixes || 0) * 6);
+  const boundaryPct = totalRuns > 0 ? Number(((boundaryRuns / totalRuns) * 100).toFixed(1)) : 0;
+  const dotPct = totalBalls > 0 ? Number(((dotCount / totalBalls) * 100).toFixed(1)) : 0;
+
+  return {
+    name: batterName,
+    summary: {
+      ...batterSummary,
+      singles,
+      twos,
+      threes,
+      dotCount,
+      boundaryRuns,
+      boundaryPercentage: boundaryPct,
+      dotBallPercentage: dotPct
+    },
+    headToHead: Object.values(headToHead),
+    timeline
+  };
+}
