@@ -6,6 +6,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot
 } from 'firebase/firestore';
 import { db, ensureAnonymousAuth } from './config.js';
@@ -69,6 +70,39 @@ export async function findMatchByCode(code) {
     matchId: matchDoc.id,
     ...matchDoc.data()
   };
+}
+
+/**
+ * Searches matches by team names or match code.
+ */
+export async function searchMatches(queryText) {
+  if (!queryText) return [];
+  const clean = queryText.trim().toLowerCase();
+
+  // Try direct code match first
+  if (clean.length === 6) {
+    const direct = await findMatchByCode(clean);
+    if (direct) return [direct];
+  }
+
+  try {
+    const q = query(collection(db, 'matches'), orderBy('updatedAt', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    const matches = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const teamA = (data.teams?.[0]?.name || '').toLowerCase();
+      const teamB = (data.teams?.[1]?.name || '').toLowerCase();
+      const code = (data.code || '').toLowerCase();
+      if (teamA.includes(clean) || teamB.includes(clean) || code.includes(clean)) {
+        matches.push({ matchId: docSnap.id, ...data });
+      }
+    });
+    return matches;
+  } catch (err) {
+    console.warn('Match search error:', err);
+    return [];
+  }
 }
 
 /**

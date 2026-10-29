@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Shield, Check, Users, Clock, Shuffle } from 'lucide-react';
 import { generateMatchCode } from '../firebase/matches.js';
 import { EVENT_TYPES } from '../engine/constants.js';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 export default function Setup({ onStartMatch, onBack }) {
   const [step, setStep] = useState(1); // 1: Info & Format, 2: Squads, 3: Toss & Openers
@@ -161,7 +162,7 @@ export default function Setup({ onStartMatch, onBack }) {
           <h2 className="text-base font-black text-white m-0">Match Setup</h2>
           <span className="text-[11px] text-slate-400">Step {step} of 3</span>
         </div>
-        <div className="w-9" />
+        <ThemeToggle />
       </div>
 
       {/* Progress Bars */}

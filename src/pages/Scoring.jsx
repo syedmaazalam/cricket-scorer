@@ -6,6 +6,7 @@ import WicketModal from '../components/WicketModal.jsx';
 import BowlerModal from '../components/BowlerModal.jsx';
 import NewBatterModal from '../components/NewBatterModal.jsx';
 import InningsBreakModal from '../components/InningsBreakModal.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 
@@ -58,7 +59,7 @@ export default function Scoring({
   const battingSquad = currentBattingTeamObj?.players || [];
   const bowlingSquad = currentBowlingTeamObj?.players || [];
 
-  // Available bench batters (not yet batted / not currently batting)
+  // Available bench batters
   const dismissedBatters = innStats.fow.map(f => f.playerOut);
   const activeBatters = [matchState.striker, matchState.nonStriker].filter(Boolean);
   const availableBatters = battingSquad.filter(p => !dismissedBatters.includes(p) && !activeBatters.includes(p));
@@ -75,29 +76,39 @@ export default function Scoring({
   // Recent 8 balls
   const recentBalls = (currentInnings.balls || []).slice(-8);
 
-  const handleCopyCode = () => {
-    if (matchState.code) {
-      navigator.clipboard?.writeText(matchState.code);
+  // Direct share link
+  const shareUrl = `${window.location.origin}/?watch=${matchState.code || ''}`;
+
+  const handleShareLink = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Live Match: ${matchState.teams?.[0]?.name} vs ${matchState.teams?.[1]?.name}`,
+        text: `Watch live cricket! ${currentInnings.battingTeam} ${currentInnings.score}/${currentInnings.wickets}\nMatch Code: ${matchState.code}`,
+        url: shareUrl
+      }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(shareUrl);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between max-w-lg mx-auto select-none">
+    <div className="min-h-screen bg-slate-950 dark:bg-slate-950 light:bg-slate-50 text-slate-100 dark:text-slate-100 light:text-slate-900 flex flex-col justify-between max-w-lg mx-auto select-none transition-colors">
       {/* 1. Header Bar */}
-      <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
+      <div className="p-3 bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border-b border-slate-800 dark:border-slate-800 light:border-slate-200 flex items-center justify-between gap-2">
         <button
           onClick={() => onNavigate('home')}
-          className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+          className="p-2 rounded-xl bg-slate-800 dark:bg-slate-800 light:bg-slate-100 text-slate-400 hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        {/* Match Code Pill */}
+        {/* Match Code & Direct Link Pill */}
         <button
-          onClick={handleCopyCode}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-mono font-bold text-amber-300 hover:bg-slate-800"
+          onClick={handleShareLink}
+          title="Click to copy live shareable link"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 dark:bg-slate-800/80 light:bg-slate-100 border border-slate-700 dark:border-slate-700 light:border-slate-300 text-xs font-mono font-bold text-amber-400 hover:bg-slate-800"
         >
           <span>{matchState.code || 'MATCH'}</span>
           {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-slate-400" />}
@@ -106,14 +117,17 @@ export default function Scoring({
         {/* Sync Status Badge */}
         <SyncBadge syncStatus={syncStatus} scorerOfflineInfo={scorerOfflineInfo} />
 
-        {/* Scorecard Button */}
-        <button
-          onClick={onOpenScorecard}
-          className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-bold flex items-center gap-1"
-        >
-          <FileText className="w-4 h-4" />
-          <span className="hidden sm:inline">Scorecard</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+          {/* Scorecard Button */}
+          <button
+            onClick={onOpenScorecard}
+            className="p-2 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-bold flex items-center gap-1"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Scorecard</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Main Match Score Display */}
@@ -125,12 +139,12 @@ export default function Scoring({
               <Trophy className="w-4 h-4" />
               <span>Match Finished</span>
             </div>
-            <div className="text-base font-black text-white mt-0.5">{matchState.resultSummary}</div>
+            <div className="text-base font-black text-white dark:text-white light:text-slate-900 mt-0.5">{matchState.resultSummary}</div>
           </div>
         )}
 
         {/* Primary Score Board */}
-        <div className="bg-gradient-to-b from-slate-900 to-slate-920 border border-slate-800 rounded-3xl p-4 shadow-xl">
+        <div className="bg-gradient-to-b from-slate-900 to-slate-920 dark:from-slate-900 dark:to-slate-920 light:from-white light:to-slate-50 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-3xl p-4 shadow-xl">
           <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider pb-1">
             <span>{currentInnings.battingTeam} · Innings {curInnIndex + 1}</span>
             <span className="text-slate-500">Max Wickets: {maxWickets}</span>
@@ -138,7 +152,7 @@ export default function Scoring({
 
           <div className="flex items-baseline justify-between py-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-white tracking-tight">
+              <span className="text-5xl font-black text-white dark:text-white light:text-slate-900 tracking-tight">
                 {currentInnings.score}
               </span>
               <span className="text-3xl font-extrabold text-rose-500">
@@ -154,26 +168,26 @@ export default function Scoring({
           </div>
 
           {/* CRR & RRR / Target info */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs font-semibold">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 text-xs font-semibold">
             <div className="text-slate-400">
-              CRR: <strong className="text-white">{crr}</strong>
+              CRR: <strong className="text-white dark:text-white light:text-slate-900">{crr}</strong>
             </div>
 
             {matchState.target ? (
-              <div className="text-amber-300 font-bold">
+              <div className="text-amber-400 font-bold">
                 Need {runsNeeded} runs from {ballsRemaining} balls (RRR {rrr})
               </div>
             ) : (
               <div className="text-slate-400">
-                Projected: <strong className="text-white">{Math.round(crr * matchState.overs)}</strong>
+                Projected: <strong className="text-white dark:text-white light:text-slate-900">{Math.round(crr * matchState.overs)}</strong>
               </div>
             )}
           </div>
         </div>
 
         {/* 3. Batters Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col gap-2">
-          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800">
+        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-3 flex flex-col gap-2 shadow-sm">
+          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-200">
             <span className="col-span-6">Batter</span>
             <span className="col-span-2 text-right">R</span>
             <span className="col-span-2 text-right">B</span>
@@ -182,39 +196,39 @@ export default function Scoring({
           </div>
 
           {/* Striker */}
-          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
-            <div className="col-span-6 font-bold text-emerald-300 flex items-center gap-1.5 truncate">
+          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-emerald-950/40 dark:bg-emerald-950/40 light:bg-emerald-50 border border-emerald-500/30">
+            <div className="col-span-6 font-bold text-emerald-400 dark:text-emerald-300 light:text-emerald-700 flex items-center gap-1.5 truncate">
               <span>🏏</span>
               <span className="truncate">{matchState.striker || 'Select Striker'}</span>
-              <span className="text-[9px] font-bold bg-emerald-500/20 px-1 py-0.2 rounded text-emerald-300">*</span>
+              <span className="text-[9px] font-bold bg-emerald-500/20 px-1 py-0.2 rounded">*</span>
             </div>
-            <span className="col-span-2 text-right font-black text-white">{strikerStat.runs}</span>
+            <span className="col-span-2 text-right font-black text-white dark:text-white light:text-slate-900">{strikerStat.runs}</span>
             <span className="col-span-2 text-right text-slate-400">{strikerStat.balls}</span>
             <span className="col-span-1 text-right text-slate-400">{strikerStat.fours}</span>
             <span className="col-span-1 text-right text-slate-400">{strikerStat.sixes}</span>
           </div>
 
           {/* Non-Striker */}
-          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-slate-800/40">
-            <div className="col-span-6 font-semibold text-slate-200 truncate">
+          <div className="grid grid-cols-12 items-center text-xs py-1 px-2 rounded-xl bg-slate-800/40 dark:bg-slate-800/40 light:bg-slate-100">
+            <div className="col-span-6 font-semibold text-slate-200 dark:text-slate-200 light:text-slate-800 truncate">
               <span className="truncate">{matchState.nonStriker || 'Select Non-Striker'}</span>
             </div>
-            <span className="col-span-2 text-right font-bold text-white">{nonStrikerStat.runs}</span>
+            <span className="col-span-2 text-right font-bold text-white dark:text-white light:text-slate-900">{nonStrikerStat.runs}</span>
             <span className="col-span-2 text-right text-slate-400">{nonStrikerStat.balls}</span>
             <span className="col-span-1 text-right text-slate-400">{nonStrikerStat.fours}</span>
             <span className="col-span-1 text-right text-slate-400">{nonStrikerStat.sixes}</span>
           </div>
 
           {/* Current Partnership */}
-          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80">
-            <span>Partnership: <strong className="text-white">{innStats.partnership.runs}</strong> runs ({innStats.partnership.balls}b)</span>
-            <span>Extras: <strong className="text-white">{innStats.extras.total}</strong> (wd {innStats.extras.wides}, nb {innStats.extras.noBalls}, b {innStats.extras.byes}, lb {innStats.extras.legByes})</span>
+          <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/80 dark:border-slate-800/80 light:border-slate-200">
+            <span>Partnership: <strong className="text-white dark:text-white light:text-slate-900">{innStats.partnership.runs}</strong> runs ({innStats.partnership.balls}b)</span>
+            <span>Extras: <strong className="text-white dark:text-white light:text-slate-900">{innStats.extras.total}</strong></span>
           </div>
         </div>
 
         {/* 4. Current Bowler Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col gap-1.5">
-          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800">
+        <div className="bg-slate-900/90 dark:bg-slate-900/90 light:bg-white border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl p-3 flex flex-col gap-1.5 shadow-sm">
+          <div className="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1 border-b border-slate-800 dark:border-slate-800 light:border-slate-200">
             <span className="col-span-5">Bowler</span>
             <span className="col-span-2 text-right">O</span>
             <span className="col-span-1 text-right">M</span>
@@ -223,13 +237,13 @@ export default function Scoring({
           </div>
 
           <div className="grid grid-cols-12 items-center text-xs py-0.5">
-            <div className="col-span-5 font-bold text-cyan-300 truncate">
+            <div className="col-span-5 font-bold text-cyan-400 dark:text-cyan-300 light:text-cyan-700 truncate">
               {matchState.currentBowler || 'Select Bowler'}
             </div>
-            <span className="col-span-2 text-right font-mono text-white">{bowlerStat.overs}</span>
+            <span className="col-span-2 text-right font-mono text-white dark:text-white light:text-slate-900">{bowlerStat.overs}</span>
             <span className="col-span-1 text-right text-slate-400">{bowlerStat.maidens}</span>
-            <span className="col-span-2 text-right text-slate-300">{bowlerStat.runsConceded}</span>
-            <span className="col-span-2 text-right font-black text-rose-400">{bowlerStat.wickets}</span>
+            <span className="col-span-2 text-right text-slate-300 dark:text-slate-300 light:text-slate-700">{bowlerStat.runsConceded}</span>
+            <span className="col-span-2 text-right font-black text-rose-500">{bowlerStat.wickets}</span>
           </div>
         </div>
 
@@ -237,7 +251,7 @@ export default function Scoring({
         <div className="flex items-center gap-2 overflow-x-auto py-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 shrink-0">Recent:</span>
           {recentBalls.length === 0 ? (
-            <span className="text-xs text-slate-600">No balls yet in this innings</span>
+            <span className="text-xs text-slate-500">No balls yet in this innings</span>
           ) : (
             recentBalls.map((b, i) => {
               const isW = b.isWicket;
@@ -255,10 +269,10 @@ export default function Scoring({
                       : is4
                       ? 'bg-blue-600 text-white'
                       : isEx
-                      ? 'bg-amber-600/80 text-white'
+                      ? 'bg-amber-600 text-white'
                       : b.runs === 0
-                      ? 'bg-slate-800 text-slate-400 border border-slate-700'
-                      : 'bg-slate-700 text-white'
+                      ? 'bg-slate-800 dark:bg-slate-800 light:bg-slate-200 text-slate-400 border border-slate-700 dark:border-slate-700 light:border-slate-300'
+                      : 'bg-slate-700 dark:bg-slate-700 light:bg-slate-300 text-white dark:text-white light:text-slate-900'
                   }`}
                 >
                   {b.shortLabel}
@@ -269,7 +283,7 @@ export default function Scoring({
         </div>
       </div>
 
-      {/* 6. Run Pad (Touch-friendly 1-hand controls) */}
+      {/* 6. Run Pad (Manager Touch Controls) */}
       <RunPad
         onScoreBall={onRecordBall}
         onOpenWicket={() => setIsWicketModalOpen(true)}
