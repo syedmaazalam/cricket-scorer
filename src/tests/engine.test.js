@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
 import { getMaxWickets, isLegalDelivery, isBowlerWicket, calculateCRR, calculateRRR, formatOvers } from '../engine/rules.js';
 import { createInitialMatchState, applyEvent, replayEvents, undoLastEvent } from '../engine/reducer.js';
-import { computeInningsStats } from '../engine/stats.js';
+import { computeInningsStats, computeBatterDetails, computeBowlerDetails } from '../engine/stats.js';
 import { calculatePlayerPoints, getTopPlayers } from '../engine/potm.js';
 
 describe('Cricket Scoring Engine', () => {
@@ -379,5 +379,51 @@ describe('Cricket Scoring Engine', () => {
     expect(topPlayers[0].totalPoints).toBeGreaterThan(50);
     expect(topPlayers[1].totalPoints).toBeGreaterThan(50);
     expect(topPlayers[2].totalPoints).toBeGreaterThan(20);
+  });
+
+  it('computes detailed batter and bowler records with head-to-head match-up and timeline', () => {
+    let state = applyEvent(createInitialMatchState(), setupEvent);
+    // Ball 1: Rohit hits 4 off Starc
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 4 } });
+    // Ball 2: Rohit takes 1 off Starc (strike to Gill)
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 1 } });
+    // Ball 3: Gill hits 6 off Starc
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 6 } });
+    // Ball 4: Gill out caught off Starc
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: {
+        runs: 0,
+        wicket: {
+          type: WICKET_TYPES.CAUGHT,
+          playerOut: 'Gill',
+          fielder: 'Warner'
+        }
+      }
+    });
+
+    const batterRohit = computeBatterDetails(state.innings[0], 'Rohit');
+    expect(batterRohit.name).toBe('Rohit');
+    expect(batterRohit.summary.runs).toBe(5);
+    expect(batterRohit.summary.fours).toBe(1);
+    expect(batterRohit.headToHead.length).toBe(1);
+    expect(batterRohit.headToHead[0].bowlerName).toBe('Starc');
+    expect(batterRohit.headToHead[0].runs).toBe(5);
+    expect(batterRohit.headToHead[0].balls).toBe(2);
+    expect(batterRohit.headToHead[0].isDismissed).toBe(false);
+
+    const bowlerStarc = computeBowlerDetails(state.innings[0], 'Starc');
+    expect(bowlerStarc.name).toBe('Starc');
+    expect(bowlerStarc.summary.wickets).toBe(1);
+    expect(bowlerStarc.summary.runsConceded).toBe(11);
+    expect(bowlerStarc.headToHead.length).toBe(2); // Rohit and Gill
+
+    const vsGill = bowlerStarc.headToHead.find(h => h.batterName === 'Gill');
+    expect(vsGill.runsConceded).toBe(6);
+    expect(vsGill.wickets).toBe(1);
+
+    const vsRohit = bowlerStarc.headToHead.find(h => h.batterName === 'Rohit');
+    expect(vsRohit.runsConceded).toBe(5);
+    expect(vsRohit.wickets).toBe(0);
   });
 });

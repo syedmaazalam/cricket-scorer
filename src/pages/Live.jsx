@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users } from 'lucide-react';
+import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet } from 'lucide-react';
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -15,6 +15,7 @@ export default function Live({
   scorerOfflineInfo: propOfflineInfo,
   onBack,
   onOpenScorecard,
+  onOpenSummary,
   onMatchResolved
 }) {
   const [resolvedMatchId, setResolvedMatchId] = useState(null);
@@ -152,6 +153,18 @@ export default function Live({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {onOpenSummary && (
+            <button
+              onClick={() => onOpenSummary(matchState)}
+              style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
+              title="View Full Match Summary & Records"
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--orange)' }} />
+              <span className="hidden sm:inline">Summary</span>
+            </button>
+          )}
+
           <ThemeToggle />
 
           {/* Squad Button */}

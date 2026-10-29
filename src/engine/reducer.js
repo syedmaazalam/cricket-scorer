@@ -198,7 +198,7 @@ export function applyEvent(state, event) {
       } = event.payload;
 
       const isLegal = isLegalDelivery(extraType);
-      let calculatedWicket = isWicket;
+      let calculatedWicket = Boolean(isWicket || wicket);
 
       // Check Free Hit rules: only run-outs / obstructing / retired are valid on Free Hit
       if (next.isFreeHit && isWicket && wicket) {

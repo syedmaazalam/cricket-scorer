@@ -4,12 +4,23 @@ import Setup from './pages/Setup.jsx';
 import Scoring from './pages/Scoring.jsx';
 import Scorecard from './pages/Scorecard.jsx';
 import Live from './pages/Live.jsx';
+import MatchSummary from './pages/MatchSummary.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 
 export default function App() {
   const getInitialRouting = () => {
     const params = new URLSearchParams(window.location.search);
+    const summaryCode = params.get('summary');
+    if (summaryCode) {
+      return {
+        page: 'summary',
+        matchId: null,
+        liveCode: summaryCode.toUpperCase(),
+        isManager: false
+      };
+    }
+
     const watchCode = params.get('watch') || params.get('match') || params.get('code');
     if (watchCode) {
       return {
@@ -83,7 +94,7 @@ export default function App() {
   }, [liveCodeOrId, isManager, activeMatchId]);
 
   // Top-level match subscription: Scorer mode gets full write API; Spectator mode streams events
-  const isSpectator = !isManager && (page === 'live' || page === 'scorecard');
+  const isSpectator = !isManager && (page === 'live' || page === 'scorecard' || page === 'summary');
   const {
     matchState,
     syncStatus,
@@ -163,6 +174,14 @@ export default function App() {
     setPage('scorecard');
   };
 
+  const handleOpenSummary = (incomingState) => {
+    if (incomingState && (incomingState.code || incomingState.innings?.length > 0)) {
+      setViewedMatchState(incomingState);
+    }
+    setPreviousPage(page);
+    setPage('summary');
+  };
+
   const handleGoHome = () => {
     if (window.history.pushState) {
       const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
@@ -172,7 +191,7 @@ export default function App() {
     setPage('home');
   };
 
-  // Determine active match state for scorecard
+  // Determine active match state for scorecard & summary
   const effectiveScorecardState = (matchState && matchState.teams?.length > 0)
     ? matchState
     : (viewedMatchState || matchState);
@@ -212,6 +231,7 @@ export default function App() {
           onUndo={undo}
           onNavigate={handleGoHome}
           onOpenScorecard={() => handleOpenScorecard(matchState)}
+          onOpenSummary={() => handleOpenSummary(matchState)}
         />
       )}
 
@@ -220,6 +240,16 @@ export default function App() {
           matchState={effectiveScorecardState}
           onBack={() => {
             setPage(previousPage || (isManager ? 'scoring' : 'live'));
+          }}
+          onOpenSummary={() => handleOpenSummary(effectiveScorecardState)}
+        />
+      )}
+
+      {page === 'summary' && (
+        <MatchSummary
+          matchState={effectiveScorecardState}
+          onBack={() => {
+            setPage(previousPage || 'home');
           }}
         />
       )}
@@ -231,6 +261,7 @@ export default function App() {
           scorerOfflineInfo={scorerOfflineInfo}
           onBack={handleGoHome}
           onOpenScorecard={handleOpenScorecard}
+          onOpenSummary={handleOpenSummary}
           onMatchResolved={(id, code) => {
             setActiveMatchId(id);
             localStorage.setItem('cricket_active_match_id', id);

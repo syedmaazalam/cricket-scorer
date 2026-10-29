@@ -370,9 +370,12 @@ export function computeBatterDetails(innings, batterName) {
         headToHead[bowler].sixes += 1;
       }
 
-      if (b.isWicket && b.dismissedPlayer === batterName) {
+      const wicketType = b.wicket?.type || b.wicketType;
+      const dismissedPlayer = b.wicket?.playerOut || b.dismissedPlayer;
+
+      if (b.isWicket && dismissedPlayer === batterName) {
         headToHead[bowler].isDismissed = true;
-        headToHead[bowler].dismissalType = b.wicketType || 'out';
+        headToHead[bowler].dismissalType = wicketType || 'out';
       }
 
       if (headToHead[bowler].balls > 0) {
@@ -413,6 +416,100 @@ export function computeBatterDetails(innings, batterName) {
       dotCount,
       boundaryRuns,
       boundaryPercentage: boundaryPct,
+      dotBallPercentage: dotPct
+    },
+    headToHead: Object.values(headToHead),
+    timeline
+  };
+}
+
+/**
+ * Computes deep breakdown for a bowler:
+ * - Head-to-head performance against every batter bowled to (runs conceded, balls, dots, boundaries, wickets)
+ * - Economy and dot ball percentage
+ * - Chronological ball-by-ball timeline of deliveries bowled
+ */
+export function computeBowlerDetails(innings, bowlerName) {
+  if (!bowlerName) return null;
+  const innStats = computeInningsStats(innings || {});
+  const bowlerSummary = innStats.bowling[bowlerName] || createBowlingStat(bowlerName);
+
+  const headToHead = {};
+  const timeline = [];
+  let dotCount = 0;
+  let boundaryFours = 0;
+  let boundarySixes = 0;
+
+  const balls = (innings && innings.balls) ? innings.balls : [];
+
+  balls.forEach((b, idx) => {
+    if (b.bowler === bowlerName) {
+      const batter = b.striker || 'Unknown';
+      const runsConceded = (b.runs || 0) + (b.extraType === EXTRA_TYPES.WIDE || b.extraType === EXTRA_TYPES.NO_BALL ? (b.extraRuns || 0) : 0);
+
+      if (!headToHead[batter]) {
+        headToHead[batter] = {
+          batterName: batter,
+          runsConceded: 0,
+          balls: 0,
+          dots: 0,
+          fours: 0,
+          sixes: 0,
+          wickets: 0,
+          economy: 0
+        };
+      }
+
+      if (b.isLegal) {
+        headToHead[batter].balls += 1;
+      }
+      headToHead[batter].runsConceded += runsConceded;
+
+      const isDot = (b.runs === 0 && !b.extraType);
+      if (isDot) {
+        headToHead[batter].dots += 1;
+        dotCount++;
+      } else if (b.runs === 4) {
+        headToHead[batter].fours += 1;
+        boundaryFours++;
+      } else if (b.runs === 6) {
+        headToHead[batter].sixes += 1;
+        boundarySixes++;
+      }
+
+      const wType = b.wicket?.type || b.wicketType;
+      const isWicketCredit = b.isWicket && isBowlerWicket(wType);
+
+      if (isWicketCredit) {
+        headToHead[batter].wickets += 1;
+      }
+
+      if (headToHead[batter].balls > 0) {
+        headToHead[batter].economy = Number(((headToHead[batter].runsConceded / headToHead[batter].balls) * 6).toFixed(2));
+      }
+
+      timeline.push({
+        deliveryIndex: idx + 1,
+        batter,
+        runsConceded,
+        extraType: b.extraType,
+        shortLabel: b.shortLabel || (b.isWicket ? 'W' : `${runsConceded}`),
+        isWicket: isWicketCredit,
+        isDot
+      });
+    }
+  });
+
+  const totalLegalBalls = bowlerSummary.legalBalls || 0;
+  const dotPct = totalLegalBalls > 0 ? Number(((dotCount / totalLegalBalls) * 100).toFixed(1)) : 0;
+
+  return {
+    name: bowlerName,
+    summary: {
+      ...bowlerSummary,
+      dotCount,
+      boundaryFours,
+      boundarySixes,
       dotBallPercentage: dotPct
     },
     headToHead: Object.values(headToHead),

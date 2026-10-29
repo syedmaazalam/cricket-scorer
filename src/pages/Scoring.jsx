@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Share2, FileText, Check, Trophy, Users, Clock, ShieldCheck, Radio } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Share2, FileText, Check, Trophy, Users, Clock, ShieldCheck, Radio, FileSpreadsheet } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
 import WicketModal from '../components/WicketModal.jsx';
@@ -28,7 +28,8 @@ export default function Scoring({
   onEndInnings,
   onUndo,
   onNavigate,
-  onOpenScorecard
+  onOpenScorecard,
+  onOpenSummary
 }) {
   const [isWicketModalOpen, setIsWicketModalOpen] = useState(false);
   const [isTimeDeclareOpen, setIsTimeDeclareOpen] = useState(false);
@@ -36,6 +37,12 @@ export default function Scoring({
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState(null);
+
+  // Enforce dark theme on the manager end as required
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('cricket_theme', 'dark');
+  }, []);
 
   const curInnIndex = matchState.currentInningsIndex || 0;
   const currentInnings = matchState.innings?.[curInnIndex] || {
@@ -171,6 +178,22 @@ export default function Scoring({
         <SyncBadge syncStatus={syncStatus} scorerOfflineInfo={scorerOfflineInfo} />
 
         <div className="flex items-center gap-1.5">
+          {onOpenSummary && (
+            <button
+              onClick={() => onOpenSummary(matchState)}
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
+              className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
+              title="View Complete Match Summary & Records"
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--orange)' }} />
+              <span className="hidden sm:inline">Summary</span>
+            </button>
+          )}
+
           <ThemeToggle />
 
           {/* Scorecard Button */}
