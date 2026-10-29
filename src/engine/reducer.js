@@ -1,0 +1,466 @@
+import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from './constants.js';
+import { isLegalDelivery, doesBatterEarnRuns, isWicketValidOnFreeHit, getMaxWickets, formatOvers } from './rules.js';
+import { computeInningsStats } from './stats.js';
+
+/**
+ * Creates the initial empty state for a match.
+ */
+export function createInitialMatchState() {
+  return {
+    matchId: null,
+    code: null,
+    teams: [],
+    overs: 20,
+    playersPerTeam: 11,
+    toss: null, // { winner: string, decision: 'bat' | 'bowl' }
+    status: MATCH_STATUS.SETUP,
+    currentInningsIndex: 0,
+    innings: [],
+    striker: null,
+    nonStriker: null,
+    currentBowler: null,
+    previousBowler: null,
+    isFreeHit: false,
+    isOverComplete: false,
+    needsBowlerChange: false,
+    needsNewBatter: false,
+    vacantBatterSlot: null, // 'striker' | 'nonStriker'
+    target: null,
+    winner: null,
+    resultSummary: null,
+    events: [],
+    lastBallSummary: null
+  };
+}
+
+/**
+ * Helper to initialize an innings structure.
+ */
+function createInningsState(inningsNumber, battingTeam, bowlingTeam, maxOvers) {
+  return {
+    inningsNumber,
+    battingTeam,
+    bowlingTeam,
+    maxOvers,
+    score: 0,
+    wickets: 0,
+    legalBalls: 0,
+    balls: [],
+    isCompleted: false,
+    completedReason: null
+  };
+}
+
+/**
+ * Check if innings has ended (either all-out, overs completed, or target chased).
+ */
+function checkInningsEnd(state) {
+  const currentInnings = state.innings[state.currentInningsIndex];
+  if (!currentInnings || currentInnings.isCompleted) return state;
+
+  const maxWickets = getMaxWickets(state.playersPerTeam);
+  const maxBalls = state.overs * 6;
+
+  let ended = false;
+  let reason = null;
+
+  // 1. All out
+  if (currentInnings.wickets >= maxWickets) {
+    ended = true;
+    reason = 'All out';
+  }
+  // 2. Overs completed
+  else if (currentInnings.legalBalls >= maxBalls) {
+    ended = true;
+    reason = 'Overs completed';
+  }
+  // 3. 2nd innings target reached
+  else if (state.currentInningsIndex === 1 && state.target && currentInnings.score >= state.target) {
+    ended = true;
+    reason = 'Target chased';
+  }
+
+  if (ended) {
+    currentInnings.isCompleted = true;
+    currentInnings.completedReason = reason;
+
+    if (state.currentInningsIndex === 0) {
+      // Innings 1 ended
+      state.status = MATCH_STATUS.INNINGS_BREAK;
+      state.target = currentInnings.score + 1;
+    } else {
+      // Innings 2 ended -> Match finished
+      state.status = MATCH_STATUS.COMPLETED;
+      const inn1 = state.innings[0];
+      const inn2 = currentInnings;
+
+      if (inn2.score >= state.target) {
+        const wicketsRemaining = maxWickets - inn2.wickets;
+        state.winner = inn2.battingTeam;
+        state.resultSummary = `${inn2.battingTeam} won by ${wicketsRemaining} wicket${wicketsRemaining === 1 ? '' : 's'}`;
+      } else if (inn2.score === inn1.score) {
+        state.winner = 'Tie';
+        state.resultSummary = 'Match tied';
+      } else {
+        const runsDiff = inn1.score - inn2.score;
+        state.winner = inn1.battingTeam;
+        state.resultSummary = `${inn1.battingTeam} won by ${runsDiff} run${runsDiff === 1 ? '' : 's'}`;
+      }
+    }
+  }
+
+  return state;
+}
+
+/**
+ * Pure reducer that applies a single event to a match state.
+ */
+export function applyEvent(state, event) {
+  if (!event || !event.type) return state;
+
+  // Clone state shallowly (with array/innings copies)
+  const next = {
+    ...state,
+    innings: state.innings.map(inn => ({
+      ...inn,
+      balls: [...inn.balls]
+    })),
+    events: [...(state.events || [])]
+  };
+
+  switch (event.type) {
+    case EVENT_TYPES.MATCH_INIT: {
+      const {
+        matchId,
+        code,
+        teams,
+        overs = 20,
+        playersPerTeam = 11,
+        toss,
+        striker,
+        nonStriker,
+        bowler
+      } = event.payload;
+
+      next.matchId = matchId || next.matchId;
+      next.code = code || next.code;
+      next.teams = teams || [];
+      next.overs = Number(overs) || 20;
+      next.playersPerTeam = Number(playersPerTeam) || 11;
+      next.toss = toss || null;
+
+      // Determine batting & bowling teams from toss
+      let battingTeam = teams[0]?.name;
+      let bowlingTeam = teams[1]?.name;
+      if (toss) {
+        if (toss.decision === 'bat') {
+          battingTeam = toss.winner;
+          bowlingTeam = teams.find(t => t.name !== toss.winner)?.name || teams[1]?.name;
+        } else {
+          bowlingTeam = toss.winner;
+          battingTeam = teams.find(t => t.name !== toss.winner)?.name || teams[1]?.name;
+        }
+      }
+
+      next.currentInningsIndex = 0;
+      next.innings = [
+        createInningsState(1, battingTeam, bowlingTeam, next.overs),
+        createInningsState(2, bowlingTeam, battingTeam, next.overs)
+      ];
+
+      next.striker = striker || null;
+      next.nonStriker = nonStriker || null;
+      next.currentBowler = bowler || null;
+      next.previousBowler = null;
+      next.isFreeHit = false;
+      next.isOverComplete = false;
+      next.needsBowlerChange = false;
+      next.needsNewBatter = false;
+      next.vacantBatterSlot = null;
+      next.target = null;
+      next.winner = null;
+      next.resultSummary = null;
+      next.status = MATCH_STATUS.IN_PROGRESS;
+      break;
+    }
+
+    case EVENT_TYPES.BALL: {
+      const curInn = next.innings[next.currentInningsIndex];
+      if (!curInn || curInn.isCompleted) return next;
+
+      const {
+        runs = 0,
+        extraType = null,
+        extraRuns = 0,
+        isWicket = false,
+        wicket = null,
+        nextBatter = null
+      } = event.payload;
+
+      const isLegal = isLegalDelivery(extraType);
+      let calculatedWicket = isWicket;
+
+      // Check Free Hit rules: only run-outs / obstructing / retired are valid on Free Hit
+      if (next.isFreeHit && isWicket && wicket) {
+        if (!isWicketValidOnFreeHit(wicket.type)) {
+          calculatedWicket = false; // Disallowed dismissal on free hit
+        }
+      }
+
+      // Calculate runs added to team score
+      let totalBallRuns = 0;
+      if (extraType === EXTRA_TYPES.WIDE) {
+        totalBallRuns = 1 + extraRuns;
+      } else if (extraType === EXTRA_TYPES.NO_BALL) {
+        totalBallRuns = 1 + extraRuns + runs;
+      } else if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE || extraType === EXTRA_TYPES.PENALTY) {
+        totalBallRuns = extraRuns;
+      } else {
+        totalBallRuns = runs;
+      }
+
+      curInn.score += totalBallRuns;
+
+      if (isLegal) {
+        curInn.legalBalls += 1;
+      }
+
+      // Record ball details
+      const ballRecord = {
+        ballId: event.id || `ball_${curInn.balls.length + 1}`,
+        seq: event.seq || (next.events.length + 1),
+        striker: next.striker,
+        nonStriker: next.nonStriker,
+        bowler: next.currentBowler,
+        runs,
+        extraType,
+        extraRuns,
+        isLegal,
+        isWicket: calculatedWicket,
+        wicket: calculatedWicket ? { ...wicket, bowler: next.currentBowler } : null,
+        scoreAtBall: curInn.score,
+        legalBallsSoFar: curInn.legalBalls,
+        shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, wicket?.type)
+      };
+      curInn.balls.push(ballRecord);
+      next.lastBallSummary = ballRecord.shortLabel;
+
+      // Handle Wickets
+      let batterDismissedSlot = null;
+      if (calculatedWicket && wicket) {
+        curInn.wickets += 1;
+        const playerOut = wicket.playerOut || next.striker;
+        if (playerOut === next.striker) {
+          batterDismissedSlot = 'striker';
+        } else if (playerOut === next.nonStriker) {
+          batterDismissedSlot = 'nonStriker';
+        }
+
+        const maxWickets = getMaxWickets(next.playersPerTeam);
+        if (curInn.wickets < maxWickets) {
+          if (nextBatter) {
+            if (batterDismissedSlot === 'striker') next.striker = nextBatter;
+            else next.nonStriker = nextBatter;
+            next.needsNewBatter = false;
+            next.vacantBatterSlot = null;
+          } else {
+            next.needsNewBatter = true;
+            next.vacantBatterSlot = batterDismissedSlot || 'striker';
+            if (batterDismissedSlot === 'striker') next.striker = null;
+            else next.nonStriker = null;
+          }
+        }
+      }
+
+      // Strike Rotation
+      // Batters run on normal runs, byes, leg-byes, and no-ball bat runs
+      let physicalRunsRan = 0;
+      if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE) {
+        physicalRunsRan = extraRuns;
+      } else if (extraType === EXTRA_TYPES.WIDE) {
+        physicalRunsRan = extraRuns; // extra runs on wide (e.g. overthrows)
+      } else {
+        physicalRunsRan = runs;
+      }
+
+      // Odd runs swap ends
+      if (physicalRunsRan % 2 === 1 && next.striker && next.nonStriker) {
+        const temp = next.striker;
+        next.striker = next.nonStriker;
+        next.nonStriker = temp;
+      }
+
+      // Check Over Completion (6 legal balls in current over)
+      if (isLegal && curInn.legalBalls % 6 === 0) {
+        next.isOverComplete = true;
+        next.needsBowlerChange = true;
+        next.previousBowler = next.currentBowler;
+        next.currentBowler = null;
+
+        // Change ends at end of over
+        if (next.striker && next.nonStriker) {
+          const temp = next.striker;
+          next.striker = next.nonStriker;
+          next.nonStriker = temp;
+        }
+      } else {
+        next.isOverComplete = false;
+      }
+
+      // Update Free Hit State
+      if (extraType === EXTRA_TYPES.NO_BALL) {
+        next.isFreeHit = true;
+      } else if (next.isFreeHit) {
+        if (isLegal) {
+          next.isFreeHit = false;
+        }
+        // If wide on free hit, free hit remains true
+      }
+
+      // Check Innings End conditions
+      checkInningsEnd(next);
+      break;
+    }
+
+    case EVENT_TYPES.SWAP_BATTER: {
+      if (next.striker && next.nonStriker) {
+        const temp = next.striker;
+        next.striker = next.nonStriker;
+        next.nonStriker = temp;
+      }
+      break;
+    }
+
+    case EVENT_TYPES.CHANGE_BOWLER: {
+      next.currentBowler = event.payload.bowler;
+      next.needsBowlerChange = false;
+      next.isOverComplete = false;
+      break;
+    }
+
+    case EVENT_TYPES.NEW_BATTER: {
+      const slot = event.payload.slot || next.vacantBatterSlot || 'striker';
+      if (slot === 'striker') {
+        next.striker = event.payload.batter;
+      } else {
+        next.nonStriker = event.payload.batter;
+      }
+      next.needsNewBatter = false;
+      next.vacantBatterSlot = null;
+      break;
+    }
+
+    case EVENT_TYPES.RETIRE_BATTER: {
+      const { batter, reason, nextBatter: incomingBatter } = event.payload;
+      const curInn = next.innings[next.currentInningsIndex];
+      const isStriker = batter === next.striker;
+      const slot = isStriker ? 'striker' : 'nonStriker';
+
+      if (reason === 'out' && curInn) {
+        curInn.wickets += 1;
+        checkInningsEnd(next);
+      }
+
+      if (incomingBatter) {
+        if (slot === 'striker') next.striker = incomingBatter;
+        else next.nonStriker = incomingBatter;
+        next.needsNewBatter = false;
+        next.vacantBatterSlot = null;
+      } else {
+        if (slot === 'striker') next.striker = null;
+        else next.nonStriker = null;
+        next.needsNewBatter = true;
+        next.vacantBatterSlot = slot;
+      }
+      break;
+    }
+
+    case EVENT_TYPES.END_INNINGS: {
+      const curInn = next.innings[next.currentInningsIndex];
+      if (curInn) {
+        curInn.isCompleted = true;
+        curInn.completedReason = event.payload.reason || 'Declared / Ended';
+      }
+
+      if (next.currentInningsIndex === 0) {
+        next.status = MATCH_STATUS.IN_PROGRESS;
+        next.currentInningsIndex = 1;
+        next.target = (curInn ? curInn.score : 0) + 1;
+        next.striker = event.payload.striker || null;
+        next.nonStriker = event.payload.nonStriker || null;
+        next.currentBowler = event.payload.bowler || null;
+        next.previousBowler = null;
+        next.isFreeHit = false;
+        next.isOverComplete = false;
+        next.needsBowlerChange = false;
+        next.needsNewBatter = false;
+      } else {
+        next.status = MATCH_STATUS.COMPLETED;
+      }
+      break;
+    }
+
+    case EVENT_TYPES.REVISE_TARGET: {
+      if (event.payload.target != null) {
+        next.target = Number(event.payload.target);
+      }
+      if (event.payload.overs != null) {
+        next.overs = Number(event.payload.overs);
+      }
+      checkInningsEnd(next);
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  // Record event in history
+  next.events.push(event);
+  return next;
+}
+
+/**
+ * Generates a short, user-friendly badge label for a ball.
+ */
+function formatBallLabel(runs, extraType, extraRuns, isWicket, wicketType) {
+  if (isWicket) {
+    if (wicketType === WICKET_TYPES.RUN_OUT) return `W (RO)`;
+    return 'W';
+  }
+  if (extraType === EXTRA_TYPES.WIDE) {
+    return extraRuns > 0 ? `${1 + extraRuns}wd` : 'wd';
+  }
+  if (extraType === EXTRA_TYPES.NO_BALL) {
+    return runs > 0 ? `nb+${runs}` : 'nb';
+  }
+  if (extraType === EXTRA_TYPES.BYE) {
+    return `${extraRuns}b`;
+  }
+  if (extraType === EXTRA_TYPES.LEG_BYE) {
+    return `${extraRuns}lb`;
+  }
+  return String(runs);
+}
+
+/**
+ * Replays an array of events sequentially from scratch.
+ * Guarantees 100% deterministic state reconstruction.
+ */
+export function replayEvents(events = []) {
+  let state = createInitialMatchState();
+  for (const event of events) {
+    state = applyEvent(state, event);
+  }
+  return state;
+}
+
+/**
+ * Handles Undo by replaying events up to target sequence.
+ */
+export function undoLastEvent(events = []) {
+  if (!events || events.length === 0) return createInitialMatchState();
+  // Filter out the last scoring action
+  const eventsWithoutLast = events.slice(0, -1);
+  return replayEvents(eventsWithoutLast);
+}
