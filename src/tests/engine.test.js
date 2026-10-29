@@ -426,4 +426,33 @@ describe('Cricket Scoring Engine', () => {
     expect(vsRohit.runsConceded).toBe(5);
     expect(vsRohit.wickets).toBe(0);
   });
+
+  it('completes over and allows selecting next bowler, tracking previousBowler correctly', () => {
+    let state = applyEvent(createInitialMatchState(), setupEvent);
+    expect(state.currentBowler).toBe('Starc');
+
+    // Bowl 6 legal balls to complete the over
+    for (let i = 0; i < 6; i++) {
+      state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 1 } });
+    }
+
+    expect(state.innings[0].legalBalls).toBe(6);
+    expect(state.isOverComplete).toBe(true);
+    expect(state.needsBowlerChange).toBe(true);
+    expect(state.previousBowler).toBe('Starc');
+    expect(state.currentBowler).toBe(null);
+
+    // Select next bowler: Cummins (or custom bowler)
+    state = applyEvent(state, {
+      type: EVENT_TYPES.CHANGE_BOWLER,
+      payload: { bowler: 'Cummins' }
+    });
+
+    expect(state.currentBowler).toBe('Cummins');
+    expect(state.needsBowlerChange).toBe(false);
+    expect(state.isOverComplete).toBe(false);
+    // Cummins was added to Australia squad
+    const ausTeam = state.teams.find(t => t.name === 'Australia');
+    expect(ausTeam.players).toContain('Cummins');
+  });
 });

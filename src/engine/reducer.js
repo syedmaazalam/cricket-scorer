@@ -332,9 +332,19 @@ export function applyEvent(state, event) {
     }
 
     case EVENT_TYPES.CHANGE_BOWLER: {
-      next.currentBowler = event.payload.bowler;
+      const newBowler = event.payload.bowler;
+      next.currentBowler = newBowler;
       next.needsBowlerChange = false;
       next.isOverComplete = false;
+
+      // Ensure new bowler is in bowling team's squad list
+      const curInn = next.innings[next.currentInningsIndex];
+      if (curInn && newBowler && next.teams) {
+        const bowlingTeam = next.teams.find(t => t.name === curInn.bowlingTeam);
+        if (bowlingTeam && bowlingTeam.players && !bowlingTeam.players.includes(newBowler)) {
+          bowlingTeam.players.push(newBowler);
+        }
+      }
       break;
     }
 
@@ -352,6 +362,15 @@ export function applyEvent(state, event) {
       }
       next.needsNewBatter = false;
       next.vacantBatterSlot = null;
+
+      // Ensure new batter is in batting team's squad list
+      const curInn = next.innings[next.currentInningsIndex];
+      if (curInn && batterName && next.teams) {
+        const battingTeam = next.teams.find(t => t.name === curInn.battingTeam);
+        if (battingTeam && battingTeam.players && !battingTeam.players.includes(batterName)) {
+          battingTeam.players.push(batterName);
+        }
+      }
       break;
     }
 

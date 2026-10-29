@@ -72,12 +72,14 @@ export default function Scoring({
     economy: 0
   };
 
-  // Squads
-  const currentBattingTeamObj = matchState.teams?.find(t => t.name === currentInnings.battingTeam);
-  const currentBowlingTeamObj = matchState.teams?.find(t => t.name === currentInnings.bowlingTeam);
+  // Squads with resilient index fallbacks
+  const currentBattingTeamObj = matchState.teams?.find(t => t.name === currentInnings.battingTeam) || matchState.teams?.[curInnIndex] || matchState.teams?.[0];
+  const currentBowlingTeamObj = matchState.teams?.find(t => t.name === currentInnings.bowlingTeam) || matchState.teams?.[curInnIndex === 0 ? 1 : 0] || matchState.teams?.[1];
 
   const battingSquad = currentBattingTeamObj?.players || [];
-  const bowlingSquad = currentBowlingTeamObj?.players || [];
+  // Union of bowling squad from setup + any bowler who has already bowled in this innings
+  const recordedBowlers = Object.keys(innStats.bowling || {});
+  const bowlingSquad = Array.from(new Set([...(currentBowlingTeamObj?.players || []), ...recordedBowlers])).filter(Boolean);
 
   const dismissedBatters = innStats.fow.map(f => f.playerOut);
   const activeBatters = [matchState.striker, matchState.nonStriker].filter(Boolean);
@@ -633,8 +635,9 @@ export default function Scoring({
         <BowlerModal
           isOpen={matchState.needsBowlerChange}
           bowlingTeam={currentInnings.bowlingTeam}
+          bowlers={bowlingSquad}
           bowlersSquad={bowlingSquad}
-          previousBowler={matchState.currentBowler}
+          previousBowler={matchState.previousBowler || matchState.currentBowler}
           onSelectBowler={onChangeBowler}
         />
       )}
@@ -644,6 +647,7 @@ export default function Scoring({
         <NewBatterModal
           isOpen={matchState.needsNewBatter}
           battingTeam={currentInnings.battingTeam}
+          vacantSlot={matchState.vacantBatterSlot || 'striker'}
           availableBatters={availableBatters}
           onSelectBatter={onAddNewBatter}
         />
