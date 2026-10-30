@@ -37,7 +37,16 @@ export function useMatch(matchId, isViewerMode = false) {
         return;
       }
       try {
-        const localEvents = await getEventsForMatch(matchId);
+        let activeId = matchId;
+        // If matchId is a 6-character code, find actual matchId from snapshot
+        if (matchId.length === 6) {
+          const snap = await getMatchSnapshot(matchId);
+          if (snap?.matchId) {
+            activeId = snap.matchId;
+          }
+        }
+
+        const localEvents = await getEventsForMatch(activeId);
         if (localEvents && localEvents.length > 0) {
           const replayed = replayEvents(localEvents);
           if (isMounted) {
@@ -45,7 +54,7 @@ export function useMatch(matchId, isViewerMode = false) {
             setMatchState(replayed);
           }
         } else {
-          const snapshot = await getMatchSnapshot(matchId);
+          const snapshot = await getMatchSnapshot(activeId);
           if (snapshot && isMounted) {
             stateRef.current = snapshot;
             setMatchState(snapshot);
@@ -86,6 +95,14 @@ export function useMatch(matchId, isViewerMode = false) {
         // Scorer mode: sync any events missing locally
         for (const ev of cloudEvents) {
           await saveEventLocally(ev, true);
+        }
+        // If local state is missing progress (e.g. reopened match or reload), restore full state
+        const currentCount = (stateRef.current?.events || []).length;
+        if (currentCount < cloudEvents.length) {
+          const replayed = replayEvents(cloudEvents);
+          stateRef.current = replayed;
+          setMatchState(replayed);
+          saveMatchSnapshot(matchId, replayed).catch(() => {});
         }
       }
     });

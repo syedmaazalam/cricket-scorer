@@ -73,9 +73,10 @@ export function computeInningsStats(inningsData) {
   };
 
   let currentOver = {
-    overIndex: 0,
+    overIndex: 1,
     bowler: null,
     balls: [],
+    legalBallsCount: 0,
     runs: 0,
     wickets: 0,
     isMaiden: true
@@ -226,38 +227,37 @@ export function computeInningsStats(inningsData) {
     }
 
     // 5. Over Summaries tracking
-    if (isLegal) {
-      currentOver.balls.push(ball.shortLabel || (runs + (extraType ? ` (${extraType})` : '')));
-      currentOver.runs += ballTotalRuns;
-      if (ballTotalRuns > 0) currentOver.isMaiden = false;
-      if (isWicket) currentOver.wickets += 1;
+    currentOver.bowler = ball.bowler || currentOver.bowler;
+    currentOver.balls.push(ball.shortLabel || (runs + (extraType ? ` (${extraType})` : '')));
+    currentOver.runs += ballTotalRuns;
+    if (ballTotalRuns > 0) currentOver.isMaiden = false;
+    if (isWicket) currentOver.wickets += 1;
 
-      if (currentOver.balls.length === 6) {
-        // Over completed
+    if (isLegal) {
+      currentOver.legalBallsCount += 1;
+      if (currentOver.legalBallsCount === 6) {
+        // Complete 6 legal balls in over
         if (currentOver.isMaiden && bowler) {
           bowler.maidens += 1;
         }
         overSummaries.push({
           overIndex: overSummaries.length + 1,
-          bowler: ball.bowler,
+          bowler: currentOver.bowler,
           runs: currentOver.runs,
           wickets: currentOver.wickets,
           isMaiden: currentOver.isMaiden,
           balls: [...currentOver.balls]
         });
         currentOver = {
-          overIndex: overSummaries.length + 1,
+          overIndex: overSummaries.length + 2,
           bowler: null,
           balls: [],
+          legalBallsCount: 0,
           runs: 0,
           wickets: 0,
           isMaiden: true
         };
       }
-    } else {
-      currentOver.balls.push(ball.shortLabel || (extraType ? `1${extraType[0].toUpperCase()}` : 'Ex'));
-      currentOver.runs += ballTotalRuns;
-      if (ballTotalRuns > 0) currentOver.isMaiden = false;
     }
 
     if (bowler && bowler.legalBalls > 0) {
@@ -265,6 +265,19 @@ export function computeInningsStats(inningsData) {
       bowler.economy = Number((bowler.runsConceded / oversVal).toFixed(2));
     }
   });
+
+  // If current over has any balls bowled (ongoing over), push it so it immediately reflects in the chart
+  if (currentOver.balls.length > 0) {
+    overSummaries.push({
+      overIndex: overSummaries.length + 1,
+      bowler: currentOver.bowler,
+      runs: currentOver.runs,
+      wickets: currentOver.wickets,
+      isMaiden: currentOver.isMaiden,
+      balls: [...currentOver.balls],
+      isOngoing: currentOver.legalBallsCount < 6
+    });
+  }
 
   return {
     batting,

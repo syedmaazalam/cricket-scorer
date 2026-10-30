@@ -10,7 +10,6 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import TimeDeclareModal from '../components/TimeDeclareModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
-import ScoreAnimation from '../components/ScoreAnimation.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
@@ -36,7 +35,7 @@ export default function Scoring({
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [activeAnimation, setActiveAnimation] = useState(null);
+  const [isManualBreakOpen, setIsManualBreakOpen] = useState(false);
 
   // Enforce dark theme on the manager end as required
   useEffect(() => {
@@ -111,20 +110,8 @@ export default function Scoring({
     }
   };
 
-  // Intercept onRecordBall to trigger celebratory animations
-  const handleScoreBallWithAnimation = (ballData) => {
-    if (ballData.runs === 6) {
-      setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'OUT OF THE PARK!' });
-    } else if (ballData.runs === 4) {
-      setActiveAnimation({ type: 'four', text: '+4 BOUNDARY!', subtext: 'CRACKING SHOT!' });
-    } else if (ballData.isWicket) {
-      setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'DEPARTURE!' });
-    } else if (ballData.extraRuns > 0 && ballData.extraType) {
-      setActiveAnimation({ type: 'extra', text: `+${ballData.extraRuns + 1} ${ballData.extraType.toUpperCase()}` });
-    } else if (ballData.runs > 0) {
-      setActiveAnimation({ type: 'runs', text: `+${ballData.runs}` });
-    }
-
+  // Manager scores ball directly with zero animation lag
+  const handleScoreBall = (ballData) => {
     onRecordBall(ballData);
   };
 
@@ -549,7 +536,7 @@ export default function Scoring({
         <div className="flex flex-col gap-3">
           {/* Interactive RunPad */}
           <RunPad
-            onScoreBall={handleScoreBallWithAnimation}
+            onScoreBall={handleScoreBall}
             onOpenWicket={() => setIsWicketModalOpen(true)}
             onSwapBatter={onSwapBatter}
             onUndo={onUndo}
@@ -559,15 +546,30 @@ export default function Scoring({
             disabled={Boolean(matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
           />
 
+          {/* Manager Quick Action: End / Declare 1st Innings */}
+          {curInnIndex === 0 && matchState.status === 'in_progress' && (
+            <div className="flex items-center justify-end px-1 -mt-1">
+              <button
+                type="button"
+                onClick={() => setIsManualBreakOpen(true)}
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--orange)'
+                }}
+                className="py-1.5 px-3 rounded-xl border text-xs font-bold hover:border-[var(--orange)] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span>End / Declare 1st Innings ➔</span>
+              </button>
+            </div>
+          )}
+
           {/* Desktop Over & Worm Charts (shown directly beside scoring pad on desktop screens) */}
           <div className="hidden lg:block mt-1">
             <MatchCharts matchState={matchState} />
           </div>
         </div>
       </div>
-
-      {/* Celebratory Floating Score Animation */}
-      <ScoreAnimation animationData={activeAnimation} />
 
       {/* Modals */}
       {/* 1. Batter Career & Detailed Breakdown Modal */}
@@ -615,7 +617,7 @@ export default function Scoring({
           availableBatters={availableBatters}
           isFreeHit={matchState.isFreeHit}
           onConfirmWicket={(wicketData) => {
-            handleScoreBallWithAnimation({
+            handleScoreBall({
               runs: wicketData.runsOffBat || 0,
               extraType: wicketData.extraType || null,
               extraRuns: wicketData.extraRuns || 0,
@@ -654,13 +656,16 @@ export default function Scoring({
       )}
 
       {/* 7. Innings Break Modal */}
-      {matchState.status === 'innings_break' && (
+      {(matchState.status === 'innings_break' || isManualBreakOpen) && (
         <InningsBreakModal
-          isOpen={matchState.status === 'innings_break'}
+          isOpen={matchState.status === 'innings_break' || isManualBreakOpen}
+          firstInnings={matchState.innings[0]}
           innings1={matchState.innings[0]}
-          target={matchState.target}
-          bowlingTeamSquad={currentBowlingTeamObj?.players || []}
-          battingTeamSquad={currentBattingTeamObj?.players || []}
+          target={matchState.target || (matchState.innings[0]?.score || 0) + 1}
+          battingTeam={currentInnings.bowlingTeam}
+          bowlingTeam={currentInnings.battingTeam}
+          battingTeamSquad={currentBowlingTeamObj?.players || []}
+          bowlingTeamSquad={currentBattingTeamObj?.players || []}
           onStartInnings2={(openers) => {
             onEndInnings({
               reason: 'Innings completed',
@@ -668,6 +673,16 @@ export default function Scoring({
               nonStriker: openers.nonStriker,
               bowler: openers.bowler
             });
+            setIsManualBreakOpen(false);
+          }}
+          onStartSecondInnings={(openers) => {
+            onEndInnings({
+              reason: 'Innings completed',
+              striker: openers.striker,
+              nonStriker: openers.nonStriker,
+              bowler: openers.bowler
+            });
+            setIsManualBreakOpen(false);
           }}
         />
       )}

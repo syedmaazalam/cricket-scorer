@@ -37,40 +37,83 @@ export function openDb() {
 
 /**
  * Persists an event to local IndexedDB before any UI/network operation.
+ * Also mirrors in localStorage as fallback.
  */
 export async function saveEventLocally(event, synced = false) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('events', 'readwrite');
-    const store = tx.objectStore('events');
-    const record = {
-      ...event,
-      synced: synced ? 1 : 0,
-      savedAt: Date.now()
-    };
-    const req = store.put(record);
-    req.onsuccess = () => resolve(record);
-    req.onerror = () => reject(req.error);
-  });
+  const record = {
+    ...event,
+    synced: synced ? 1 : 0,
+    savedAt: Date.now()
+  };
+
+  try {
+    const lsKey = `cricket_events_${event.matchId}`;
+    const existing = JSON.parse(localStorage.getItem(lsKey) || '[]');
+    const idx = existing.findIndex(e => e.id === event.id || e.seq === event.seq);
+    if (idx !== -1) existing[idx] = record;
+    else existing.push(record);
+    localStorage.setItem(lsKey, JSON.stringify(existing));
+  } catch (e) {}
+
+  try {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('events', 'readwrite');
+      const store = tx.objectStore('events');
+      const req = store.put(record);
+      req.onsuccess = () => resolve(record);
+      req.onerror = () => resolve(record); // Don't throw, localStorage saved
+    });
+  } catch (err) {
+    return record;
+  }
 }
 
 /**
  * Gets all events for a match ordered by sequence.
  */
 export async function getEventsForMatch(matchId) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('events', 'readonly');
-    const store = tx.objectStore('events');
-    const index = store.index('matchId');
-    const req = index.getAll(matchId);
-    req.onsuccess = () => {
-      const results = req.result || [];
-      results.sort((a, b) => a.seq - b.seq);
-      resolve(results);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  if (!matchId) return [];
+
+  // Fallback helper from localStorage
+  const getFromLocalStorage = () => {
+    try {
+      const direct = JSON.parse(localStorage.getItem(`cricket_events_${matchId}`) || '[]');
+      if (direct.length > 0) return direct;
+      // Search all keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cricket_events_')) {
+          const evts = JSON.parse(localStorage.getItem(key) || '[]');
+          if (evts.some(e => e.matchId === matchId || e.payload?.code === matchId)) {
+            return evts;
+          }
+        }
+      }
+    } catch (e) {}
+    return [];
+  };
+
+  try {
+    const db = await openDb();
+    const results = await new Promise((resolve, reject) => {
+      const tx = db.transaction('events', 'readonly');
+      const store = tx.objectStore('events');
+      const index = store.index('matchId');
+      const req = index.getAll(matchId);
+      req.onsuccess = () => {
+        const res = req.result || [];
+        res.sort((a, b) => a.seq - b.seq);
+        resolve(res);
+      };
+      req.onerror = () => resolve([]);
+    });
+
+    if (results.length > 0) return results;
+    return getFromLocalStorage();
+  } catch (err) {
+    return getFromLocalStorage();
+  }
 }
 
 /**
@@ -106,33 +149,85 @@ export async function markEventSynced(eventId) {
  * Saves a match summary snapshot for quick listing and offline resume.
  */
 export async function saveMatchSnapshot(matchId, data) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('matches', 'readwrite');
-    const store = tx.objectStore('matches');
-    const record = {
-      matchId,
-      ...data,
-      updatedAt: Date.now()
-    };
-    const req = store.put(record);
-    req.onsuccess = () => resolve(record);
-    req.onerror = () => reject(req.error);
-  });
+  const record = {
+    matchId,
+    ...data,
+    updatedAt: Date.now()
+  };
+
+  try {
+    localStorage.setItem(`cricket_snapshot_${matchId}`, JSON.stringify(record));
+    if (data?.code) {
+      localStorage.setItem(`cricket_snapshot_${data.code}`, JSON.stringify(record));
+    }
+  } catch (e) {}
+
+  try {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('matches', 'readwrite');
+      const store = tx.objectStore('matches');
+      const req = store.put(record);
+      req.onsuccess = () => resolve(record);
+      req.onerror = () => resolve(record);
+    });
+  } catch (e) {
+    return record;
+  }
 }
 
 /**
- * Retrieves a match snapshot by ID.
+ * Retrieves a match snapshot by ID or code.
  */
 export async function getMatchSnapshot(matchId) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('matches', 'readonly');
-    const store = tx.objectStore('matches');
-    const req = store.get(matchId);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
+  if (!matchId) return null;
+
+  const getFromLocalStorage = () => {
+    try {
+      const direct = localStorage.getItem(`cricket_snapshot_${matchId}`);
+      if (direct) return JSON.parse(direct);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cricket_snapshot_')) {
+          const snap = JSON.parse(localStorage.getItem(key) || 'null');
+          if (snap && (snap.matchId === matchId || snap.code === matchId)) {
+            return snap;
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  try {
+    const db = await openDb();
+    const result = await new Promise((resolve, reject) => {
+      const tx = db.transaction('matches', 'readonly');
+      const store = tx.objectStore('matches');
+      const req = store.get(matchId);
+      req.onsuccess = () => {
+        if (req.result) {
+          resolve(req.result);
+          return;
+        }
+        // Fallback: check code index
+        if (store.indexNames.contains('code')) {
+          const codeIndex = store.index('code');
+          const codeReq = codeIndex.get(matchId);
+          codeReq.onsuccess = () => resolve(codeReq.result || null);
+          codeReq.onerror = () => resolve(null);
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+
+    if (result) return result;
+    return getFromLocalStorage();
+  } catch (err) {
+    return getFromLocalStorage();
+  }
 }
 
 /**

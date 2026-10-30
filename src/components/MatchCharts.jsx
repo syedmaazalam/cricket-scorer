@@ -32,7 +32,7 @@ export default function MatchCharts({ matchState }) {
   const allOversData = Array.from({ length: totalDisplayOvers }, (_, i) => {
     const ovNum = i + 1;
     const existing = rawOvers.find(o => o.overIndex === ovNum);
-    return existing || {
+    return existing ? { ...existing, hasData: true } : {
       overIndex: ovNum,
       runs: 0,
       wickets: 0,

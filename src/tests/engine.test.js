@@ -455,4 +455,48 @@ describe('Cricket Scoring Engine', () => {
     const ausTeam = state.teams.find(t => t.name === 'Australia');
     expect(ausTeam.players).toContain('Cummins');
   });
+
+  it('correctly calculates 22 runs in an over with boundaries and extras in overSummaries', () => {
+    let state = applyEvent(createInitialMatchState(), setupEvent);
+    // 6 + 6 + 4 + wide(1) + 4 + 1 = 22 runs
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 6 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 6 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 4 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 0, extraType: EXTRA_TYPES.WIDE, extraRuns: 0 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 4 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 1 } });
+
+    const stats = computeInningsStats(state.innings[0]);
+    expect(stats.overSummaries.length).toBe(1);
+    expect(stats.overSummaries[0].runs).toBe(22);
+    expect(stats.overSummaries[0].overIndex).toBe(1);
+  });
+
+  it('transitions to 2nd innings cleanly when END_INNINGS is applied', () => {
+    let state = applyEvent(createInitialMatchState(), setupEvent);
+    // Score some runs in 1st innings
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 6 } });
+    state = applyEvent(state, { type: EVENT_TYPES.BALL, payload: { runs: 4 } });
+    expect(state.innings[0].score).toBe(10);
+
+    // End 1st innings and start 2nd innings with openers
+    state = applyEvent(state, {
+      type: EVENT_TYPES.END_INNINGS,
+      payload: {
+        reason: 'Innings completed',
+        striker: 'Head',
+        nonStriker: 'Warner',
+        bowler: 'Bumrah'
+      }
+    });
+
+    expect(state.currentInningsIndex).toBe(1);
+    expect(state.target).toBe(11);
+    expect(state.striker).toBe('Head');
+    expect(state.nonStriker).toBe('Warner');
+    expect(state.currentBowler).toBe('Bumrah');
+    expect(state.innings[1].score).toBe(0);
+    expect(state.innings[1].wickets).toBe(0);
+    expect(state.status).toBe(MATCH_STATUS.IN_PROGRESS);
+  });
 });

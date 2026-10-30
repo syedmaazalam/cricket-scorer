@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet } from 'lucide-react';
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode } from '../firebase/matches.js';
@@ -8,6 +8,7 @@ import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
+import ScoreAnimation from '../components/ScoreAnimation.jsx';
 
 export default function Live({
   matchCodeOrId,
@@ -22,6 +23,8 @@ export default function Live({
   const [copied, setCopied] = useState(false);
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
+  const [activeAnimation, setActiveAnimation] = useState(null);
+  const prevBallCountRef = useRef(null);
 
   useEffect(() => {
     async function resolve() {
@@ -101,6 +104,26 @@ export default function Live({
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  // Trigger small celebration animations exclusively on spectator / watcher end
+  useEffect(() => {
+    const balls = currentInnings.balls || [];
+    if (prevBallCountRef.current !== null && balls.length > prevBallCountRef.current) {
+      const latestBall = balls[balls.length - 1];
+      if (latestBall) {
+        if (latestBall.isWicket) {
+          setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'OUT!' });
+        } else if (latestBall.runs === 6) {
+          setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'SIX RUNS!' });
+        } else if (latestBall.runs === 4) {
+          setActiveAnimation({ type: 'four', text: '+4 BOUNDARY!', subtext: 'FOUR RUNS!' });
+        } else if (latestBall.extraType) {
+          setActiveAnimation({ type: 'extra', text: `+${(latestBall.extraRuns || 0) + 1} ${latestBall.extraType.toUpperCase()}` });
+        }
+      }
+    }
+    prevBallCountRef.current = balls.length;
+  }, [currentInnings.balls?.length]);
 
   return (
     <div
@@ -481,6 +504,9 @@ export default function Live({
           <MatchCharts matchState={matchState} />
         </div>
       </div>
+
+      {/* Floating Spectator Live Score Animation */}
+      <ScoreAnimation animationData={activeAnimation} />
 
       {/* Modals */}
       {/* 1. Batter Career & Detailed Breakdown Modal */}
