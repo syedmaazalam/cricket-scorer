@@ -128,6 +128,9 @@ function checkInningsEnd(state) {
 export function applyEvent(state, event) {
   if (!event || !event.type) return state;
 
+  const eventTimestamp = event.timestamp || event.payload?.timestamp || 0;
+  const eventToRecord = event.timestamp ? event : (eventTimestamp ? { ...event, timestamp: eventTimestamp } : event);
+
   // Clone state shallowly (with array/innings copies)
   const next = {
     ...state,
@@ -287,6 +290,7 @@ export function applyEvent(state, event) {
         wicket: calculatedWicket ? normalizedWicket : null,
         scoreAtBall: curInn.score,
         legalBallsSoFar: curInn.legalBalls,
+        timestamp: eventTimestamp,
         shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
       };
       curInn.balls.push(ballRecord);
@@ -535,6 +539,16 @@ export function applyEvent(state, event) {
         next.status = MATCH_STATUS.IN_PROGRESS;
         next.currentInningsIndex = 1;
         next.target = (curInn ? curInn.score : 0) + 1;
+        const inn1BatTeam = curInn?.battingTeam || next.teams?.[0]?.name || 'Team 1';
+        const inn1BowlTeam = curInn?.bowlingTeam || next.teams?.[1]?.name || 'Team 2';
+
+        if (!next.innings[1]) {
+          next.innings[1] = createInningsState(2, inn1BowlTeam, inn1BatTeam, next.overs);
+        } else {
+          next.innings[1].battingTeam = inn1BowlTeam;
+          next.innings[1].bowlingTeam = inn1BatTeam;
+        }
+
         next.striker = event.payload.striker || null;
         next.nonStriker = event.payload.nonStriker || null;
         next.currentBowler = event.payload.bowler || null;
@@ -543,6 +557,20 @@ export function applyEvent(state, event) {
         next.isOverComplete = false;
         next.needsBowlerChange = false;
         next.needsNewBatter = false;
+        next.vacantBatterSlot = null;
+
+        // Ensure newly picked striker/nonStriker/bowler are in the respective team squads
+        if (next.teams) {
+          const chasingTeam = next.teams.find(t => t.name === inn1BowlTeam);
+          if (chasingTeam && chasingTeam.players) {
+            if (next.striker && !chasingTeam.players.includes(next.striker)) chasingTeam.players.push(next.striker);
+            if (next.nonStriker && !chasingTeam.players.includes(next.nonStriker)) chasingTeam.players.push(next.nonStriker);
+          }
+          const defendingTeam = next.teams.find(t => t.name === inn1BatTeam);
+          if (defendingTeam && defendingTeam.players) {
+            if (next.currentBowler && !defendingTeam.players.includes(next.currentBowler)) defendingTeam.players.push(next.currentBowler);
+          }
+        }
       } else {
         next.status = MATCH_STATUS.COMPLETED;
       }
@@ -643,6 +671,7 @@ export function applyEvent(state, event) {
         isPreviousOverCorrection: true,
         scoreAtBall: curInn.score,
         legalBallsSoFar: curInn.legalBalls,
+        timestamp: eventTimestamp,
         shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
       };
 
@@ -656,7 +685,7 @@ export function applyEvent(state, event) {
   }
 
   // Record event in history
-  next.events.push(event);
+  next.events.push(eventToRecord);
   return next;
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Share2,
   FileText,
   Check,
@@ -29,6 +30,8 @@ import CelebrationModal from '../components/CelebrationModal.jsx';
 import AddPreviousOverBallModal from '../components/AddPreviousOverBallModal.jsx';
 import BottomNavBar from '../components/BottomNavBar.jsx';
 import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
+import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
+import ActionLogsModal from '../components/ActionLogsModal.jsx';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -59,6 +62,8 @@ export default function Scoring({
   const [copiedCode, setCopiedCode] = useState(false);
   const [isManualBreakOpen, setIsManualBreakOpen] = useState(false);
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
+  const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
+  const [isActionLogsOpen, setIsActionLogsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('score');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -80,7 +85,13 @@ export default function Scoring({
 
   const prevInnings = curInnIndex === 1 ? matchState.innings?.[0] : null;
 
-  const isFirstInningsEnded = curInnIndex === 0 && (currentInnings.isCompleted || matchState.status === 'innings_break');
+  const maxWickets = getMaxWickets(matchState.playersPerTeam);
+  const isFirstInningsEnded = curInnIndex === 0 && (
+    currentInnings.isCompleted ||
+    matchState.status === 'innings_break' ||
+    (matchState.overs && currentInnings.legalBalls >= matchState.overs * 6) ||
+    currentInnings.wickets >= maxWickets
+  );
 
   // Automatically pop up innings break modal when innings 1 completes
   useEffect(() => {
@@ -89,7 +100,6 @@ export default function Scoring({
     }
   }, [isFirstInningsEnded]);
 
-  const maxWickets = getMaxWickets(matchState.playersPerTeam);
   const wicketsLeft = Math.max(0, maxWickets - currentInnings.wickets);
   const innStats = computeInningsStats(currentInnings);
 
@@ -320,6 +330,28 @@ export default function Scoring({
                 </button>
               )}
 
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsActionLogsOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-blue-400"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Action Audit Logs (Undos)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsPointingCriteriaOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-purple-400"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Pointing System Criteria</span>
+              </button>
+
               <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
 
               <div className="px-3 py-1 flex items-center justify-between text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
@@ -424,10 +456,19 @@ export default function Scoring({
                   }}
                   className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
                 >
-                  <span style={{ color: 'var(--orange)' }}>🎯</span>
-                  <span style={{ color: 'var(--muted)' }}>Need</span>
-                  <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
-                  <span style={{ color: 'var(--muted)' }} className="text-[10px]">({rrr} RRR)</span>
+                  {matchState.status === 'completed' ? (
+                    <>
+                      <span>🏆</span>
+                      <span style={{ color: 'var(--orange)' }}>Match Completed</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: 'var(--orange)' }}>🎯</span>
+                      <span style={{ color: 'var(--muted)' }}>Need</span>
+                      <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
+                      <span style={{ color: 'var(--muted)' }} className="text-[10px]">({rrr} RRR)</span>
+                    </>
+                  )}
                 </div>
               ) : isFirstInningsEnded ? (
                 <div
@@ -439,24 +480,22 @@ export default function Scoring({
                   className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
                 >
                   <span style={{ color: 'var(--orange)' }}>🎯</span>
-                  <span style={{ color: 'var(--muted)' }}>Target</span>
+                  <span style={{ color: 'var(--muted)' }}>Target for Inn 2</span>
                   <strong style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1}</strong>
                 </div>
               ) : (
-                currentInnings.legalBalls >= 6 && (
-                  <div
-                    style={{
-                      backgroundColor: 'var(--card-alt)',
-                      borderColor: 'var(--border)',
-                      color: 'var(--text)'
-                    }}
-                    className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
-                  >
-                    <span style={{ color: 'var(--blue)' }}>🎯</span>
-                    <span style={{ color: 'var(--muted)' }}>Projected</span>
-                    <strong style={{ color: 'var(--blue)' }}>{Math.round(crr * matchState.overs)}</strong>
-                  </div>
-                )
+                <div
+                  style={{
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)'
+                  }}
+                  className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <span style={{ color: 'var(--blue)' }}>🎯</span>
+                  <span style={{ color: 'var(--muted)' }}>Projected</span>
+                  <strong style={{ color: 'var(--blue)' }}>{Math.round(crr * matchState.overs) || 0}</strong>
+                </div>
               )}
             </div>
 
@@ -488,6 +527,49 @@ export default function Scoring({
             )}
           </div>
 
+          {/* PROMINENT ACTION CARD: Proceed to 2nd Innings OR End Innings early */}
+          {isFirstInningsEnded ? (
+            <div
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--orange) 15%, var(--card))',
+                borderColor: 'var(--orange)'
+              }}
+              className="w-full border-2 rounded-2xl p-3 sm:p-4 text-center shadow-lg flex flex-col items-center gap-2 animate-in zoom-in-95 my-1"
+            >
+              <div className="flex items-center gap-2 text-xs font-black uppercase text-orange-400">
+                <Trophy className="w-4 h-4 animate-bounce" />
+                <span>1st Innings Completed ({currentInnings.score}/{currentInnings.wickets})</span>
+              </div>
+              <div className="text-sm sm:text-base font-black" style={{ color: 'var(--text)' }}>
+                Target for {matchState.teams?.[1]?.name || '2nd Team'}: <span style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1} runs</span>
+              </div>
+              <button
+                onClick={() => setIsBreakModalOpen(true)}
+                style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+                className="w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg hover:brightness-105 active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
+              >
+                <span>▶ Proceed to 2nd Innings</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : curInnIndex === 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsBreakModalOpen(true)}
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--orange)'
+                }}
+                className="w-full border rounded-xl py-2 px-3 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-orange-500/10 active:scale-98 transition-all"
+                title="End or declare 1st innings early"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>End Innings / Declare Early</span>
+              </button>
+            </div>
+          )}
+
           {/* Batters Card */}
           <div
             style={{
@@ -496,16 +578,17 @@ export default function Scoring({
             }}
             className="app-card p-2.5 sm:p-3 flex flex-col gap-1.5 w-full box-border"
           >
+            {/* Header: Exact matching grid layout with batter rows */}
             <div
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider pb-1 border-b"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-[10px] font-bold uppercase tracking-wider pb-1.5 border-b px-2.5 gap-1.5 font-mono"
             >
-              <span className="col-span-6">BATTER</span>
-              <span className="col-span-2 text-right">R</span>
-              <span className="col-span-1 text-right">B</span>
-              <span className="col-span-1 text-right">4s</span>
-              <span className="col-span-1 text-right">6s</span>
-              <span className="col-span-1 text-right">SR</span>
+              <span className="truncate font-sans">BATTER</span>
+              <span className="text-right">R</span>
+              <span className="text-right">B</span>
+              <span className="text-right">4s</span>
+              <span className="text-right">6s</span>
+              <span className="text-right">SR</span>
             </div>
 
             {/* Striker Row */}
@@ -516,29 +599,30 @@ export default function Scoring({
                 backgroundColor: 'var(--green-15)',
                 borderColor: 'var(--green-30)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all shadow-sm"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2.5 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all shadow-sm gap-1.5 font-mono"
             >
-              <div style={{ color: 'var(--green)' }} className="col-span-6 font-bold truncate flex items-center gap-1.5">
-                <span className="text-sm">🏏</span>
-                <div className="truncate">
-                  <div className="font-extrabold truncate">{matchState.striker || 'Select Striker'}</div>
-                  <div className="text-[8px] font-normal opacity-80">(Striker) • Tap for stats</div>
+              <div style={{ color: 'var(--green)' }} className="min-w-0 pr-1 font-bold flex items-center gap-1.5 font-sans">
+                <span className="text-sm shrink-0">🏏</span>
+                <div className="min-w-0 truncate">
+                  <div className="font-extrabold truncate text-xs sm:text-sm">{matchState.striker || 'Select Striker'}</div>
+                  <div className="text-[9px] font-normal opacity-85 truncate">(Striker) • Tap for stats</div>
                 </div>
               </div>
-              <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black text-sm">
+
+              <span style={{ color: 'var(--text)' }} className="text-right font-black text-xs sm:text-sm font-sans tabular-nums">
                 {strikerStat.runs}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {strikerStat.balls}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {strikerStat.fours}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
                 {strikerStat.sixes}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right font-mono">
-                {strikerStat.strikeRate}
+              <span style={{ color: 'var(--text)' }} className="text-right text-xs font-bold tabular-nums">
+                {Math.round(strikerStat.strikeRate || 0)}
               </span>
             </div>
 
@@ -550,29 +634,30 @@ export default function Scoring({
                 backgroundColor: 'var(--card-alt)',
                 borderColor: 'var(--border)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all shadow-sm"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2.5 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all shadow-sm gap-1.5 font-mono"
             >
-              <div className="col-span-6 font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
-                <span className="text-sm">⛑️</span>
-                <div className="truncate">
-                  <div className="font-bold truncate">{matchState.nonStriker || 'Select Non-Striker'}</div>
-                  <div className="text-[8px] font-normal" style={{ color: 'var(--muted)' }}>(Non-Striker) • Tap for stats</div>
+              <div className="min-w-0 pr-1 font-semibold flex items-center gap-1.5 font-sans" style={{ color: 'var(--text)' }}>
+                <span className="text-sm shrink-0">⛑️</span>
+                <div className="min-w-0 truncate">
+                  <div className="font-bold truncate text-xs sm:text-sm">{matchState.nonStriker || 'Select Non-Striker'}</div>
+                  <div className="text-[9px] font-normal truncate" style={{ color: 'var(--muted)' }}>(Non-Striker) • Tap for stats</div>
                 </div>
               </div>
-              <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black text-sm">
+
+              <span style={{ color: 'var(--text)' }} className="text-right font-black text-xs sm:text-sm font-sans tabular-nums">
                 {nonStrikerStat.runs}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {nonStrikerStat.balls}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {nonStrikerStat.fours}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
                 {nonStrikerStat.sixes}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right font-mono">
-                {nonStrikerStat.strikeRate}
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums">
+                {Math.round(nonStrikerStat.strikeRate || 0)}
               </span>
             </div>
 
@@ -608,37 +693,39 @@ export default function Scoring({
             }}
             className="app-card p-2.5 sm:p-3 flex flex-col gap-1 w-full box-border"
           >
+            {/* Bowler Header: Exact matching grid layout with bowler row */}
             <div
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider pb-1 border-b"
+              className="grid grid-cols-[1fr_38px_32px_38px_38px] items-center text-[10px] font-bold uppercase tracking-wider pb-1.5 border-b px-2.5 gap-2 font-mono"
             >
-              <span className="col-span-5">BOWLER</span>
-              <span className="col-span-2 text-right">O</span>
-              <span className="col-span-1 text-right">M</span>
-              <span className="col-span-2 text-right">R</span>
-              <span className="col-span-2 text-right">W</span>
+              <span className="truncate font-sans">BOWLER</span>
+              <span className="text-right">O</span>
+              <span className="text-right">M</span>
+              <span className="text-right">R</span>
+              <span className="text-right">W</span>
             </div>
 
-            <div className="grid grid-cols-12 items-center text-xs py-1">
-              <div className="col-span-5 truncate flex items-center gap-1.5">
-                <span className="text-sm">🎯</span>
-                <div className="truncate">
-                  <div style={{ color: 'var(--blue)' }} className="font-bold truncate">
+            <div className="grid grid-cols-[1fr_38px_32px_38px_38px] items-center text-xs py-1.5 px-2.5 gap-2 font-mono">
+              <div className="min-w-0 pr-1 flex items-center gap-1.5 font-sans">
+                <span className="text-sm shrink-0">🎯</span>
+                <div className="min-w-0 truncate">
+                  <div style={{ color: 'var(--blue)' }} className="font-bold truncate text-xs sm:text-sm">
                     {matchState.currentBowler || 'Select Bowler'}
                   </div>
-                  <div className="text-[8px]" style={{ color: 'var(--muted)' }}>Active Bowler</div>
+                  <div className="text-[9px]" style={{ color: 'var(--muted)' }}>Active Bowler</div>
                 </div>
               </div>
-              <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-mono font-bold">
+
+              <span style={{ color: 'var(--text)' }} className="text-right font-mono font-bold text-xs sm:text-sm tabular-nums">
                 {bowlerStat.overs}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-1 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {bowlerStat.maidens}
               </span>
-              <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-bold">
+              <span style={{ color: 'var(--text)' }} className="text-right font-bold text-xs font-sans tabular-nums">
                 {bowlerStat.runsConceded}
               </span>
-              <span style={{ color: 'var(--red)' }} className="col-span-2 text-right font-black text-sm">
+              <span style={{ color: 'var(--red)' }} className="text-right font-black text-xs sm:text-sm font-sans tabular-nums">
                 {bowlerStat.wickets}
               </span>
             </div>
@@ -858,27 +945,35 @@ export default function Scoring({
       )}
 
       {/* 7. Innings Break Modal */}
-      {(isBreakModalOpen || isManualBreakOpen) && (
-        <InningsBreakModal
-          isOpen={isBreakModalOpen || isManualBreakOpen}
-          firstInnings={matchState.innings?.[0]}
-          innings1={matchState.innings?.[0]}
-          battingTeam={matchState.teams?.[1]?.name || currentInnings.bowlingTeam || 'Team 2'}
-          bowlingTeam={matchState.teams?.[0]?.name || currentInnings.battingTeam || 'Team 1'}
-          target={matchState.target || (matchState.innings?.[0]?.score || 0) + 1}
-          battingTeamSquad={matchState.teams?.[1]?.players || []}
-          bowlingTeamSquad={matchState.teams?.[0]?.players || []}
-          onClose={() => {
-            setIsBreakModalOpen(false);
-            setIsManualBreakOpen(false);
-          }}
-          onStartSecondInnings={(payload) => {
-            onEndInnings?.(payload);
-            setIsBreakModalOpen(false);
-            setIsManualBreakOpen(false);
-          }}
-        />
-      )}
+      {(isBreakModalOpen || isManualBreakOpen) && (() => {
+        const inn1 = matchState.innings?.[0];
+        const chasingTeamName = inn1?.bowlingTeam || matchState.teams?.[1]?.name || 'Chasing Team';
+        const defendingTeamName = inn1?.battingTeam || matchState.teams?.[0]?.name || 'Defending Team';
+        const chasingTeamObj = matchState.teams?.find(t => t.name === chasingTeamName) || matchState.teams?.[1];
+        const defendingTeamObj = matchState.teams?.find(t => t.name === defendingTeamName) || matchState.teams?.[0];
+
+        return (
+          <InningsBreakModal
+            isOpen={isBreakModalOpen || isManualBreakOpen}
+            firstInnings={inn1}
+            innings1={inn1}
+            battingTeam={chasingTeamName}
+            bowlingTeam={defendingTeamName}
+            target={matchState.target || (inn1?.score || 0) + 1}
+            battingTeamSquad={chasingTeamObj?.players || []}
+            bowlingTeamSquad={defendingTeamObj?.players || []}
+            onClose={() => {
+              setIsBreakModalOpen(false);
+              setIsManualBreakOpen(false);
+            }}
+            onStartSecondInnings={(payload) => {
+              onEndInnings?.(payload);
+              setIsBreakModalOpen(false);
+              setIsManualBreakOpen(false);
+            }}
+          />
+        );
+      })()}
 
       {/* 8. Celebration & Party Poppers Victory Modal */}
       <CelebrationModal
@@ -903,6 +998,19 @@ export default function Scoring({
           }}
         />
       )}
+
+      {/* 10. Official Pointing System Criteria Modal */}
+      <PointingCriteriaModal
+        isOpen={isPointingCriteriaOpen}
+        onClose={() => setIsPointingCriteriaOpen(false)}
+      />
+
+      {/* 11. Action Audit Logs Modal (User pressed 6 then undid that with timestamps) */}
+      <ActionLogsModal
+        isOpen={isActionLogsOpen}
+        onClose={() => setIsActionLogsOpen(false)}
+        matchId={matchState.matchId}
+      />
 
       {/* Persistent Bottom Navigation Bar */}
       <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />

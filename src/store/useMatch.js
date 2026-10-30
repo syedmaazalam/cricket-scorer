@@ -5,7 +5,8 @@ import {
   saveEventLocally,
   getEventsForMatch,
   getMatchSnapshot,
-  saveMatchSnapshot
+  saveMatchSnapshot,
+  saveActionLogLocally
 } from './localDb.js';
 import {
   createEventId,
@@ -13,7 +14,7 @@ import {
   subscribeSyncStatus,
   getDeviceId
 } from './sync.js';
-import { subscribeToMatchDoc, subscribeToMatchEvents, updateMatchHeartbeat } from '../firebase/matches.js';
+import { subscribeToMatchDoc, subscribeToMatchEvents, updateMatchHeartbeat, saveActionLogToCloud } from '../firebase/matches.js';
 
 export function useMatch(matchId, isViewerMode = false) {
   const [matchState, setMatchState] = useState(() => createInitialMatchState());
@@ -227,8 +228,23 @@ export function useMatch(matchId, isViewerMode = false) {
 
   // Scoring Helper Functions
   const recordBall = useCallback((ballPayload) => {
-    return dispatch(EVENT_TYPES.BALL, ballPayload);
-  }, [dispatch]);
+    const activeMid = matchId || stateRef.current.matchId;
+    if (activeMid) {
+      const isDot = ballPayload.runs === 0 && !ballPayload.extraType;
+      const title = isDot ? '⚪ Dot Ball (2 pts)' : `+${ballPayload.runs} Runs${ballPayload.extraType ? ` (${ballPayload.extraType})` : ''}`;
+      const logEntry = {
+        id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        matchId: activeMid,
+        timestamp: Date.now(),
+        action: 'BALL_SCORED',
+        title,
+        details: `Batter: ${stateRef.current.striker}, Bowler: ${stateRef.current.currentBowler}`
+      };
+      saveActionLogLocally(activeMid, logEntry);
+      saveActionLogToCloud(activeMid, logEntry);
+    }
+    return dispatch(EVENT_TYPES.BALL, { ...ballPayload, timestamp: Date.now() });
+  }, [dispatch, matchId]);
 
   const swapBatter = useCallback(() => {
     return dispatch(EVENT_TYPES.SWAP_BATTER);
@@ -251,8 +267,21 @@ export function useMatch(matchId, isViewerMode = false) {
   }, [dispatch]);
 
   const endInnings = useCallback((inningsPayload) => {
+    const activeMid = matchId || stateRef.current.matchId;
+    if (activeMid) {
+      const logEntry = {
+        id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        matchId: activeMid,
+        timestamp: Date.now(),
+        action: 'INNINGS_ENDED',
+        title: '🏁 1st Innings Ended / 2nd Innings Started',
+        details: `Striker: ${inningsPayload?.striker || 'N/A'}, Non-Striker: ${inningsPayload?.nonStriker || 'N/A'}, Bowler: ${inningsPayload?.bowler || 'N/A'}`
+      };
+      saveActionLogLocally(activeMid, logEntry);
+      saveActionLogToCloud(activeMid, logEntry);
+    }
     return dispatch(EVENT_TYPES.END_INNINGS, inningsPayload);
-  }, [dispatch]);
+  }, [dispatch, matchId]);
 
   const addBallToPreviousOver = useCallback((payload) => {
     return dispatch(EVENT_TYPES.ADD_BALL_TO_PREVIOUS_OVER, payload);
@@ -266,6 +295,27 @@ export function useMatch(matchId, isViewerMode = false) {
     const currentEvents = stateRef.current.events || [];
     const activeMid = matchId || stateRef.current.matchId;
     if (currentEvents.length <= 1 || !activeMid) return;
+
+    const lastEvent = currentEvents[currentEvents.length - 1];
+    let undoDesc = 'Undid previous action';
+    if (lastEvent) {
+      if (lastEvent.type === EVENT_TYPES.BALL) {
+        undoDesc = `Undid ball: reverted ${lastEvent.payload?.runs || 0} runs${lastEvent.payload?.extraType ? ` (${lastEvent.payload.extraType})` : ''}`;
+      } else {
+        undoDesc = `Undid ${lastEvent.type}`;
+      }
+    }
+
+    const logEntry = {
+      id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      matchId: activeMid,
+      timestamp: Date.now(),
+      action: 'UNDO_PRESSED',
+      title: '↩️ Undo Action Performed',
+      details: undoDesc
+    };
+    saveActionLogLocally(activeMid, logEntry);
+    saveActionLogToCloud(activeMid, logEntry);
 
     // Filter out last event and replay
     const newEvents = currentEvents.slice(0, -1);

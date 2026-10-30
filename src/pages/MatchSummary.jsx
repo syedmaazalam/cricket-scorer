@@ -4,12 +4,14 @@ import { computeInningsStats, computeBatterDetails, computeBowlerDetails } from 
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
+import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 
 export default function MatchSummary({ matchState, onBack }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
   const [copied, setCopied] = useState(false);
   const [selectedBatter, setSelectedBatter] = useState(null);
   const [selectedBowler, setSelectedBowler] = useState(null);
+  const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
 
   const teamAName = matchState?.teams?.[0]?.name || 'Team Alpha';
   const teamBName = matchState?.teams?.[1]?.name || 'Team Bravo';
@@ -19,6 +21,61 @@ export default function MatchSummary({ matchState, onBack }) {
 
   const currentInn = activeTab === 0 ? inn1 : inn2;
   const currentStats = computeInningsStats(currentInn);
+
+  // Top 3 Players of the Match computation
+  const aggregatedPlayerStats = {};
+  const aggregatedFieldingStats = {};
+
+  const getPlayerTeam = (playerName) => {
+    if (matchState?.teams && Array.isArray(matchState.teams)) {
+      for (const t of matchState.teams) {
+        if (t.players && t.players.includes(playerName)) {
+          return t.name;
+        }
+      }
+    }
+    return null;
+  };
+
+  const accumulateStats = (stats, battingTeamName, bowlingTeamName) => {
+    Object.entries(stats.batting).forEach(([name, bStat]) => {
+      const actualTeam = getPlayerTeam(name) || battingTeamName;
+      if (!aggregatedPlayerStats[name]) {
+        aggregatedPlayerStats[name] = {
+          name,
+          team: actualTeam,
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+        };
+      }
+      aggregatedPlayerStats[name].batting.runs += bStat.runs || 0;
+      aggregatedPlayerStats[name].batting.balls += bStat.balls || 0;
+      aggregatedPlayerStats[name].batting.fours += bStat.fours || 0;
+      aggregatedPlayerStats[name].batting.sixes += bStat.sixes || 0;
+    });
+
+    Object.entries(stats.bowling).forEach(([name, bwStat]) => {
+      const actualTeam = getPlayerTeam(name) || bowlingTeamName;
+      if (!aggregatedPlayerStats[name]) {
+        aggregatedPlayerStats[name] = {
+          name,
+          team: actualTeam,
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+        };
+      }
+      aggregatedPlayerStats[name].bowling.legalBalls += bwStat.legalBalls || 0;
+      aggregatedPlayerStats[name].bowling.runsConceded += bwStat.runsConceded || 0;
+      aggregatedPlayerStats[name].bowling.wickets += bwStat.wickets || 0;
+      aggregatedPlayerStats[name].bowling.maidens += bwStat.maidens || 0;
+      aggregatedPlayerStats[name].bowling.dots += bwStat.dots || 0;
+    });
+  };
+
+  accumulateStats(computeInningsStats(inn1), inn1.battingTeam, inn1.bowlingTeam);
+  accumulateStats(computeInningsStats(inn2), inn2.battingTeam, inn2.bowlingTeam);
+
+  const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats);
 
   const matchCode = matchState?.code || '';
   const summaryUrl = `${window.location.origin}/?summary=${matchCode}`;
@@ -150,6 +207,112 @@ export default function MatchSummary({ matchState, onBack }) {
         </div>
       )}
 
+      {/* Top 3 Players of the Match */}
+      {topPlayers.length > 0 && (
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--border)'
+          }}
+          className="app-card p-4 mt-3 flex flex-col gap-3 shadow-md rounded-[20px]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🏆</span>
+              <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-black uppercase tracking-wider m-0">
+                TOP 3 PLAYERS OF THE MATCH
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPointingCriteriaOpen(true)}
+              style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--primary)' }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[11px] font-bold hover:opacity-80 transition-all shadow-sm"
+            >
+              <span>ℹ️ Criteria</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {topPlayers.map((p, idx) => {
+              const medalColors = [
+                { bg: '#FFD700', text: '#805B00', border: 'rgba(255, 215, 0, 0.4)' },
+                { bg: '#C0C0C0', text: '#4A4A4A', border: 'rgba(192, 192, 192, 0.4)' },
+                { bg: '#CD7F32', text: '#5A320A', border: 'rgba(205, 127, 50, 0.4)' }
+              ];
+              const medal = medalColors[idx] || medalColors[0];
+
+              return (
+                <div
+                  key={p.playerId}
+                  style={{
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)'
+                  }}
+                  className="p-3 rounded-2xl border flex flex-col justify-between gap-2 shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        style={{
+                          backgroundColor: medal.bg,
+                          color: medal.text,
+                          boxShadow: `0 0 10px ${medal.border}`
+                        }}
+                        className="w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0"
+                      >
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text)' }} className="font-black text-xs sm:text-sm line-clamp-1">
+                          {p.name}
+                        </div>
+                        <div style={{ color: 'var(--muted)' }} className="text-[10px] font-semibold">
+                          {p.team}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div style={{ color: 'var(--orange)' }} className="font-black text-sm">
+                        {p.points} <span className="text-[10px] uppercase font-bold">pts</span>
+                      </div>
+                      <div style={{ color: 'var(--muted)' }} className="text-[9px] font-semibold">
+                        Total Points
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Badges for Runs & Boundaries / Wickets */}
+                  <div className="grid grid-cols-2 gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                        color: 'var(--green)',
+                        borderColor: 'rgba(34, 197, 94, 0.25)'
+                      }}
+                      className="px-2 py-1 rounded-xl text-center text-[10px] font-bold border truncate"
+                    >
+                      {p.breakdown?.runs > 0 ? `🏏 ${p.breakdown.runs} runs` : `🔴 ${p.breakdown?.wickets || 0} wkts`}
+                    </div>
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        color: 'var(--blue)',
+                        borderColor: 'rgba(59, 130, 246, 0.25)'
+                      }}
+                      className="px-2 py-1 rounded-xl text-center text-[10px] font-bold border truncate"
+                    >
+                      {p.breakdown?.boundaries > 0 ? `⚡ +${p.breakdown.boundaries} bound.` : `⚪ ${p.breakdown?.dots || 0} dots`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 3. Innings Tabs */}
       <div className="grid grid-cols-2 gap-2 mt-4">
         <button
@@ -223,7 +386,7 @@ export default function MatchSummary({ matchState, onBack }) {
                         </span>
                       </div>
                       <div className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--muted)' }}>
-                        {summary.runs} runs off {summary.balls} balls • SR {summary.strikeRate} • {summary.fours} 4s • {summary.sixes} 6s
+                        {summary.runs} runs off {summary.balls} balls • SR {Math.round(summary.strikeRate || 0)} • {summary.fours} 4s • {summary.sixes} 6s
                       </div>
                     </div>
 
@@ -278,7 +441,7 @@ export default function MatchSummary({ matchState, onBack }) {
                                   <td className="py-1.5 text-right" style={{ color: 'var(--muted)' }}>{h2h.dots}</td>
                                   <td className="py-1.5 text-right" style={{ color: 'var(--muted)' }}>{h2h.fours}</td>
                                   <td className="py-1.5 text-right" style={{ color: 'var(--muted)' }}>{h2h.sixes}</td>
-                                  <td className="py-1.5 text-right font-mono" style={{ color: 'var(--primary)' }}>{h2h.strikeRate}</td>
+                                  <td className="py-1.5 text-right font-mono" style={{ color: 'var(--primary)' }}>{Math.round(h2h.strikeRate || 0)}</td>
                                   <td className="py-1.5 text-right font-semibold" style={{ color: h2h.isDismissed ? 'var(--red)' : 'var(--green)' }}>
                                     {h2h.isDismissed ? 'Dismissed' : 'Not Out'}
                                   </td>
@@ -447,12 +610,21 @@ export default function MatchSummary({ matchState, onBack }) {
         )}
       </div>
 
+      {/* Pointing Criteria Modal */}
+      <PointingCriteriaModal
+        isOpen={isPointingCriteriaOpen}
+        onClose={() => setIsPointingCriteriaOpen(false)}
+      />
+
       {/* Footer Attribution */}
       <footer
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-        className="mt-6 pt-4 pb-2 text-center text-xs border-t font-semibold"
+        className="mt-6 pt-4 pb-2 text-center text-xs border-t font-semibold leading-normal"
       >
-        CricketScorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+        {"CricketScorer • Developed with 🏏 by "}
+        <span style={{ color: 'var(--text)' }} className="font-bold">
+          Syed Maaz Alam
+        </span>
       </footer>
     </div>
   );

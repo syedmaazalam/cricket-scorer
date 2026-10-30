@@ -327,7 +327,7 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
                   <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: 'var(--border)' }}>
                     <span className="font-bold text-[11px]" style={{ color: 'var(--muted)' }}>BATTING</span>
                     <span className="font-bold" style={{ color: 'var(--text)' }}>
-                      {bat.runs} runs · {bat.balls} balls · {bat.fours} 4s · {bat.sixes} 6s · SR {bat.strikeRate}
+                      {bat.runs} runs · {bat.balls} balls · {bat.fours} 4s · {bat.sixes} 6s · SR {Math.round(bat.strikeRate || 0)}
                     </span>
                   </div>
 
@@ -353,7 +353,7 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         {Object.entries(playerH2H).map(([bowlerName, record]) => {
-                          const sr = record.balls > 0 ? ((record.runs / record.balls) * 100).toFixed(1) : 0;
+                          const sr = record.balls > 0 ? Math.round((record.runs / record.balls) * 100) : 0;
                           return (
                             <div
                               key={bowlerName}

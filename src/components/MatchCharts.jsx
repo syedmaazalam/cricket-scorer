@@ -58,10 +58,14 @@ export default function MatchCharts({ matchState }) {
   const yAxisSteps = [0, yAxisMax * 0.25, yAxisMax * 0.5, yAxisMax * 0.75, yAxisMax];
 
   // Best Over, Average, Total Stats for bottom cards
+  // Best Bowling Over: Fewest runs conceded is best (e.g. 5 runs beats 10 runs). Wickets add major merit.
   const recordedOvers = allOversData.filter(o => o.hasData);
   let bestOverObj = null;
   if (recordedOvers.length > 0) {
-    bestOverObj = recordedOvers.reduce((prev, curr) => (curr.runs > prev.runs ? curr : prev), recordedOvers[0]);
+    const getBowlingQuality = (ov) => {
+      return (ov.runs || 0) - ((ov.wickets || 0) * 12);
+    };
+    bestOverObj = recordedOvers.reduce((best, curr) => (getBowlingQuality(curr) < getBowlingQuality(best) ? curr : best), recordedOvers[0]);
   }
   const bestOverRuns = bestOverObj ? bestOverObj.runs : 0;
   const bestOverNumber = bestOverObj ? bestOverObj.overIndex : null;
@@ -237,16 +241,17 @@ export default function MatchCharts({ matchState }) {
             backgroundColor: 'var(--card-alt)',
             borderColor: 'var(--border)'
           }}
-          className="flex items-center gap-1 p-1 rounded-2xl border"
+          className="flex items-center gap-1.5 p-1 rounded-2xl border"
         >
           <button
             type="button"
             onClick={() => setActiveChart('runs')}
             style={{
               backgroundColor: activeChart === 'runs' ? 'var(--primary)' : 'transparent',
-              color: activeChart === 'runs' ? '#FFFFFF' : 'var(--muted)'
+              color: activeChart === 'runs' ? '#FFFFFF' : 'var(--muted)',
+              lineHeight: '1.4'
             }}
-            className="px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm"
+            className="min-h-[30px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm flex items-center justify-center"
           >
             Run Rate
           </button>
@@ -255,9 +260,10 @@ export default function MatchCharts({ matchState }) {
             onClick={() => setActiveChart('worm')}
             style={{
               backgroundColor: activeChart === 'worm' ? 'var(--primary)' : 'transparent',
-              color: activeChart === 'worm' ? '#FFFFFF' : 'var(--muted)'
+              color: activeChart === 'worm' ? '#FFFFFF' : 'var(--muted)',
+              lineHeight: '1.4'
             }}
-            className="px-3 py-1 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm"
+            className="min-h-[30px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm flex items-center justify-center"
           >
             Worm
           </button>
@@ -343,15 +349,16 @@ export default function MatchCharts({ matchState }) {
           </div>
 
           {/* Interactive Tooltip shown at top parallel to X-axis (Matching Image 2) */}
-          <div className="h-8 flex items-center justify-center relative">
+          <div className="min-h-[36px] py-1 flex items-center justify-center relative my-1">
             {activeTooltipOver && activeTooltipOver.hasData ? (
               <div
                 style={{
                   backgroundColor: 'var(--card-alt)',
                   borderColor: 'var(--border)',
-                  color: 'var(--text)'
+                  color: 'var(--text)',
+                  lineHeight: '1.4'
                 }}
-                className="px-3.5 py-1 rounded-full text-xs font-black shadow-md border flex items-center gap-2 animate-fadeIn"
+                className="px-4 py-1.5 min-h-[30px] rounded-full text-xs font-black shadow-md border flex items-center gap-2 animate-fadeIn"
               >
                 <span>Over {activeTooltipOver.overIndex}</span>
                 <span style={{ color: 'var(--muted)' }}>•</span>
@@ -366,7 +373,7 @@ export default function MatchCharts({ matchState }) {
                 )}
               </div>
             ) : (
-              <span className="text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
+              <span className="text-[11px] font-medium leading-normal" style={{ color: 'var(--muted)' }}>
                 Tap any over bar to view ball details
               </span>
             )}
@@ -591,15 +598,16 @@ export default function MatchCharts({ matchState }) {
       {activeChart === 'worm' && (
         <div className="flex flex-col gap-2">
           {/* Interactive Tooltip shown parallel to X-Axis */}
-          <div className="h-8 flex items-center justify-center">
+          <div className="min-h-[36px] py-1 flex items-center justify-center my-1">
             {activeWormPoint ? (
               <div
                 style={{
                   backgroundColor: 'var(--card-alt)',
                   borderColor: 'var(--border)',
-                  color: 'var(--text)'
+                  color: 'var(--text)',
+                  lineHeight: '1.4'
                 }}
-                className="px-4 py-1 rounded-full text-xs font-black shadow-md border flex items-center gap-2"
+                className="px-4 py-1.5 min-h-[30px] rounded-full text-xs font-black shadow-md border flex items-center gap-2"
               >
                 <span>Over {activeWormPoint.over}</span>
                 <span style={{ color: 'var(--muted)' }}>•</span>
@@ -607,7 +615,11 @@ export default function MatchCharts({ matchState }) {
                   {activeWormPoint.score}/{activeWormPoint.wickets}
                 </span>
               </div>
-            ) : null}
+            ) : (
+              <span className="text-[11px] font-medium leading-normal" style={{ color: 'var(--muted)' }}>
+                Tap any over node to view cumulative score
+              </span>
+            )}
           </div>
 
           <div className="w-full overflow-x-auto">
@@ -658,7 +670,7 @@ export default function MatchCharts({ matchState }) {
                 );
               })}
 
-              {/* Target Line if chasing */}
+              {/* Target Line if chasing - placed above line on the left */}
               {matchState?.target && (
                 <g>
                   <line
@@ -671,9 +683,9 @@ export default function MatchCharts({ matchState }) {
                     strokeWidth="1.5"
                   />
                   <text
-                    x={wormSvgWidth - wormPad.right}
-                    y={getWormY(matchState.target) - 5}
-                    textAnchor="end"
+                    x={wormPad.left + 6}
+                    y={getWormY(matchState.target) - 6}
+                    textAnchor="start"
                     fill="var(--orange)"
                     fontSize="10"
                     fontWeight="bold"
@@ -793,30 +805,38 @@ export default function MatchCharts({ matchState }) {
                 );
               })}
 
-              {/* End of Innings Labels */}
-              {lineData1.length > 1 && (
-                <text
-                  x={getWormX(lineData1[lineData1.length - 1].over) + 4}
-                  y={getWormY(lineData1[lineData1.length - 1].score) + 3}
-                  fill="var(--text)"
-                  fontSize="9"
-                  fontWeight="bold"
-                >
-                  End
-                </text>
-              )}
+              {/* End of Innings Labels with 12px offset */}
+              {lineData1.length > 1 && (() => {
+                const pt1 = lineData1[lineData1.length - 1];
+                return (
+                  <text
+                    x={getWormX(pt1.over) + 12}
+                    y={getWormY(pt1.score) - 4}
+                    fill="var(--text)"
+                    fontSize="9"
+                    fontWeight="bold"
+                    textAnchor="start"
+                  >
+                    End
+                  </text>
+                );
+              })()}
 
-              {lineData2.length > 1 && (
-                <text
-                  x={getWormX(lineData2[lineData2.length - 1].over) + 4}
-                  y={getWormY(lineData2[lineData2.length - 1].score) + 3}
-                  fill="var(--blue)"
-                  fontSize="9"
-                  fontWeight="bold"
-                >
-                  {inn2?.battingTeam || 'Team Bravo'}
-                </text>
-              )}
+              {lineData2.length > 1 && (() => {
+                const pt2 = lineData2[lineData2.length - 1];
+                return (
+                  <text
+                    x={getWormX(pt2.over) + 12}
+                    y={getWormY(pt2.score) + 11}
+                    fill="var(--blue)"
+                    fontSize="9"
+                    fontWeight="bold"
+                    textAnchor="start"
+                  >
+                    {inn2?.battingTeam || 'Team Bravo'}
+                  </text>
+                );
+              })()}
             </svg>
           </div>
 

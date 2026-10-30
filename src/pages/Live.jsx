@@ -128,6 +128,13 @@ export default function Live({
   const totalBallsAllowed = (matchState.overs || 20) * 6;
   const progressPercent = Math.min(100, Math.round((currentInnings.legalBalls / Math.max(1, totalBallsAllowed)) * 100));
 
+  const isFirstInningsEnded = curInnIndex === 0 && (
+    currentInnings.isCompleted ||
+    matchState.status === 'innings_break' ||
+    (matchState.overs && currentInnings.legalBalls >= matchState.overs * 6) ||
+    currentInnings.wickets >= maxWickets
+  );
+
   const shareUrl = `${window.location.origin}/?watch=${matchState.code || matchCodeOrId || ''}`;
 
   const handleShare = () => {
@@ -380,22 +387,29 @@ export default function Live({
                 <span style={{ color: 'var(--muted)' }}>CRR: </span>
                 <strong style={{ color: 'var(--text)' }}>{crr}</strong>
               </div>
-              {matchState.target ? (
+              {curInnIndex === 1 && matchState.target ? (
                 <div>
-                  <span style={{ color: 'var(--muted)' }}>Target: </span>
-                  <strong style={{ color: 'var(--orange)' }}>{matchState.target}</strong>
-                  {curInnIndex === 1 && (
+                  {matchState.status === 'completed' ? (
+                    <span style={{ color: 'var(--orange)' }} className="font-bold">Match Completed</span>
+                  ) : (
                     <>
+                      <span style={{ color: 'var(--muted)' }}>Need: </span>
+                      <strong style={{ color: 'var(--red)' }}>{Math.max(0, matchState.target - currentInnings.score)}</strong>
                       <span style={{ color: 'var(--muted)' }}> (RRR: </span>
                       <strong style={{ color: 'var(--red)' }}>{rrr}</strong>
                       <span style={{ color: 'var(--muted)' }}>)</span>
                     </>
                   )}
                 </div>
+              ) : isFirstInningsEnded ? (
+                <div>
+                  <span style={{ color: 'var(--muted)' }}>Target for Inn 2: </span>
+                  <strong style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1}</strong>
+                </div>
               ) : (
                 <div>
                   <span style={{ color: 'var(--muted)' }}>Projected: </span>
-                  <strong style={{ color: 'var(--text)' }}>{Math.round(crr * matchState.overs)}</strong>
+                  <strong style={{ color: 'var(--text)' }}>{Math.round(crr * matchState.overs) || 0}</strong>
                 </div>
               )}
             </div>
@@ -411,12 +425,14 @@ export default function Live({
           >
             <div
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider pb-1 border-b"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-[10px] font-bold uppercase tracking-wider pb-1.5 border-b px-2 gap-1 font-mono"
             >
-              <span className="col-span-6">BATTER (TAP FOR STATS)</span>
-              <span className="col-span-2 text-right">R</span>
-              <span className="col-span-2 text-right">B</span>
-              <span className="col-span-2 text-right">SR</span>
+              <span className="truncate font-sans">BATTER (TAP FOR STATS)</span>
+              <span className="text-right">R</span>
+              <span className="text-right">B</span>
+              <span className="text-right">4s</span>
+              <span className="text-right">6s</span>
+              <span className="text-right">SR</span>
             </div>
 
             {/* Striker row: Clickable to inspect complete career & bowler match-up */}
@@ -427,26 +443,32 @@ export default function Live({
                 backgroundColor: 'color-mix(in srgb, var(--green) 15%, transparent)',
                 borderColor: 'color-mix(in srgb, var(--green) 30%, transparent)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-2 px-2 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all gap-1 font-mono"
             >
               <div
                 style={{ color: 'var(--green)' }}
-                className="col-span-6 font-bold truncate flex items-center gap-1.5"
+                className="min-w-0 pr-1 font-bold truncate flex items-center gap-1.5 font-sans"
               >
-                <span>🏏</span>
+                <span className="text-sm shrink-0">🏏</span>
                 <div className="truncate">
                   <span className="truncate">{matchState.striker || 'Striker'}</span>
                   <span className="text-[9px] block font-normal opacity-80">Tap for stats</span>
                 </div>
               </div>
-              <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black">
+              <span style={{ color: 'var(--text)' }} className="text-right font-black text-xs sm:text-sm font-sans tabular-nums">
                 {strikerStat.runs}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {strikerStat.balls}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">
-                {strikerStat.strikeRate}
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
+                {strikerStat.fours}
+              </span>
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
+                {strikerStat.sixes}
+              </span>
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums">
+                {Math.round(strikerStat.strikeRate || 0)}
               </span>
             </div>
 
@@ -459,23 +481,29 @@ export default function Live({
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-2 px-2 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all"
+              className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all gap-1 font-mono"
             >
-              <div className="col-span-6 font-semibold truncate flex items-center gap-1.5">
-                <span>⛑️</span>
+              <div className="min-w-0 pr-1 font-semibold truncate flex items-center gap-1.5 font-sans">
+                <span className="text-sm shrink-0">⛑️</span>
                 <div className="truncate">
                   <span className="truncate">{matchState.nonStriker || 'Non-Striker'}</span>
                   <span className="text-[9px] block font-normal" style={{ color: 'var(--muted)' }}>Tap for stats</span>
                 </div>
               </div>
-              <span className="col-span-2 text-right font-bold">
+              <span className="text-right font-bold text-xs sm:text-sm font-sans tabular-nums">
                 {nonStrikerStat.runs}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
                 {nonStrikerStat.balls}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="col-span-2 text-right">
-                {nonStrikerStat.strikeRate}
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums">
+                {nonStrikerStat.fours}
+              </span>
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
+                {nonStrikerStat.sixes}
+              </span>
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums">
+                {Math.round(nonStrikerStat.strikeRate || 0)}
               </span>
             </div>
           </div>
@@ -613,9 +641,12 @@ export default function Live({
       {/* Footer Branding */}
       <footer
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-        className="mt-8 pt-4 pb-24 text-center text-xs border-t"
+        className="mt-8 pt-4 pb-24 text-center text-xs border-t leading-normal"
       >
-        Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+        {"Cricket Scorer • Developed with 🏏 by "}
+        <span style={{ color: 'var(--text)' }} className="font-bold">
+          Syed Maaz Alam
+        </span>
       </footer>
 
       {/* Persistent Bottom Navigation Bar */}

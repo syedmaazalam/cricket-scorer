@@ -92,7 +92,7 @@ export default function BatterDetailsModal({
               className="p-2.5 rounded-2xl border text-center"
             >
               <div className="text-2xl font-black" style={{ color: 'var(--purple)' }}>
-                {summary.strikeRate}
+                {Math.round(summary.strikeRate || 0)}
               </div>
               <div className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
                 Strike Rate
@@ -199,7 +199,7 @@ export default function BatterDetailsModal({
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Runs ({h2h.balls}b)</div>
                       </div>
                       <div>
-                        <div className="font-black text-sm" style={{ color: 'var(--purple)' }}>{h2h.strikeRate}</div>
+                        <div className="font-black text-sm" style={{ color: 'var(--purple)' }}>{Math.round(h2h.strikeRate || 0)}</div>
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Strike Rate</div>
                       </div>
                       <div>

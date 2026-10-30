@@ -284,3 +284,43 @@ export async function getAllLocalMatches() {
     req.onerror = () => reject(req.error);
   });
 }
+
+/**
+ * Saves an audit action log with exact timestamp (e.g. user pressed 6, user undid 6).
+ * Persisted in localStorage and never deleted on undo.
+ */
+export async function saveActionLogLocally(matchId, logEntry) {
+  if (!matchId || !logEntry) return;
+  const entry = {
+    id: logEntry.id || `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    matchId,
+    timestamp: logEntry.timestamp || Date.now(),
+    isoTime: new Date(logEntry.timestamp || Date.now()).toLocaleTimeString(),
+    action: logEntry.action || 'ACTION',
+    title: logEntry.title || '',
+    details: logEntry.details || '',
+    scoreSnapshot: logEntry.scoreSnapshot || ''
+  };
+
+  try {
+    const key = `cricket_action_logs_${matchId}`;
+    const logs = JSON.parse(localStorage.getItem(key) || '[]');
+    logs.push(entry);
+    localStorage.setItem(key, JSON.stringify(logs));
+  } catch (e) {}
+
+  return entry;
+}
+
+/**
+ * Retrieves all action audit logs for a match in chronological order.
+ */
+export function getActionLogsLocally(matchId) {
+  if (!matchId) return [];
+  try {
+    const key = `cricket_action_logs_${matchId}`;
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  } catch (e) {
+    return [];
+  }
+}

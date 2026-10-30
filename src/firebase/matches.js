@@ -250,3 +250,33 @@ export async function saveUploadedMatchToCloud(matchId, matchData, events = []) 
     throw err;
   }
 }
+
+/**
+ * Saves an audit action log entry to Firestore.
+ */
+export async function saveActionLogToCloud(matchId, logEntry) {
+  if (!matchId || !logEntry) return;
+  try {
+    const logId = logEntry.id || `act_${Date.now()}`;
+    const logRef = doc(db, 'matches', matchId, 'action_logs', logId);
+    await setDoc(logRef, sanitizeForFirestore(logEntry), { merge: true });
+  } catch (err) {
+    console.warn('Could not save action log to cloud:', err);
+  }
+}
+
+/**
+ * Retrieves audit action logs from Firestore.
+ */
+export async function getActionLogsFromCloud(matchId) {
+  if (!matchId) return [];
+  try {
+    const logsCol = collection(db, 'matches', matchId, 'action_logs');
+    const q = query(logsCol, orderBy('timestamp', 'asc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data());
+  } catch (err) {
+    console.warn('Could not get action logs from cloud:', err);
+    return [];
+  }
+}

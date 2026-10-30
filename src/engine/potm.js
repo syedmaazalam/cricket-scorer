@@ -1,5 +1,16 @@
+export const POINTING_CRITERIA = [
+  { item: '⚪ Dot Ball (Bowler)', points: '+2 pts', desc: 'Each legal dot ball bowled' },
+  { item: '🏏 Run Scored (Batter)', points: '+1 pt', desc: 'Every physical run scored off bat' },
+  { item: '🔵 Boundary Four', points: '+1 bonus (+5 pts)', desc: '4 runs + 1 boundary bonus' },
+  { item: '🟣 Boundary Six', points: '+2 bonus (+8 pts)', desc: '6 runs + 2 boundary bonus' },
+  { item: '🔴 Wicket (Bowler)', points: '+25 pts', desc: 'Bowled, caught, LBW, stumped, hit-wicket' },
+  { item: '🛡️ Maiden Over (Bowler)', points: '+8 pts', desc: '6 legal balls with zero runs conceded' },
+  { item: '🧤 Catch / Stumping / Run-out', points: '+10 pts', desc: 'Fielding dismissal participation' },
+  { item: '⚡ Strike Rate Bonus (Batter)', points: 'Up to +10 pts', desc: 'SR ≥ 200: +10, SR ≥ 170: +7, SR ≥ 140: +5 (min 10 balls)' },
+  { item: '📊 Economy Rate Bonus (Bowler)', points: 'Up to +10 pts', desc: 'Econ ≤ 4.5: +10, Econ ≤ 5.5: +8, Econ ≤ 6.5: +5 (min 2 ov)' }
+];
+
 /**
- * Calculates Player of the Match points and returns top ranked players with breakdown.
  * Formula per plan:
  * - Runs: 1 pt each
  * - Boundaries: +1 for Four, +2 for Six
@@ -16,13 +27,14 @@ export function calculatePlayerPoints(playerStat, fieldingStat = {}) {
     strikeRateBonus: 0,
     wickets: 0,
     maidens: 0,
+    dots: 0,
     economyBonus: 0,
     fielding: 0,
     total: 0
   };
 
   const batting = playerStat.batting || { runs: 0, balls: 0, fours: 0, sixes: 0 };
-  const bowling = playerStat.bowling || { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0 };
+  const bowling = playerStat.bowling || { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 };
   const fielding = fieldingStat || { catches: 0, runOuts: 0, stumpings: 0 };
 
   // 1. Runs
@@ -48,7 +60,10 @@ export function calculatePlayerPoints(playerStat, fieldingStat = {}) {
   // 5. Maiden Overs (8 pts each)
   breakdown.maidens = (bowling.maidens || 0) * 8;
 
-  // 6. Economy Rate Bonus (min 12 legal balls / 2 overs bowled)
+  // 6. Bowling Dot Balls (2 pts per dot ball)
+  breakdown.dots = (bowling.dots || 0) * 2;
+
+  // 7. Economy Rate Bonus (min 12 legal balls / 2 overs bowled)
   if ((bowling.legalBalls || 0) >= 12) {
     const overs = bowling.legalBalls / 6;
     const econ = bowling.runsConceded / overs;
@@ -60,7 +75,7 @@ export function calculatePlayerPoints(playerStat, fieldingStat = {}) {
     else breakdown.economyBonus = 0;
   }
 
-  // 7. Fielding (10 pts each)
+  // 8. Fielding (10 pts each)
   const catches = fielding.catches || 0;
   const runOuts = fielding.runOuts || 0;
   const stumpings = fielding.stumpings || 0;
@@ -73,6 +88,7 @@ export function calculatePlayerPoints(playerStat, fieldingStat = {}) {
     breakdown.strikeRateBonus +
     breakdown.wickets +
     breakdown.maidens +
+    breakdown.dots +
     breakdown.economyBonus +
     breakdown.fielding;
 

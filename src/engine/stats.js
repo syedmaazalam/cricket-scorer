@@ -162,7 +162,7 @@ export function computeInningsStats(inningsData) {
     }
 
     if (striker && striker.balls > 0) {
-      striker.strikeRate = Number(((striker.runs / striker.balls) * 100).toFixed(1));
+      striker.strikeRate = Math.round((striker.runs / striker.balls) * 100);
     }
 
     // Bowler runs conceded on this delivery (byes, leg-byes, penalty are not conceded by bowler)
@@ -409,7 +409,7 @@ export function computeBatterDetails(innings, batterName) {
       }
 
       if (headToHead[bowler].balls > 0) {
-        headToHead[bowler].strikeRate = Number(((headToHead[bowler].runs / headToHead[bowler].balls) * 100).toFixed(1));
+        headToHead[bowler].strikeRate = Math.round((headToHead[bowler].runs / headToHead[bowler].balls) * 100);
       }
 
       cumulativeRuns += runsOffBat;

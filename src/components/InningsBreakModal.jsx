@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, ArrowRight, UserCheck, Shield, X } from 'lucide-react';
 
 export default function InningsBreakModal({
@@ -23,12 +23,22 @@ export default function InningsBreakModal({
     : ['Bowler 1', 'Bowler 2'];
 
   const [striker, setStriker] = useState(batSquad[0] || 'Batter 1');
-  const [nonStriker, setNonStriker] = useState(batSquad[1] || batSquad[0] || 'Batter 2');
+  const [nonStriker, setNonStriker] = useState(batSquad[1] || (batSquad[0] ? `${batSquad[0]} (2)` : 'Batter 2'));
   const [bowler, setBowler] = useState(bowlSquad[0] || 'Bowler 1');
 
   const [customStriker, setCustomStriker] = useState('');
   const [customNonStriker, setCustomNonStriker] = useState('');
   const [customBowler, setCustomBowler] = useState('');
+
+  useEffect(() => {
+    if (batSquad && batSquad.length > 0) {
+      setStriker(batSquad[0]);
+      setNonStriker(batSquad[1] || (batSquad[0] ? `${batSquad[0]} (2)` : 'Batter 2'));
+    }
+    if (bowlSquad && bowlSquad.length > 0) {
+      setBowler(bowlSquad[0]);
+    }
+  }, [isOpen, battingTeamSquad, bowlingTeamSquad]);
 
   if (!isOpen) return null;
 

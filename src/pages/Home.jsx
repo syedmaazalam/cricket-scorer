@@ -378,7 +378,10 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
         className="mt-auto pt-6 pb-2 text-center text-xs border-t flex flex-col sm:flex-row items-center justify-between gap-2"
       >
         <span>
-          Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+          {"Cricket Scorer • Developed with 🏏 by "}
+          <span style={{ color: 'var(--text)' }} className="font-bold">
+            Syed Maaz Alam
+          </span>
         </span>
         <button
           onClick={onOpenDeveloper}

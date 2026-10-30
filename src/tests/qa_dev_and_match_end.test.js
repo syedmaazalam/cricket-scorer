@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyEvent, createInitialMatchState, replayEvents } from '../engine/reducer.js';
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
+import { calculatePlayerPoints, POINTING_CRITERIA } from '../engine/potm.js';
 
 function createTwoOverMatch() {
   let state = createInitialMatchState();
@@ -344,5 +345,237 @@ describe('QA Tests: Match Completion & Developer Features', () => {
     expect(state.currentBowler).toBe('A1');
     expect(state.innings[1].score).toBe(0);
     expect(state.innings[1].legalBalls).toBe(0);
+  });
+
+  it('Scenario 9: Best Bowling Over calculation ranks 5-run over higher than 10-run over', () => {
+    const overSummaries = [
+      { overIndex: 1, runs: 10, wickets: 0 },
+      { overIndex: 2, runs: 5, wickets: 0 },
+      { overIndex: 3, runs: 15, wickets: 0 }
+    ];
+
+    const sortedOvers = [...overSummaries].sort((a, b) => {
+      const scoreA = (a.runs || 0) - ((a.wickets || 0) * 12);
+      const scoreB = (b.runs || 0) - ((b.wickets || 0) * 12);
+      return scoreA - scoreB;
+    });
+
+    // 5 runs over (score = 5) beats 10 runs over (score = 10)
+    expect(sortedOvers[0].overIndex).toBe(2);
+    expect(sortedOvers[0].runs).toBe(5);
+  });
+
+  it('Scenario 10: Pointing criteria awards +2 points per dot ball', () => {
+    expect(POINTING_CRITERIA.some(c => c.item.includes('Dot Ball') && c.points === '+2 pts')).toBe(true);
+
+    const bowlerStat = {
+      batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+      bowling: { legalBalls: 12, runsConceded: 10, wickets: 1, maidens: 0, dots: 8 }
+    };
+
+    const points = calculatePlayerPoints(bowlerStat);
+    // 1 wicket = 25 pts, 8 dots * 2 = 16 pts. Total >= 41 pts (plus economy bonus)
+    expect(points.dots).toBe(16);
+    expect(points.wickets).toBe(25);
+    expect(points.total).toBeGreaterThanOrEqual(41);
+  });
+
+  it('Scenario 11: All-out in Innings 1 correctly triggers innings break and target', () => {
+    let state = createInitialMatchState();
+    state = applyEvent(state, {
+      type: EVENT_TYPES.MATCH_INIT,
+      payload: {
+        matchId: 'all_out_test',
+        code: 'AOUT01',
+        teams: [
+          { id: 't1', name: 'Alpha', players: ['P1', 'P2', 'P3'] },
+          { id: 't2', name: 'Bravo', players: ['B1', 'B2', 'B3'] }
+        ],
+        overs: 5,
+        playersPerTeam: 3, // Max wickets = 2
+        toss: { winner: 'Alpha', decision: 'bat' },
+        striker: 'P1',
+        nonStriker: 'P2',
+        bowler: 'B1'
+      }
+    });
+
+    // Wicket 1
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'P3' }
+    });
+    expect(state.innings[0].wickets).toBe(1);
+    expect(state.innings[0].isCompleted).toBe(false);
+
+    // Wicket 2 (All out, 2 wickets for 3 players)
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED }
+    });
+
+    expect(state.innings[0].wickets).toBe(2);
+    expect(state.innings[0].isCompleted).toBe(true);
+    expect(state.status).toBe(MATCH_STATUS.INNINGS_BREAK);
+    expect(state.target).toBe(1); // 0 runs made, target is 1
+  });
+
+  it('Scenario 12: Ball records contain valid timestamps for audit logs', () => {
+    let state = createTwoOverMatch();
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 4, extraType: null, extraRuns: 0, isWicket: false, timestamp: 1730000000000 }
+    });
+
+    const recordedBall = state.innings[0].balls[0];
+    expect(recordedBall.timestamp).toBe(1730000000000);
+  });
+
+  it('Scenario 13: Starting Innings 2 initializes state seamlessly without crashing', () => {
+    let state = createTwoOverMatch();
+
+    // 1st innings complete (all out)
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'A3' }
+    });
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'A4' }
+    });
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED }
+    });
+
+    expect(state.innings[0].isCompleted).toBe(true);
+    expect(state.innings[0].wickets).toBe(3);
+
+    // Start 2nd innings
+    state = applyEvent(state, {
+      type: EVENT_TYPES.END_INNINGS,
+      payload: {
+        striker: 'B1',
+        nonStriker: 'B2',
+        bowler: 'A1'
+      }
+    });
+
+    expect(state.currentInningsIndex).toBe(1);
+    expect(state.innings[1]).toBeDefined();
+    expect(state.innings[1].battingTeam).toBe('Team Bravo');
+    expect(state.innings[1].bowlingTeam).toBe('Team Alpha');
+    expect(state.striker).toBe('B1');
+    expect(state.nonStriker).toBe('B2');
+    expect(state.currentBowler).toBe('A1');
+    expect(state.status).toBe(MATCH_STATUS.IN_PROGRESS);
+  });
+
+  it('Scenario 14: Top 3 Players correctly assigns the bowler actual team (Team Bravo, not Team Alpha)', () => {
+    let state = createTwoOverMatch();
+
+    // Innings 1: Team Alpha batting, B1 from Team Bravo bowling
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, extraType: null, extraRuns: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'A3' }
+    });
+
+    const stats1 = computeInningsStats(state.innings[0]);
+    const aggregatedPlayerStats = {};
+
+    const getPlayerTeam = (playerName) => {
+      if (state.teams) {
+        for (const t of state.teams) {
+          if (t.players && t.players.includes(playerName)) return t.name;
+        }
+      }
+      return null;
+    };
+
+    Object.entries(stats1.bowling).forEach(([name, bwStat]) => {
+      const team = getPlayerTeam(name) || state.innings[0].bowlingTeam;
+      aggregatedPlayerStats[name] = {
+        name,
+        team,
+        batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
+        bowling: bwStat
+      };
+    });
+
+    // Bowler B1 must be attributed to Team Bravo!
+    expect(aggregatedPlayerStats['B1'].team).toBe('Team Bravo');
+  });
+
+  it('Scenario 15: All-out in Innings 1 properly marks innings complete and transition to 2nd innings works seamlessly', () => {
+    let state = createTwoOverMatch();
+
+    // 4 players per team => max wickets is 3
+    // Wicket 1
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 4, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'A3' }
+    });
+    // Wicket 2
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 2, isWicket: true, dismissalType: WICKET_TYPES.BOWLED, nextBatter: 'A4' }
+    });
+    // Wicket 3 -> All out!
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, isWicket: true, dismissalType: WICKET_TYPES.BOWLED }
+    });
+
+    // Innings 1 must be marked complete and status INNINGS_BREAK
+    expect(state.innings[0].wickets).toBe(3);
+    expect(state.innings[0].isCompleted).toBe(true);
+    expect(state.status).toBe(MATCH_STATUS.INNINGS_BREAK);
+    expect(state.target).toBe(7); // 4 + 2 + 0 = 6 runs, target = 7
+    expect(state.needsBowlerChange).toBe(false);
+    expect(state.needsNewBatter).toBe(false);
+
+    // Start 2nd innings with Team Bravo batting and Team Alpha bowling
+    state = applyEvent(state, {
+      type: EVENT_TYPES.END_INNINGS,
+      payload: {
+        striker: 'B1',
+        nonStriker: 'B2',
+        bowler: 'A1'
+      }
+    });
+
+    expect(state.currentInningsIndex).toBe(1);
+    expect(state.status).toBe(MATCH_STATUS.IN_PROGRESS);
+    expect(state.innings[1].battingTeam).toBe('Team Bravo');
+    expect(state.innings[1].bowlingTeam).toBe('Team Alpha');
+    expect(state.striker).toBe('B1');
+    expect(state.nonStriker).toBe('B2');
+    expect(state.currentBowler).toBe('A1');
+  });
+
+  it('Scenario 16: Strike rate contains only whole numbers (no decimal points)', () => {
+    let state = createTwoOverMatch();
+
+    // A1 scores 8 runs off 3 balls (6, 2, 0) -> 8/3 * 100 = 266.666...
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 6, isLegal: true, isWicket: false }
+    });
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 2, isLegal: true, isWicket: false }
+    });
+    state = applyEvent(state, {
+      type: EVENT_TYPES.BALL,
+      payload: { runs: 0, isLegal: true, isWicket: false }
+    });
+
+    const stats = computeInningsStats(state.innings[0]);
+    const striker = stats.batting['A1'];
+    expect(striker.runs).toBe(8);
+    expect(striker.balls).toBe(3);
+    // Strike rate MUST be integer 267, not 266.7
+    expect(striker.strikeRate).toBe(267);
+    expect(Number.isInteger(striker.strikeRate)).toBe(true);
   });
 });

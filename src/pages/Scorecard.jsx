@@ -8,6 +8,7 @@ import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
+import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 
 export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
@@ -15,6 +16,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
+  const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
   const scorecardRef = useRef(null);
 
   const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
@@ -77,14 +79,27 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const aggregatedPlayerStats = {};
   const aggregatedFieldingStats = {};
 
-  const accumulateStats = (stats, teamName) => {
+  // Find player's actual assigned team from squads
+  const getPlayerTeam = (playerName) => {
+    if (matchState?.teams && Array.isArray(matchState.teams)) {
+      for (const t of matchState.teams) {
+        if (t.players && t.players.includes(playerName)) {
+          return t.name;
+        }
+      }
+    }
+    return null;
+  };
+
+  const accumulateStats = (stats, battingTeamName, bowlingTeamName) => {
     Object.entries(stats.batting).forEach(([name, bStat]) => {
+      const actualTeam = getPlayerTeam(name) || battingTeamName;
       if (!aggregatedPlayerStats[name]) {
         aggregatedPlayerStats[name] = {
           name,
-          team: teamName,
+          team: actualTeam,
           batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0 }
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
         };
       }
       aggregatedPlayerStats[name].batting.runs += bStat.runs || 0;
@@ -94,18 +109,20 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     });
 
     Object.entries(stats.bowling).forEach(([name, bwStat]) => {
+      const actualTeam = getPlayerTeam(name) || bowlingTeamName;
       if (!aggregatedPlayerStats[name]) {
         aggregatedPlayerStats[name] = {
           name,
-          team: teamName,
+          team: actualTeam,
           batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0 }
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
         };
       }
       aggregatedPlayerStats[name].bowling.legalBalls += bwStat.legalBalls || 0;
       aggregatedPlayerStats[name].bowling.runsConceded += bwStat.runsConceded || 0;
       aggregatedPlayerStats[name].bowling.wickets += bwStat.wickets || 0;
       aggregatedPlayerStats[name].bowling.maidens += bwStat.maidens || 0;
+      aggregatedPlayerStats[name].bowling.dots += bwStat.dots || 0;
     });
 
     stats.fow.forEach(f => {
@@ -120,8 +137,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     });
   };
 
-  accumulateStats(stats1, inn1.battingTeam);
-  accumulateStats(stats2, inn2.battingTeam);
+  accumulateStats(stats1, inn1.battingTeam, inn1.bowlingTeam);
+  accumulateStats(stats2, inn2.battingTeam, inn2.bowlingTeam);
 
   const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3);
 
@@ -152,6 +169,14 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     if (!scorecardRef.current || isExporting) return;
     try {
       setIsExporting(true);
+
+      // Wait for all custom fonts to finish loading
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      // Small pause to guarantee styles and layouts are stabilized
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const element = scorecardRef.current;
 
@@ -161,13 +186,38 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         useCORS: true,
         allowTaint: true,
         logging: false,
-        scrollX: 0,
-        scrollY: 0,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
         windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
         onclone: (clonedDoc) => {
-          // Ensure all cloned elements have visible layout and resolved standard colors
+          // Remove overflow restrictions on root container
           const el = clonedDoc.querySelector('[ref="scorecardRef"]') || clonedDoc.body;
-          if (el) el.style.overflow = 'visible';
+          if (el) {
+            el.style.overflow = 'visible';
+            el.style.maxHeight = 'none';
+          }
+
+          // Strip backdrop-filter, background-clip: text and gradient text
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((node) => {
+            node.style.backdropFilter = 'none';
+            node.style.webkitBackdropFilter = 'none';
+
+            if (node.style.backgroundClip === 'text' || node.style.webkitBackgroundClip === 'text') {
+              node.style.backgroundClip = 'unset';
+              node.style.webkitBackgroundClip = 'unset';
+              node.style.color = isDark ? '#FFFFFF' : '#1A1A1A';
+            }
+
+            // Remove vertical overflow clipping on text parents & enforce line-height 1.4
+            if (node.children.length === 0 && node.textContent && node.textContent.trim().length > 0) {
+              node.style.lineHeight = '1.4';
+              if (node.parentElement) {
+                node.parentElement.style.overflow = 'visible';
+              }
+            }
+          });
         }
       });
 
@@ -251,7 +301,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono">{b.strikeRate}</td>
+                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono">{Math.round(b.strikeRate || 0)}</td>
                 </tr>
               ))
             )}
@@ -261,10 +311,10 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         {/* Extras row */}
         <div
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          className="flex items-center justify-between text-xs pt-2.5 border-t mt-2 font-medium"
+          className="flex items-center justify-between text-xs pt-2.5 pb-1 border-t mt-2 font-medium min-h-[30px] leading-normal"
         >
-          <span>Extras</span>
-          <span style={{ color: 'var(--text)' }} className="font-bold text-[11px]">
+          <span className="leading-normal">Extras</span>
+          <span style={{ color: 'var(--text)' }} className="font-bold text-[11px] leading-normal">
             {stats.extras.total} (wd {stats.extras.wides}, nb {stats.extras.noBalls}, b {stats.extras.byes}, lb {stats.extras.legByes})
           </span>
         </div>
@@ -272,11 +322,11 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         {/* Total row */}
         <div
           style={{ borderColor: 'var(--border)' }}
-          className="flex items-center justify-between text-sm font-black pt-2 border-t mt-1"
+          className="flex items-center justify-between min-h-[36px] text-sm font-black pt-2 pb-1 border-t mt-1.5 leading-normal"
         >
-          <span style={{ color: 'var(--text)' }}>Total</span>
-          <span style={{ color: 'var(--orange)' }}>
-            {innings.score}/{innings.wickets} ({formatOvers(innings.legalBalls)} ov)
+          <span style={{ color: 'var(--text)' }} className="leading-normal">Total</span>
+          <span style={{ color: 'var(--orange)' }} className="leading-normal font-mono">
+            {innings.score}/{innings.wickets} <span className="font-normal font-sans text-xs">({formatOvers(innings.legalBalls)} ov)</span>
           </span>
         </div>
       </div>
@@ -437,13 +487,13 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
               </h1>
 
               {/* Subtitle chips: #CODE & Date */}
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span
                   style={{
                     backgroundColor: 'var(--orange)',
                     color: '#FFFFFF'
                   }}
-                  className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold shadow-sm"
+                  className="min-h-[24px] px-2.5 py-1 rounded-md font-mono text-[11px] font-bold shadow-sm inline-flex items-center leading-normal"
                 >
                   #{matchState?.code || 'MATCH'}
                 </span>
@@ -454,9 +504,9 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                     color: 'var(--muted)',
                     borderColor: 'var(--border)'
                   }}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center gap-1"
+                  className="min-h-[24px] px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-flex items-center gap-1 leading-normal"
                 >
-                  <Calendar className="w-3 h-3" />
+                  <Calendar className="w-3.5 h-3.5" />
                   <span>{matchDate}</span>
                 </span>
               </div>
@@ -470,7 +520,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
               color: 'var(--green)',
               borderColor: 'var(--green-30)'
             }}
-            className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5"
+            className="min-h-[28px] px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 leading-normal shrink-0"
           >
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--green)' }} />
             <span>Live</span>
@@ -481,7 +531,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         <MatchCharts matchState={matchState} />
 
         {/* 3. Innings Pill Switcher (Matching Image 3) */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => setActiveTab(0)}
@@ -490,7 +540,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
               color: activeTab === 0 ? '#FFFFFF' : 'var(--text)',
               borderColor: 'var(--border)'
             }}
-            className="py-2.5 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm text-center"
+            className="min-h-[44px] py-2 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm flex items-center justify-center text-center leading-normal"
           >
             {teamAName} ({inn1.score}/{inn1.wickets})
           </button>
@@ -502,7 +552,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
               color: activeTab === 1 ? '#FFFFFF' : 'var(--text)',
               borderColor: 'var(--border)'
             }}
-            className="py-2.5 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm text-center"
+            className="min-h-[44px] py-2 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm flex items-center justify-center text-center leading-normal"
           >
             {teamBName} ({inn2.score}/{inn2.wickets})
           </button>
@@ -606,11 +656,21 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             }}
             className="app-card p-4 flex flex-col gap-3 shadow-md rounded-[20px]"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base">🏆</span>
-              <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-black uppercase tracking-wider m-0">
-                TOP 3 PLAYERS OF THE MATCH
-              </h3>
+            <div className="flex items-center justify-between min-h-[32px]">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🏆</span>
+                <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-black uppercase tracking-wider m-0 leading-normal">
+                  TOP 3 PLAYERS OF THE MATCH
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPointingCriteriaOpen(true)}
+                style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--primary)' }}
+                className="min-h-[28px] flex items-center gap-1 px-3 py-1 rounded-xl border text-[11px] font-bold hover:opacity-80 transition-all shadow-sm leading-normal"
+              >
+                <span>ℹ️ Criteria</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -629,7 +689,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                       backgroundColor: 'var(--card-alt)',
                       borderColor: 'var(--border)'
                     }}
-                    className="p-3.5 rounded-2xl border flex flex-col justify-between gap-2 shadow-sm"
+                    className="p-3.5 rounded-2xl border flex flex-col justify-between gap-2.5 shadow-sm min-h-[110px]"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2.5">
@@ -645,33 +705,39 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                           {idx + 1}
                         </div>
                         <div>
-                          <div style={{ color: 'var(--text)' }} className="font-black text-xs sm:text-sm line-clamp-1">
+                          <div
+                            style={{ color: 'var(--text)', lineHeight: '1.4' }}
+                            className="font-black text-xs sm:text-sm truncate py-0.5"
+                          >
                             {p.name}
                           </div>
-                          <div style={{ color: 'var(--muted)' }} className="text-[10px] line-clamp-1">
+                          <div
+                            style={{ color: 'var(--muted)', lineHeight: '1.3' }}
+                            className="text-[11px] font-semibold truncate"
+                          >
                             {p.team}
                           </div>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <div style={{ color: 'var(--orange)' }} className="text-sm font-black">
+                        <div style={{ color: 'var(--orange)' }} className="text-sm font-black leading-normal">
                           {p.totalPoints} pts
                         </div>
-                        <div style={{ color: 'var(--muted)' }} className="text-[9px] uppercase font-bold">
+                        <div style={{ color: 'var(--muted)' }} className="text-[9px] uppercase font-bold leading-normal">
                           Total Points
                         </div>
                       </div>
                     </div>
 
                     {/* Breakdown Badges (Runs, Boundaries, Wickets) */}
-                    <div className="flex items-center gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <div className="flex items-center gap-1.5 pt-1.5 border-t flex-wrap" style={{ borderColor: 'var(--border)' }}>
                       <span
                         style={{
                           backgroundColor: 'var(--green)',
                           color: '#FFFFFF'
                         }}
-                        className="px-2 py-0.5 rounded-md text-[9px] font-black"
+                        className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
                       >
                         Runs +{p.breakdown.runs || 0}
                       </span>
@@ -680,7 +746,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                           backgroundColor: 'var(--blue)',
                           color: '#FFFFFF'
                         }}
-                        className="px-2 py-0.5 rounded-md text-[9px] font-black"
+                        className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
                       >
                         Boundaries +{p.breakdown.boundaries || 0}
                       </span>
@@ -690,7 +756,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                             backgroundColor: 'var(--red)',
                             color: '#FFFFFF'
                           }}
-                          className="px-2 py-0.5 rounded-md text-[9px] font-black"
+                          className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
                         >
                           Wickets +{p.breakdown.wickets}
                         </span>
@@ -706,9 +772,12 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         {/* 6. Footer Attribution (Image 3) */}
         <footer
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          className="pt-3 pb-1 text-center text-xs font-semibold"
+          className="pt-4 pb-2 text-center text-xs font-semibold leading-normal"
         >
-          CricketScorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+          {"CricketScorer • Developed with 🏏 by "}
+          <span style={{ color: 'var(--text)' }} className="font-bold">
+            Syed Maaz Alam
+          </span>
         </footer>
       </div>
 
@@ -732,6 +801,12 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
           setIsSquadModalOpen(false);
           setSelectedBatterDetails({ name: playerName, innings: inn1 });
         }}
+      />
+
+      {/* 3. Pointing Criteria Modal */}
+      <PointingCriteriaModal
+        isOpen={isPointingCriteriaOpen}
+        onClose={() => setIsPointingCriteriaOpen(false)}
       />
     </div>
   );

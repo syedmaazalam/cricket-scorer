@@ -15,8 +15,10 @@ import {
   Check,
   X,
   Radio,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
+import ActionLogsModal from '../components/ActionLogsModal.jsx';
 import {
   getAllMatchesFromCloud,
   deleteMatchFromCloud,
@@ -55,6 +57,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [restrictionModalMatch, setRestrictionModalMatch] = useState(null);
   const [maxViewersInput, setMaxViewersInput] = useState('');
   const [isRestrictedToggle, setIsRestrictedToggle] = useState(false);
+  const [selectedActionLogMatch, setSelectedActionLogMatch] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
 
   const DEV_USER = 'syedmaazalam';
@@ -551,6 +554,16 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                       </button>
 
                       <button
+                        onClick={() => setSelectedActionLogMatch(m.matchId)}
+                        style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--text)' }}
+                        className="px-2.5 py-1 rounded-xl border text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all text-emerald-400"
+                        title="View Chronological Action Logs & Undos"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                        <span>Logs</span>
+                      </button>
+
+                      <button
                         onClick={() => {
                           setRestrictionModalMatch(m);
                           setMaxViewersInput(m.maxViewers != null ? String(m.maxViewers) : '');
@@ -745,6 +758,13 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           </div>
         </div>
       )}
+
+      {/* Action Audit Logs Modal */}
+      <ActionLogsModal
+        isOpen={Boolean(selectedActionLogMatch)}
+        onClose={() => setSelectedActionLogMatch(null)}
+        matchId={selectedActionLogMatch}
+      />
     </div>
   );
 }
