@@ -1,5 +1,5 @@
 const DB_NAME = 'cricket_scorer_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -25,6 +25,14 @@ export function openDb() {
         const matchStore = db.createObjectStore('matches', { keyPath: 'matchId' });
         matchStore.createIndex('code', 'code', { unique: false });
         matchStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        matchStore.createIndex('managerId', 'managerId', { unique: false });
+      }
+
+      // Object store for registered managers
+      if (!db.objectStoreNames.contains('managers')) {
+        const managerStore = db.createObjectStore('managers', { keyPath: 'uid' });
+        managerStore.createIndex('email', 'email', { unique: false });
+        managerStore.createIndex('lastActive', 'lastActive', { unique: false });
       }
     };
 
@@ -57,12 +65,12 @@ export async function saveEventLocally(event, synced = false) {
 
   try {
     const db = await openDb();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction('events', 'readwrite');
       const store = tx.objectStore('events');
       const req = store.put(record);
       req.onsuccess = () => resolve(record);
-      req.onerror = () => resolve(record); // Don't throw, localStorage saved
+      req.onerror = () => resolve(record);
     });
   } catch (err) {
     return record;
@@ -75,12 +83,10 @@ export async function saveEventLocally(event, synced = false) {
 export async function getEventsForMatch(matchId) {
   if (!matchId) return [];
 
-  // Fallback helper from localStorage
   const getFromLocalStorage = () => {
     try {
       const direct = JSON.parse(localStorage.getItem(`cricket_events_${matchId}`) || '[]');
       if (direct.length > 0) return direct;
-      // Search all keys
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('cricket_events_')) {
@@ -96,7 +102,7 @@ export async function getEventsForMatch(matchId) {
 
   try {
     const db = await openDb();
-    const results = await new Promise((resolve, reject) => {
+    const results = await new Promise((resolve) => {
       const tx = db.transaction('events', 'readonly');
       const store = tx.objectStore('events');
       const index = store.index('matchId');
@@ -164,7 +170,7 @@ export async function saveMatchSnapshot(matchId, data) {
 
   try {
     const db = await openDb();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction('matches', 'readwrite');
       const store = tx.objectStore('matches');
       const req = store.put(record);
@@ -201,7 +207,7 @@ export async function getMatchSnapshot(matchId) {
 
   try {
     const db = await openDb();
-    const result = await new Promise((resolve, reject) => {
+    const result = await new Promise((resolve) => {
       const tx = db.transaction('matches', 'readonly');
       const store = tx.objectStore('matches');
       const req = store.get(matchId);
@@ -210,7 +216,6 @@ export async function getMatchSnapshot(matchId) {
           resolve(req.result);
           return;
         }
-        // Fallback: check code index
         if (store.indexNames.contains('code')) {
           const codeIndex = store.index('code');
           const codeReq = codeIndex.get(matchId);
@@ -271,23 +276,88 @@ export async function deleteAllMatchesLocally() {
  * Lists all matches stored locally, sorted by most recently updated.
  */
 export async function getAllLocalMatches() {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('matches', 'readonly');
-    const store = tx.objectStore('matches');
-    const req = store.getAll();
-    req.onsuccess = () => {
-      const list = req.result || [];
-      list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      resolve(list);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  try {
+    const db = await openDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction('matches', 'readonly');
+      const store = tx.objectStore('matches');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const list = req.result || [];
+        list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        resolve(list);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) {
+    return [];
+  }
 }
 
 /**
- * Saves an audit action log with exact timestamp (e.g. user pressed 6, user undid 6).
- * Persisted in localStorage and never deleted on undo.
+ * Saves a registered manager profile to IndexedDB and localStorage.
+ */
+export async function saveManagerLocally(managerData) {
+  if (!managerData || !managerData.uid) return;
+  const record = {
+    uid: managerData.uid,
+    name: managerData.name || 'Manager',
+    email: managerData.email || '',
+    createdAt: managerData.createdAt || Date.now(),
+    lastActive: Date.now()
+  };
+
+  try {
+    const key = 'cricket_local_managers';
+    const current = JSON.parse(localStorage.getItem(key) || '[]');
+    const idx = current.findIndex(m => m.uid === record.uid);
+    if (idx !== -1) current[idx] = { ...current[idx], ...record };
+    else current.push(record);
+    localStorage.setItem(key, JSON.stringify(current));
+  } catch (e) {}
+
+  try {
+    const db = await openDb();
+    const tx = db.transaction('managers', 'readwrite');
+    tx.objectStore('managers').put(record);
+  } catch (e) {}
+
+  return record;
+}
+
+/**
+ * Retrieves all managers stored locally.
+ */
+export async function getAllLocalManagers() {
+  try {
+    const db = await openDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction('managers', 'readonly');
+      const store = tx.objectStore('managers');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        let list = req.result || [];
+        if (list.length === 0) {
+          try {
+            list = JSON.parse(localStorage.getItem('cricket_local_managers') || '[]');
+          } catch (e) {}
+        }
+        list.sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
+        resolve(list);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) {
+    try {
+      return JSON.parse(localStorage.getItem('cricket_local_managers') || '[]');
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
+ * Saves an audit action log with exact timestamp.
  */
 export async function saveActionLogLocally(matchId, logEntry) {
   if (!matchId || !logEntry) return;

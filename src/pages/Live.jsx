@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap } from 'lucide-react';
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -77,8 +77,8 @@ export default function Live({
           style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
           className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200"
         >
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-2xl">
-            🔒
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl">
+            <Lock className="w-7 h-7 text-emerald-500" />
           </div>
           <h2 className="text-lg font-black" style={{ color: 'var(--text)' }}>
             Viewing Restricted
@@ -157,7 +157,7 @@ export default function Live({
       const latestBall = balls[balls.length - 1];
       if (latestBall) {
         if (latestBall.isWicket) {
-          setActiveAnimation({ type: 'wicket', text: '☝️ WICKET!', subtext: 'BATTER OUT!' });
+          setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'BATTER OUT!' });
         } else if (latestBall.runs === 6) {
           setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });
         } else if (latestBall.runs === 4) {
@@ -169,7 +169,7 @@ export default function Live({
             subtext: latestBall.extraType === 'no_ball' ? 'Free Hit next!' : 'Extra delivery'
           });
         } else if (latestBall.runs === 0) {
-          setActiveAnimation({ type: 'dot', text: '⚪ DOT BALL', subtext: 'No run conceded' });
+          setActiveAnimation({ type: 'dot', text: 'DOT BALL', subtext: 'No run conceded' });
         } else if (latestBall.runs === 1) {
           setActiveAnimation({ type: 'run', text: '+1 SINGLE', subtext: 'Strike rotated' });
         } else if (latestBall.runs === 2) {
@@ -270,8 +270,9 @@ export default function Live({
           }}
           className="p-4 rounded-3xl border-2 text-center flex flex-col items-center gap-1.5 my-2 shadow-md animate-in fade-in"
         >
-          <span className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--orange)' }}>
-            🏆 1st Innings Concluded ({currentInnings.score}/{currentInnings.wickets})
+          <span className="text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5" style={{ color: 'var(--primary)' }}>
+            <Trophy className="w-3.5 h-3.5 text-emerald-500" />
+            <span>1st Innings Concluded ({currentInnings.score}/{currentInnings.wickets})</span>
           </span>
           <span className="text-sm font-extrabold" style={{ color: 'var(--text)' }}>
             Target: {matchState.target || currentInnings.score + 1} runs ({matchState.teams?.[1]?.name || 'Chasing Team'} needs {matchState.target || currentInnings.score + 1} from {matchState.overs} ov)
@@ -449,7 +450,7 @@ export default function Live({
                 style={{ color: 'var(--green)' }}
                 className="min-w-0 pr-1 font-bold truncate flex items-center gap-1.5 font-sans"
               >
-                <span className="text-sm shrink-0">🏏</span>
+                <User className="w-4 h-4 text-emerald-500 shrink-0" />
                 <div className="truncate">
                   <span className="truncate">{matchState.striker || 'Striker'}</span>
                   <span className="text-[9px] block font-normal opacity-80">Tap for stats</span>
@@ -484,7 +485,7 @@ export default function Live({
               className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all gap-1 font-mono"
             >
               <div className="min-w-0 pr-1 font-semibold truncate flex items-center gap-1.5 font-sans">
-                <span className="text-sm shrink-0">⛑️</span>
+                <User className="w-4 h-4 text-slate-400 shrink-0" />
                 <div className="truncate">
                   <span className="truncate">{matchState.nonStriker || 'Non-Striker'}</span>
                   <span className="text-[9px] block font-normal" style={{ color: 'var(--muted)' }}>Tap for stats</span>
@@ -643,7 +644,7 @@ export default function Live({
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
         className="mt-8 pt-4 pb-24 text-center text-xs border-t leading-normal"
       >
-        {"Cricket Scorer • Developed with 🏏 by "}
+        {"© 2026 SmartCricket · Developed by "}
         <span style={{ color: 'var(--text)' }} className="font-bold">
           Syed Maaz Alam
         </span>

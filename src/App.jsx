@@ -225,14 +225,16 @@ export default function App() {
       {page === 'developer' && (
         <DeveloperDashboard
           onBack={handleGoHome}
-          onOpenMatch={(m) => {
+          onOpenMatch={(target) => {
+            const mid = typeof target === 'string' ? target : (target?.matchId || target?.code);
+            const code = typeof target === 'string' && target.length === 6 ? target : (target?.code || null);
             setIsManager(true);
             localStorage.setItem('cricket_is_manager', 'true');
-            setActiveMatchId(m.matchId);
-            localStorage.setItem('cricket_active_match_id', m.matchId);
-            if (m.code) {
-              setLiveCodeOrId(m.code);
-              localStorage.setItem('cricket_live_code', m.code);
+            setActiveMatchId(mid);
+            localStorage.setItem('cricket_active_match_id', mid);
+            if (code) {
+              setLiveCodeOrId(code);
+              localStorage.setItem('cricket_live_code', code);
             }
             setPage('scoring');
           }}

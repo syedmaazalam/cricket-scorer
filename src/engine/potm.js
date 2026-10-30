@@ -1,13 +1,13 @@
 export const POINTING_CRITERIA = [
-  { item: '⚪ Dot Ball (Bowler)', points: '+2 pts', desc: 'Each legal dot ball bowled' },
-  { item: '🏏 Run Scored (Batter)', points: '+1 pt', desc: 'Every physical run scored off bat' },
-  { item: '🔵 Boundary Four', points: '+1 bonus (+5 pts)', desc: '4 runs + 1 boundary bonus' },
-  { item: '🟣 Boundary Six', points: '+2 bonus (+8 pts)', desc: '6 runs + 2 boundary bonus' },
-  { item: '🔴 Wicket (Bowler)', points: '+25 pts', desc: 'Bowled, caught, LBW, stumped, hit-wicket' },
-  { item: '🛡️ Maiden Over (Bowler)', points: '+8 pts', desc: '6 legal balls with zero runs conceded' },
-  { item: '🧤 Catch / Stumping / Run-out', points: '+10 pts', desc: 'Fielding dismissal participation' },
-  { item: '⚡ Strike Rate Bonus (Batter)', points: 'Up to +10 pts', desc: 'SR ≥ 200: +10, SR ≥ 170: +7, SR ≥ 140: +5 (min 10 balls)' },
-  { item: '📊 Economy Rate Bonus (Bowler)', points: 'Up to +10 pts', desc: 'Econ ≤ 4.5: +10, Econ ≤ 5.5: +8, Econ ≤ 6.5: +5 (min 2 ov)' }
+  { item: 'Dot Ball (Bowler)', points: '+2 pts', desc: 'Each legal dot ball bowled' },
+  { item: 'Run Scored (Batter)', points: '+1 pt', desc: 'Every physical run scored off bat' },
+  { item: 'Boundary Four', points: '+1 bonus (+5 pts)', desc: '4 runs + 1 boundary bonus' },
+  { item: 'Boundary Six', points: '+2 bonus (+8 pts)', desc: '6 runs + 2 boundary bonus' },
+  { item: 'Wicket (Bowler)', points: '+25 pts', desc: 'Bowled, caught, LBW, stumped, hit-wicket' },
+  { item: 'Maiden Over (Bowler)', points: '+8 pts', desc: '6 legal balls with zero runs conceded' },
+  { item: 'Catch / Stumping / Run-out', points: '+10 pts', desc: 'Fielding dismissal participation' },
+  { item: 'Strike Rate Bonus (Batter)', points: 'Up to +10 pts', desc: 'SR ≥ 200: +10, SR ≥ 170: +7, SR ≥ 140: +5 (min 10 balls)' },
+  { item: 'Economy Rate Bonus (Bowler)', points: 'Up to +10 pts', desc: 'Econ ≤ 4.5: +10, Econ ≤ 5.5: +8, Econ ≤ 6.5: +5 (min 2 ov)' }
 ];
 
 /**

@@ -1,10 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Auth helper predicates
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isDeveloper() {
+      return isAuthenticated() && (
+        request.auth.token.developer == true ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'syedmaazalam@gmail.com' ||
+          request.auth.token.email.matches('.*@smartcricket\\.app')
+        ))
+      );
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Managers Collection
+    // Only the developer can list or read all managers.
+    // Managers can read and write only their own profile document.
+    match /managers/{managerId} {
+      allow list: if isDeveloper();
+      allow get: if isDeveloper() || isOwner(managerId);
+      allow write: if isDeveloper() || isOwner(managerId);
+    }
+
+    // 2. Matches Collection
+    // Public viewers can read (get) a specific match document by ID or code.
+    // Only the developer can list all matches across managers.
+    // Managers can create/update/delete only their own matches.
     match /matches/{matchId} {
-      allow read, write: if true;
+      allow get: if true;
+      allow list: if isDeveloper();
+      
+      allow create: if isAuthenticated() && (
+        isDeveloper() || request.resource.data.managerId == request.auth.uid
+      );
+      
+      allow update, delete: if isDeveloper() || (
+        isAuthenticated() && resource.data.managerId == request.auth.uid
+      );
+
+      // Events subcollection for real-time live scoring
       match /events/{eventId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow write: if isDeveloper() || (
+          isAuthenticated() && (
+            get(/databases/$(database)/documents/matches/$(matchId)).data.managerId == request.auth.uid ||
+            !('managerId' in get(/databases/$(database)/documents/matches/$(matchId)).data)
+          )
+        );
       }
     }
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, TrendingUp, Target, Award, Shield, User } from 'lucide-react';
+import { X, TrendingUp, Target, User, Zap } from 'lucide-react';
 import { computeBatterDetails } from '../engine/stats.js';
 
 export default function BatterDetailsModal({
@@ -22,7 +22,7 @@ export default function BatterDetailsModal({
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-lg max-h-[90vh] rounded-[24px] border shadow-2xl flex flex-col overflow-hidden transition-all"
+        className="w-full max-w-lg max-h-[90vh] rounded-xl border shadow-2xl flex flex-col overflow-hidden transition-all"
       >
         {/* Header */}
         <div
@@ -32,13 +32,13 @@ export default function BatterDetailsModal({
           <div className="flex items-center gap-2.5">
             <div
               style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-              className="w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-sm shadow-sm"
+              className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm"
             >
-              🏏
+              <User className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-black m-0" style={{ color: 'var(--text)' }}>
+                <h3 className="text-base font-semibold m-0" style={{ color: 'var(--text)' }}>
                   {batterName}
                 </h3>
                 <span
@@ -51,13 +51,13 @@ export default function BatterDetailsModal({
                       ? 'color-mix(in srgb, var(--red) 30%, transparent)'
                       : 'color-mix(in srgb, var(--green) 30%, transparent)'
                   }}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase"
+                  className="px-2 py-0.5 rounded-md text-[10px] font-semibold border uppercase"
                 >
                   {summary.isOut ? (summary.dismissal || 'Out') : 'Not Out'}
                 </span>
               </div>
               <p className="text-[11px] m-0" style={{ color: 'var(--muted)' }}>
-                Batsman Innings Breakdown & Bowler Match-ups
+                Batter Innings Breakdown & Bowler Match-ups
               </p>
             </div>
           </div>
@@ -65,7 +65,7 @@ export default function BatterDetailsModal({
           <button
             onClick={onClose}
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-xl border hover:opacity-80 transition-all active:scale-95"
+            className="p-2 rounded-lg border hover:opacity-80 transition-all active:scale-95"
           >
             <X className="w-4 h-4" />
           </button>
@@ -77,48 +77,48 @@ export default function BatterDetailsModal({
           <div className="grid grid-cols-4 gap-2">
             <div
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-              className="p-2.5 rounded-2xl border text-center"
+              className="p-2.5 rounded-lg border text-center"
             >
-              <div className="text-2xl font-black" style={{ color: 'var(--text)' }}>
+              <div className="text-xl font-bold" style={{ color: 'var(--text)' }}>
                 {summary.runs}
               </div>
-              <div className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+              <div className="text-[10px] font-medium uppercase" style={{ color: 'var(--muted)' }}>
                 Runs ({summary.balls}b)
               </div>
             </div>
 
             <div
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-              className="p-2.5 rounded-2xl border text-center"
+              className="p-2.5 rounded-lg border text-center"
             >
-              <div className="text-2xl font-black" style={{ color: 'var(--purple)' }}>
+              <div className="text-xl font-bold" style={{ color: 'var(--primary)' }}>
                 {Math.round(summary.strikeRate || 0)}
               </div>
-              <div className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+              <div className="text-[10px] font-medium uppercase" style={{ color: 'var(--muted)' }}>
                 Strike Rate
               </div>
             </div>
 
             <div
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-              className="p-2.5 rounded-2xl border text-center"
+              className="p-2.5 rounded-lg border text-center"
             >
-              <div className="text-2xl font-black" style={{ color: 'var(--blue)' }}>
+              <div className="text-xl font-bold" style={{ color: 'var(--text)' }}>
                 {summary.fours} / {summary.sixes}
               </div>
-              <div className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+              <div className="text-[10px] font-medium uppercase" style={{ color: 'var(--muted)' }}>
                 4s / 6s
               </div>
             </div>
 
             <div
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-              className="p-2.5 rounded-2xl border text-center"
+              className="p-2.5 rounded-lg border text-center"
             >
-              <div className="text-2xl font-black" style={{ color: 'var(--orange)' }}>
+              <div className="text-xl font-bold" style={{ color: 'var(--primary)' }}>
                 {summary.boundaryPercentage}%
               </div>
-              <div className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+              <div className="text-[10px] font-medium uppercase" style={{ color: 'var(--muted)' }}>
                 Boundary %
               </div>
             </div>
@@ -127,9 +127,9 @@ export default function BatterDetailsModal({
           {/* Scoring Distribution Strip */}
           <div
             style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-            className="p-3 rounded-2xl border text-xs"
+            className="p-3 rounded-lg border text-xs"
           >
-            <div className="flex items-center justify-between pb-2 font-bold uppercase tracking-wider text-[10px]" style={{ color: 'var(--muted)' }}>
+            <div className="flex items-center justify-between pb-2 font-medium uppercase tracking-wider text-[10px]" style={{ color: 'var(--muted)' }}>
               <span>Scoring Distribution</span>
               <span>Dots: {summary.dotCount} ({summary.dotBallPercentage}%)</span>
             </div>
@@ -143,7 +143,7 @@ export default function BatterDetailsModal({
 
           {/* Head-to-Head Bowler Match-ups */}
           <div>
-            <div className="flex items-center gap-1.5 pb-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
+            <div className="flex items-center gap-1.5 pb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
               <Target className="w-3.5 h-3.5" />
               <span>Performance vs Particular Bowlers</span>
             </div>
@@ -151,7 +151,7 @@ export default function BatterDetailsModal({
             {headToHead.length === 0 ? (
               <div
                 style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--muted)' }}
-                className="p-3 rounded-2xl border text-center text-xs"
+                className="p-3 rounded-lg border text-center text-xs"
               >
                 No balls faced against any bowler yet.
               </div>
@@ -161,11 +161,11 @@ export default function BatterDetailsModal({
                   <div
                     key={h2h.bowlerName}
                     style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-                    className="p-3 rounded-2xl border flex flex-col gap-1.5"
+                    className="p-3 rounded-lg border flex flex-col gap-1.5"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 font-bold text-xs" style={{ color: 'var(--blue)' }}>
-                        <span>⚡</span>
+                      <div className="flex items-center gap-1.5 font-semibold text-xs" style={{ color: 'var(--text)' }}>
+                        <Zap className="w-3.5 h-3.5 text-emerald-500" />
                         <span>vs {h2h.bowlerName}</span>
                       </div>
                       {h2h.isDismissed ? (
@@ -175,7 +175,7 @@ export default function BatterDetailsModal({
                             color: 'var(--red)',
                             borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)'
                           }}
-                          className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold border"
                         >
                           Dismissed ({h2h.dismissalType})
                         </span>
@@ -186,7 +186,7 @@ export default function BatterDetailsModal({
                             color: 'var(--green)',
                             borderColor: 'color-mix(in srgb, var(--green) 30%, transparent)'
                           }}
-                          className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold border"
                         >
                           Not Dismissed
                         </span>
@@ -195,19 +195,19 @@ export default function BatterDetailsModal({
 
                     <div className="grid grid-cols-4 gap-1 text-center text-xs pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                       <div>
-                        <div className="font-black text-sm" style={{ color: 'var(--text)' }}>{h2h.runs}</div>
+                        <div className="font-bold text-sm" style={{ color: 'var(--text)' }}>{h2h.runs}</div>
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Runs ({h2h.balls}b)</div>
                       </div>
                       <div>
-                        <div className="font-black text-sm" style={{ color: 'var(--purple)' }}>{Math.round(h2h.strikeRate || 0)}</div>
+                        <div className="font-bold text-sm" style={{ color: 'var(--primary)' }}>{Math.round(h2h.strikeRate || 0)}</div>
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Strike Rate</div>
                       </div>
                       <div>
-                        <div className="font-black text-sm" style={{ color: 'var(--blue)' }}>{h2h.fours} / {h2h.sixes}</div>
+                        <div className="font-bold text-sm" style={{ color: 'var(--text)' }}>{h2h.fours} / {h2h.sixes}</div>
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>4s / 6s</div>
                       </div>
                       <div>
-                        <div className="font-black text-sm" style={{ color: 'var(--orange)' }}>{h2h.dots}</div>
+                        <div className="font-bold text-sm" style={{ color: 'var(--muted)' }}>{h2h.dots}</div>
                         <div className="text-[10px]" style={{ color: 'var(--muted)' }}>Dots Faced</div>
                       </div>
                     </div>
@@ -219,7 +219,7 @@ export default function BatterDetailsModal({
 
           {/* Chronological Ball-by-Ball Timeline */}
           <div>
-            <div className="flex items-center gap-1.5 pb-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--orange)' }}>
+            <div className="flex items-center gap-1.5 pb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
               <TrendingUp className="w-3.5 h-3.5" />
               <span>Innings Delivery Timeline</span>
             </div>
@@ -227,7 +227,7 @@ export default function BatterDetailsModal({
             {timeline.length === 0 ? (
               <div
                 style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--muted)' }}
-                className="p-3 rounded-2xl border text-center text-xs"
+                className="p-3 rounded-lg border text-center text-xs"
               >
                 No deliveries faced yet.
               </div>
@@ -241,17 +241,13 @@ export default function BatterDetailsModal({
                     badgeBg = 'var(--red)';
                     textColor = '#FFFFFF';
                     borderColor = 'var(--red)';
-                  } else if (item.isSix) {
-                    badgeBg = 'var(--purple)';
-                    textColor = '#FFFFFF';
-                    borderColor = 'var(--purple)';
-                  } else if (item.isFour) {
-                    badgeBg = 'var(--blue)';
-                    textColor = '#FFFFFF';
-                    borderColor = 'var(--blue)';
-                  } else if (item.runs > 0) {
+                  } else if (item.isSix || item.isFour) {
                     badgeBg = 'var(--primary)';
                     textColor = '#FFFFFF';
+                    borderColor = 'var(--primary)';
+                  } else if (item.runs > 0) {
+                    badgeBg = 'color-mix(in srgb, var(--primary) 20%, var(--card-alt))';
+                    textColor = 'var(--text)';
                     borderColor = 'var(--primary)';
                   }
 
@@ -264,7 +260,7 @@ export default function BatterDetailsModal({
                         color: textColor,
                         borderColor: borderColor
                       }}
-                      className="w-8 h-8 rounded-xl border flex flex-col items-center justify-center text-xs font-black shrink-0 transition-transform hover:scale-110 cursor-pointer shadow-sm"
+                      className="w-8 h-8 rounded-lg border flex flex-col items-center justify-center text-xs font-semibold shrink-0 transition-transform hover:scale-105 cursor-pointer shadow-sm"
                     >
                       <span>{item.shortLabel}</span>
                     </div>
@@ -273,7 +269,7 @@ export default function BatterDetailsModal({
               </div>
             )}
             <div className="flex items-center justify-between text-[10px] pt-1.5 px-1" style={{ color: 'var(--muted)' }}>
-              <span>Hover / Tap ball badge for bowler & over details</span>
+              <span>Tap ball badge for bowler & over details</span>
               <span>Total Balls: {timeline.length}</span>
             </div>
           </div>
@@ -290,7 +286,7 @@ export default function BatterDetailsModal({
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF'
             }}
-            className="w-full py-2.5 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all"
+            className="w-full py-2.5 rounded-lg font-semibold text-xs shadow-sm active:scale-95 transition-all"
           >
             Close Breakdown
           </button>

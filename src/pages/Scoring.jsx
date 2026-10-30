@@ -13,7 +13,12 @@ import {
   MoreVertical,
   Flag,
   Moon,
-  Sun
+  Sun,
+  TrendingUp,
+  Target,
+  User,
+  Shield,
+  Zap
 } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
@@ -392,12 +397,12 @@ export default function Scoring({
                 <span style={{ color: 'var(--text)' }} className="text-4xl sm:text-5xl font-black tracking-tight">
                   {currentInnings.score}
                 </span>
-                <span style={{ color: 'var(--red)' }} className="text-2xl sm:text-3xl font-extrabold">
+                <span style={{ color: 'var(--muted)' }} className="text-2xl sm:text-3xl font-extrabold">
                   /{currentInnings.wickets}
                 </span>
               </div>
               <div className="text-right">
-                <div style={{ color: 'var(--orange)' }} className="text-xl sm:text-2xl font-black font-mono">
+                <div style={{ color: 'var(--primary)' }} className="text-xl sm:text-2xl font-black font-mono">
                   {formatOvers(currentInnings.legalBalls)}{' '}
                   <span style={{ color: 'var(--muted)' }} className="text-xs sm:text-sm font-normal">
                     / {matchState.overs} ov
@@ -442,9 +447,9 @@ export default function Scoring({
                 }}
                 className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
               >
-                <span style={{ color: 'var(--green)' }}>📈</span>
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                 <span style={{ color: 'var(--muted)' }}>CRR</span>
-                <strong style={{ color: 'var(--green)' }}>{crr}</strong>
+                <strong style={{ color: 'var(--primary)' }}>{crr}</strong>
               </div>
 
               {curInnIndex === 1 && matchState.target ? (
@@ -458,14 +463,14 @@ export default function Scoring({
                 >
                   {matchState.status === 'completed' ? (
                     <>
-                      <span>🏆</span>
-                      <span style={{ color: 'var(--orange)' }}>Match Completed</span>
+                      <Trophy className="w-3.5 h-3.5 text-emerald-500" />
+                      <span style={{ color: 'var(--primary)' }}>Match Completed</span>
                     </>
                   ) : (
                     <>
-                      <span style={{ color: 'var(--orange)' }}>🎯</span>
+                      <Target className="w-3.5 h-3.5 text-emerald-500" />
                       <span style={{ color: 'var(--muted)' }}>Need</span>
-                      <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
+                      <strong style={{ color: 'var(--primary)' }}>{runsNeeded}</strong>
                       <span style={{ color: 'var(--muted)' }} className="text-[10px]">({rrr} RRR)</span>
                     </>
                   )}
@@ -479,9 +484,9 @@ export default function Scoring({
                   }}
                   className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
                 >
-                  <span style={{ color: 'var(--orange)' }}>🎯</span>
+                  <Target className="w-3.5 h-3.5 text-emerald-500" />
                   <span style={{ color: 'var(--muted)' }}>Target for Inn 2</span>
-                  <strong style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1}</strong>
+                  <strong style={{ color: 'var(--primary)' }}>{matchState.target || currentInnings.score + 1}</strong>
                 </div>
               ) : (
                 <div
@@ -492,9 +497,9 @@ export default function Scoring({
                   }}
                   className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
                 >
-                  <span style={{ color: 'var(--blue)' }}>🎯</span>
+                  <Target className="w-3.5 h-3.5 text-emerald-500" />
                   <span style={{ color: 'var(--muted)' }}>Projected</span>
-                  <strong style={{ color: 'var(--blue)' }}>{Math.round(crr * matchState.overs) || 0}</strong>
+                  <strong style={{ color: 'var(--primary)' }}>{Math.round(crr * matchState.overs) || 0}</strong>
                 </div>
               )}
             </div>
@@ -602,7 +607,7 @@ export default function Scoring({
               className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2.5 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all shadow-sm gap-1.5 font-mono"
             >
               <div style={{ color: 'var(--green)' }} className="min-w-0 pr-1 font-bold flex items-center gap-1.5 font-sans">
-                <span className="text-sm shrink-0">🏏</span>
+                <User className="w-4 h-4 text-emerald-500 shrink-0" />
                 <div className="min-w-0 truncate">
                   <div className="font-extrabold truncate text-xs sm:text-sm">{matchState.striker || 'Select Striker'}</div>
                   <div className="text-[9px] font-normal opacity-85 truncate">(Striker) • Tap for stats</div>
@@ -637,7 +642,7 @@ export default function Scoring({
               className="grid grid-cols-[1fr_36px_36px_32px_32px_44px] items-center text-xs py-2 px-2.5 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all shadow-sm gap-1.5 font-mono"
             >
               <div className="min-w-0 pr-1 font-semibold flex items-center gap-1.5 font-sans" style={{ color: 'var(--text)' }}>
-                <span className="text-sm shrink-0">⛑️</span>
+                <User className="w-4 h-4 text-slate-400 shrink-0" />
                 <div className="min-w-0 truncate">
                   <div className="font-bold truncate text-xs sm:text-sm">{matchState.nonStriker || 'Select Non-Striker'}</div>
                   <div className="text-[9px] font-normal truncate" style={{ color: 'var(--muted)' }}>(Non-Striker) • Tap for stats</div>
@@ -670,8 +675,9 @@ export default function Scoring({
               }}
               className="flex items-center justify-between text-[11px] py-1 px-2.5 rounded-xl border font-medium mt-0.5"
             >
-              <span>
-                👥 Partnership:{' '}
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-emerald-500 inline" />
+                <span>Partnership:</span>{' '}
                 <strong style={{ color: 'var(--text)' }}>
                   {innStats.partnership?.runs || 0} ({innStats.partnership?.balls || 0})
                 </strong>
@@ -707,9 +713,9 @@ export default function Scoring({
 
             <div className="grid grid-cols-[1fr_38px_32px_38px_38px] items-center text-xs py-1.5 px-2.5 gap-2 font-mono">
               <div className="min-w-0 pr-1 flex items-center gap-1.5 font-sans">
-                <span className="text-sm shrink-0">🎯</span>
+                <Target className="w-4 h-4 text-emerald-500 shrink-0" />
                 <div className="min-w-0 truncate">
-                  <div style={{ color: 'var(--blue)' }} className="font-bold truncate text-xs sm:text-sm">
+                  <div style={{ color: 'var(--primary)' }} className="font-bold truncate text-xs sm:text-sm">
                     {matchState.currentBowler || 'Select Bowler'}
                   </div>
                   <div className="text-[9px]" style={{ color: 'var(--muted)' }}>Active Bowler</div>
@@ -799,10 +805,11 @@ export default function Scoring({
               className="p-4 sm:p-5 rounded-3xl border-2 text-center flex flex-col items-center gap-2 mb-2 shadow-xl animate-in zoom-in-95"
             >
               <div
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider"
-                style={{ backgroundColor: 'var(--orange-15)', color: 'var(--orange)' }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider"
+                style={{ backgroundColor: 'var(--green-15)', color: 'var(--primary)' }}
               >
-                🏆 1st Innings Completed ({currentInnings.score}/{currentInnings.wickets})
+                <Trophy className="w-3.5 h-3.5 text-emerald-500" />
+                <span>1st Innings Completed ({currentInnings.score}/{currentInnings.wickets})</span>
               </div>
               <p className="text-sm font-black m-0" style={{ color: 'var(--text)' }}>
                 Target for {matchState.teams?.[1]?.name || '2nd Team'}:{' '}

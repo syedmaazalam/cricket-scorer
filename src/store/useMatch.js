@@ -231,7 +231,7 @@ export function useMatch(matchId, isViewerMode = false) {
     const activeMid = matchId || stateRef.current.matchId;
     if (activeMid) {
       const isDot = ballPayload.runs === 0 && !ballPayload.extraType;
-      const title = isDot ? '⚪ Dot Ball (2 pts)' : `+${ballPayload.runs} Runs${ballPayload.extraType ? ` (${ballPayload.extraType})` : ''}`;
+      const title = isDot ? 'Dot Ball (2 pts)' : `+${ballPayload.runs} Runs${ballPayload.extraType ? ` (${ballPayload.extraType})` : ''}`;
       const logEntry = {
         id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         matchId: activeMid,
@@ -274,7 +274,7 @@ export function useMatch(matchId, isViewerMode = false) {
         matchId: activeMid,
         timestamp: Date.now(),
         action: 'INNINGS_ENDED',
-        title: '🏁 1st Innings Ended / 2nd Innings Started',
+        title: '1st Innings Ended / 2nd Innings Started',
         details: `Striker: ${inningsPayload?.striker || 'N/A'}, Non-Striker: ${inningsPayload?.nonStriker || 'N/A'}, Bowler: ${inningsPayload?.bowler || 'N/A'}`
       };
       saveActionLogLocally(activeMid, logEntry);

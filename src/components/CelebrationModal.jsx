@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trophy, Award, FileText, FileSpreadsheet, X, Sparkles } from 'lucide-react';
+import { Trophy, FileText, FileSpreadsheet, X, Sparkles } from 'lucide-react';
 import { formatOvers, getMaxWickets } from '../engine/rules.js';
 
 export default function CelebrationModal({
@@ -13,7 +13,7 @@ export default function CelebrationModal({
 
   const isCompleted = matchState?.status === 'completed' || Boolean(matchState?.winner);
 
-  // Confetti / Party Poppers physics canvas
+  // Confetti particles physics canvas
   useEffect(() => {
     if (!isCompleted || isDismissed) return;
 
@@ -32,18 +32,17 @@ export default function CelebrationModal({
     };
     window.addEventListener('resize', handleResize);
 
-    const colors = ['#8574FF', '#5B9BFF', '#FFB155', '#FF6B8B', '#1DB954', '#FFD700', '#00F0FF'];
+    const colors = ['#22C55E', '#16A34A', '#86EFAC', '#4ADE80', '#F8FAFC', '#94A3B8'];
 
-    // Spawn 120 confetti popper pieces
-    const particles = Array.from({ length: 130 }, () => ({
+    const particles = Array.from({ length: 110 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height * 0.4 - height * 0.2,
-      vx: (Math.random() - 0.5) * 6,
-      vy: Math.random() * 4 + 3,
-      size: Math.random() * 8 + 4,
+      vx: (Math.random() - 0.5) * 5,
+      vy: Math.random() * 3.5 + 2.5,
+      size: Math.random() * 7 + 4,
       color: colors[Math.floor(Math.random() * colors.length)],
       rotation: Math.random() * 360,
-      vRotation: (Math.random() - 0.5) * 8,
+      vRotation: (Math.random() - 0.5) * 6,
       shape: Math.random() > 0.4 ? 'rect' : 'circle'
     }));
 
@@ -57,7 +56,6 @@ export default function CelebrationModal({
         p.y += p.vy;
         p.rotation += p.vRotation;
 
-        // Wrap around
         if (p.y > height + 20) {
           p.y = -20;
           p.x = Math.random() * width;
@@ -78,8 +76,7 @@ export default function CelebrationModal({
         ctx.restore();
       });
 
-      // Stop confetti loop after 14 seconds to preserve battery
-      if (Date.now() - startTime < 14000) {
+      if (Date.now() - startTime < 12000) {
         animationFrameId = requestAnimationFrame(render);
       }
     };
@@ -106,34 +103,30 @@ export default function CelebrationModal({
   let subDetails = '';
 
   if (isTie) {
-    detailMessage = 'Match Tied!';
+    detailMessage = 'Match Tied';
     subDetails = `${inn1.battingTeam}: ${inn1.score}/${inn1.wickets} vs ${inn2.battingTeam}: ${inn2.score}/${inn2.wickets}`;
   } else if (winner === inn2.battingTeam) {
-    // Chasing team won
     const wicketsRemaining = Math.max(0, maxWickets - inn2.wickets);
     const ballsRemaining = Math.max(0, totalBalls - inn2.legalBalls);
-    detailMessage = `${winner} won the match!`;
+    detailMessage = `${winner} won the match`;
     subDetails = `${winner} reached the target of ${matchState.target} in ${formatOvers(inn2.legalBalls)} overs with ${ballsRemaining} ball${ballsRemaining === 1 ? '' : 's'} to spare (won by ${wicketsRemaining} wicket${wicketsRemaining === 1 ? '' : 's'})`;
   } else {
-    // First batting team defended
     const runDiff = inn1.score - inn2.score;
-    detailMessage = `${winner} won the match!`;
+    detailMessage = `${winner} won the match`;
     subDetails = `${winner} successfully defended ${inn1.score} runs (won by ${runDiff} run${runDiff === 1 ? '' : 's'})`;
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-md animate-in fade-in duration-300">
-      {/* Confetti Background Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-10" />
 
-      {/* Main Celebration Dialog Card */}
       <div
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="relative z-20 w-full max-w-md rounded-3xl border p-5 sm:p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 animate-in zoom-in-95 duration-200"
+        className="relative z-20 w-full max-w-md rounded-xl border p-5 sm:p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 animate-in zoom-in-95 duration-200"
       >
         <button
           onClick={() => {
@@ -147,31 +140,31 @@ export default function CelebrationModal({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Trophy with Party Glow */}
+        {/* Trophy icon */}
         <div
           style={{
-            backgroundColor: 'var(--orange-15)',
-            borderColor: 'var(--orange-30)',
-            color: 'var(--orange)'
+            backgroundColor: 'var(--green-15)',
+            borderColor: 'var(--green-30)',
+            color: 'var(--primary)'
           }}
-          className="w-16 h-16 rounded-3xl border flex items-center justify-center shadow-lg shadow-amber-500/20 text-3xl animate-bounce"
+          className="w-16 h-16 rounded-xl border flex items-center justify-center shadow-lg text-primary animate-bounce"
         >
-          🏆
+          <Trophy className="w-8 h-8 text-green-500" />
         </div>
 
-        {/* Header Badges */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+        {/* Header Badge */}
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
           <span>MATCH COMPLETED</span>
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
         </div>
 
-        {/* Big Celebration Title */}
+        {/* Celebration Title */}
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: 'var(--text)' }}>
-            🎉 {detailMessage} 🎉
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+            {detailMessage}
           </h2>
-          <p className="text-xs sm:text-sm font-semibold max-w-sm" style={{ color: 'var(--muted)' }}>
+          <p className="text-xs sm:text-sm font-medium max-w-sm" style={{ color: 'var(--muted)' }}>
             {subDetails}
           </p>
         </div>
@@ -179,18 +172,18 @@ export default function CelebrationModal({
         {/* Both Innings Score Pill */}
         <div
           style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-          className="w-full rounded-2xl border p-2.5 flex items-center justify-around text-xs font-bold"
+          className="w-full rounded-xl border p-2.5 flex items-center justify-around text-xs font-semibold"
         >
           <div className="flex flex-col">
-            <span style={{ color: 'var(--muted)' }} className="text-[10px] uppercase font-bold">{inn1.battingTeam}</span>
-            <span style={{ color: 'var(--text)' }} className="text-sm font-black font-mono">
+            <span style={{ color: 'var(--muted)' }} className="text-[10px] uppercase font-medium">{inn1.battingTeam}</span>
+            <span style={{ color: 'var(--text)' }} className="text-sm font-bold font-mono">
               {inn1.score}/{inn1.wickets} <span className="text-[10px] font-normal" style={{ color: 'var(--muted)' }}>({formatOvers(inn1.legalBalls)})</span>
             </span>
           </div>
-          <span style={{ color: 'var(--border)' }} className="text-lg">vs</span>
+          <span style={{ color: 'var(--border)' }} className="text-sm font-bold">vs</span>
           <div className="flex flex-col">
-            <span style={{ color: 'var(--muted)' }} className="text-[10px] uppercase font-bold">{inn2.battingTeam}</span>
-            <span style={{ color: 'var(--text)' }} className="text-sm font-black font-mono">
+            <span style={{ color: 'var(--muted)' }} className="text-[10px] uppercase font-medium">{inn2.battingTeam}</span>
+            <span style={{ color: 'var(--text)' }} className="text-sm font-bold font-mono">
               {inn2.score}/{inn2.wickets} <span className="text-[10px] font-normal" style={{ color: 'var(--muted)' }}>({formatOvers(inn2.legalBalls)})</span>
             </span>
           </div>
@@ -205,7 +198,7 @@ export default function CelebrationModal({
                 onOpenScorecard(matchState);
               }}
               style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-              className="flex-1 py-3 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+              className="flex-1 py-3 px-4 rounded-xl font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
             >
               <FileText className="w-4 h-4" />
               <span>Full Scorecard</span>
@@ -219,9 +212,9 @@ export default function CelebrationModal({
                 onOpenSummary(matchState);
               }}
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--text)' }}
-              className="flex-1 py-3 px-4 rounded-2xl font-bold text-xs border flex items-center justify-center gap-1.5 hover:border-[var(--primary)] active:scale-95 transition-all shadow-sm"
+              className="flex-1 py-3 px-4 rounded-xl font-semibold text-xs border flex items-center justify-center gap-1.5 hover:border-[var(--primary)] active:scale-95 transition-all shadow-sm"
             >
-              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--orange)' }} />
+              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--primary)' }} />
               <span>Match Summary</span>
             </button>
           )}

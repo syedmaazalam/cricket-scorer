@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, AlertCircle, LogIn, UserPlus } from 'lucide-react';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { saveManagerProfileToCloud } from '../firebase/matches.js';
+import { saveManagerLocally } from '../store/localDb.js';
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [isRegister, setIsRegister] = useState(true);
@@ -49,28 +51,35 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           managerData = {
             uid: cred.user.uid,
             name: cleanName || cleanEmail.split('@')[0],
-            email: cleanEmail
+            email: cleanEmail,
+            createdAt: Date.now(),
+            lastActive: Date.now()
           };
         } else {
           const cred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
           managerData = {
             uid: cred.user.uid,
             name: cred.user.displayName || cleanEmail.split('@')[0],
-            email: cleanEmail
+            email: cleanEmail,
+            lastActive: Date.now()
           };
         }
       } catch (fbErr) {
-        // Fallback for offline or unconfigured email provider in console
         console.warn('Firebase Auth fallback active:', fbErr);
         const localUid = 'mgr_' + Math.random().toString(36).substring(2, 9);
         managerData = {
           uid: localUid,
           name: cleanName || cleanEmail.split('@')[0],
-          email: cleanEmail
+          email: cleanEmail,
+          createdAt: Date.now(),
+          lastActive: Date.now()
         };
       }
 
-      // Persist manager profile locally
+      // Persist profile locally and to Firestore
+      await saveManagerLocally(managerData);
+      await saveManagerProfileToCloud(managerData);
+
       localStorage.setItem('cricket_manager_user', JSON.stringify(managerData));
       localStorage.setItem('cricket_is_manager', 'true');
 
@@ -91,7 +100,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-[24px] border shadow-2xl overflow-hidden transition-all"
+        className="w-full max-w-md rounded-xl border shadow-2xl overflow-hidden transition-all"
       >
         {/* Header */}
         <div
@@ -101,12 +110,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           <div className="flex items-center gap-2">
             <div
               style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shadow-sm"
+              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shadow-sm"
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-black m-0" style={{ color: 'var(--text)' }}>
+              <h3 className="text-sm font-semibold m-0" style={{ color: 'var(--text)' }}>
                 {isRegister ? 'Manager Registration' : 'Manager Sign In'}
               </h3>
               <p className="text-[10px] m-0" style={{ color: 'var(--muted)' }}>
@@ -118,7 +127,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           <button
             onClick={onClose}
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-1.5 rounded-xl border hover:opacity-80 transition-all active:scale-95"
+            className="p-1.5 rounded-lg border hover:opacity-80 transition-all active:scale-95"
           >
             <X className="w-4 h-4" />
           </button>
@@ -133,7 +142,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               backgroundColor: isRegister ? 'var(--primary)' : 'transparent',
               color: isRegister ? '#FFFFFF' : 'var(--muted)'
             }}
-            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            className="py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>Register Manager</span>
@@ -146,7 +155,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               backgroundColor: !isRegister ? 'var(--primary)' : 'transparent',
               color: !isRegister ? '#FFFFFF' : 'var(--muted)'
             }}
-            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            className="py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>Sign In</span>
@@ -162,7 +171,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 color: 'var(--red)',
                 borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)'
               }}
-              className="p-3 rounded-xl border text-xs flex items-center gap-2"
+              className="p-3 rounded-lg border text-xs flex items-center gap-2"
             >
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -171,7 +180,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
           {isRegister && (
             <div>
-              <label className="block text-[11px] font-bold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+              <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
                 Manager Name / Organizer
               </label>
               <div className="relative">
@@ -186,14 +195,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                     borderColor: 'var(--border)',
                     color: 'var(--text)'
                   }}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-[11px] font-bold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+            <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
               Email Address
             </label>
             <div className="relative">
@@ -208,13 +217,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+            <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
               Password
             </label>
             <div className="relative">
@@ -229,7 +238,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
             </div>
           </div>
@@ -241,7 +250,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF'
             }}
-            className="w-full py-3 rounded-xl font-bold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 mt-4"
+            className="w-full py-3 rounded-lg font-semibold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 mt-4"
           >
             {loading ? (
               <span className="animate-pulse">Authenticating Manager...</span>

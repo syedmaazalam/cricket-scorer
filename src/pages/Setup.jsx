@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Shield, Check, Users, Clock, Shuffle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Shield, Check, Users, Clock, Shuffle, AlertCircle, Activity } from 'lucide-react';
 import { generateMatchCode } from '../firebase/matches.js';
 import { EVENT_TYPES } from '../engine/constants.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -628,13 +628,14 @@ export default function Setup({ onStartMatch, onBack }) {
 
             <div
               style={{
-                backgroundColor: 'color-mix(in srgb, var(--orange) 15%, transparent)',
-                borderColor: 'color-mix(in srgb, var(--orange) 30%, transparent)',
-                color: 'var(--orange)'
+                backgroundColor: 'var(--green-15)',
+                borderColor: 'var(--green-30)',
+                color: 'var(--primary)'
               }}
-              className="text-xs font-bold rounded-xl p-2.5 border"
+              className="text-xs font-semibold rounded-lg p-2.5 border flex items-center gap-1.5"
             >
-              🏏 <strong>{battingTeamName}</strong> will bat first. <strong>{bowlingTeamName}</strong> will bowl.
+              <Activity className="w-3.5 h-3.5 inline text-emerald-500 shrink-0" />
+              <span><strong>{battingTeamName}</strong> will bat first. <strong>{bowlingTeamName}</strong> will bowl.</span>
             </div>
           </div>
 

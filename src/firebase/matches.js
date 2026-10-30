@@ -4,6 +4,7 @@ import {
   setDoc,
   deleteDoc,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -11,6 +12,8 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db, ensureAnonymousAuth } from './config.js';
+import { replayEvents } from '../engine/reducer.js';
+import { formatOvers } from '../engine/rules.js';
 
 function sanitizeForFirestore(obj) {
   if (obj === undefined) return null;
@@ -38,6 +41,67 @@ export function generateMatchCode() {
 }
 
 /**
+ * Derives the exact scores for a match from event log or match state.
+ * Never defaults to 0/0; returns 'Not started' if no legal deliveries were bowled.
+ */
+export function deriveMatchDisplayScore(match, events = null) {
+  if (!match) {
+    return { inn1Text: 'Not started', inn2Text: '', resultText: '', isStarted: false };
+  }
+
+  let state = null;
+  if (Array.isArray(events) && events.length > 0) {
+    try {
+      state = replayEvents(events);
+    } catch (e) {
+      // Replay fallback
+    }
+  }
+
+  const innings = state?.innings || match.innings || [];
+  const inn1 = innings[0];
+  const inn2 = innings[1];
+  const summary = state?.summary || match.summary;
+
+  const t1Name = match.teams?.[0]?.name || 'Team 1';
+  const t2Name = match.teams?.[1]?.name || 'Team 2';
+
+  const formatInn = (inn, fallbackName) => {
+    if (!inn) return null;
+    const legalBalls = inn.legalBalls || 0;
+    const score = inn.score || 0;
+    const wickets = inn.wickets || 0;
+    const team = inn.battingTeam || fallbackName;
+    if (legalBalls === 0 && score === 0 && wickets === 0) return null;
+    return `${team}: ${score}/${wickets} (${formatOvers(legalBalls)} ov)`;
+  };
+
+  let inn1Text = formatInn(inn1, t1Name);
+  let inn2Text = formatInn(inn2, t2Name);
+
+  if (!inn1Text && !inn2Text && summary && summary.legalBalls > 0) {
+    inn1Text = `${summary.battingTeam || t1Name}: ${summary.score || 0}/${summary.wickets || 0} (${formatOvers(summary.legalBalls || 0)} ov)`;
+  }
+
+  const isStarted = Boolean(inn1Text || (summary && summary.legalBalls > 0));
+  if (!isStarted) {
+    return {
+      inn1Text: 'Not started',
+      inn2Text: '',
+      resultText: match.resultSummary || '',
+      isStarted: false
+    };
+  }
+
+  return {
+    inn1Text: inn1Text || 'Not started',
+    inn2Text: inn2Text || '',
+    resultText: state?.resultSummary || match.resultSummary || '',
+    isStarted: true
+  };
+}
+
+/**
  * Updates match heartbeat (scorer device online pulse).
  */
 export async function updateMatchHeartbeat(matchId) {
@@ -51,14 +115,29 @@ export async function updateMatchHeartbeat(matchId) {
 }
 
 /**
- * Creates a match document in Firestore.
+ * Creates a match document in Firestore with manager metadata and initial scores.
  */
 export async function createMatchInCloud(matchId, matchData) {
   try {
     const user = await ensureAnonymousAuth();
     const matchRef = doc(db, 'matches', matchId);
+    
+    // Attach manager information from active manager session
+    let managerMeta = {};
+    try {
+      const activeManager = JSON.parse(localStorage.getItem('cricket_manager_user') || 'null');
+      if (activeManager && activeManager.uid) {
+        managerMeta = {
+          managerId: activeManager.uid,
+          managerName: activeManager.name || 'Manager',
+          managerEmail: activeManager.email || ''
+        };
+      }
+    } catch (e) {}
+
     const data = sanitizeForFirestore({
       ...matchData,
+      ...managerMeta,
       scorerId: user?.uid || 'anonymous',
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -93,58 +172,69 @@ export async function searchMatches(queryText) {
   if (!queryText) return [];
   const clean = queryText.trim().toLowerCase();
 
-  // Try direct code match first
   if (clean.length === 6) {
     const direct = await findMatchByCode(clean);
     if (direct) return [direct];
   }
 
   try {
-    const q = query(collection(db, 'matches'), orderBy('updatedAt', 'desc'), limit(20));
+    const q = query(collection(db, 'matches'), orderBy('updatedAt', 'desc'), limit(30));
     const snap = await getDocs(q);
     const matches = [];
-    snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      const teamA = (data.teams?.[0]?.name || '').toLowerCase();
-      const teamB = (data.teams?.[1]?.name || '').toLowerCase();
-      const code = (data.code || '').toLowerCase();
-      if (teamA.includes(clean) || teamB.includes(clean) || code.includes(clean)) {
-        matches.push({ matchId: docSnap.id, ...data });
+
+    snap.forEach((d) => {
+      const m = d.data();
+      const t1 = (m.teams?.[0]?.name || '').toLowerCase();
+      const t2 = (m.teams?.[1]?.name || '').toLowerCase();
+      const code = (m.code || '').toLowerCase();
+      const manager = (m.managerName || '').toLowerCase();
+
+      // Check player names if available
+      const playersA = (m.teams?.[0]?.players || []).map(p => (typeof p === 'string' ? p : p.name || '').toLowerCase());
+      const playersB = (m.teams?.[1]?.players || []).map(p => (typeof p === 'string' ? p : p.name || '').toLowerCase());
+      const matchesPlayer = playersA.some(p => p.includes(clean)) || playersB.some(p => p.includes(clean));
+
+      if (t1.includes(clean) || t2.includes(clean) || code.includes(clean) || manager.includes(clean) || matchesPlayer) {
+        matches.push({ matchId: d.id, ...m });
       }
     });
+
     return matches;
   } catch (err) {
-    console.warn('Match search error:', err);
+    console.warn('Search matches error:', err);
     return [];
   }
 }
 
 /**
- * Subscribes to real-time events for live viewing and catch-up.
+ * Subscribes to events for a match in real time.
  */
-export function subscribeToMatchEvents(matchId, callback) {
-  const eventsRef = collection(db, 'matches', matchId, 'events');
-  const q = query(eventsRef, orderBy('seq', 'asc'));
+export function subscribeToMatchEvents(matchId, onEventsUpdated) {
+  if (!matchId) return () => {};
+  const eventsCol = collection(db, 'matches', matchId, 'events');
+  const q = query(eventsCol, orderBy('seq', 'asc'));
 
   return onSnapshot(q, (snapshot) => {
     const events = [];
-    snapshot.forEach((doc) => {
-      events.push(doc.data());
+    snapshot.forEach((docSnap) => {
+      events.push(docSnap.data());
     });
-    callback(events, snapshot.metadata.fromCache);
+    onEventsUpdated(events);
   }, (err) => {
-    console.warn('Events subscription warning (offline fallback active):', err);
+    console.warn('Events subscription error:', err);
   });
 }
 
 /**
- * Subscribes to match summary updates.
+ * Subscribes to the match document for real-time heartbeat and status.
  */
-export function subscribeToMatchDoc(matchId, callback) {
+export function subscribeToMatchDoc(matchId, onDocUpdated) {
+  if (!matchId) return () => {};
   const matchRef = doc(db, 'matches', matchId);
+
   return onSnapshot(matchRef, (docSnap) => {
     if (docSnap.exists()) {
-      callback({
+      onDocUpdated({
         matchId: docSnap.id,
         ...docSnap.data()
       }, docSnap.metadata.fromCache);
@@ -173,12 +263,50 @@ export async function getAllMatchesFromCloud() {
 }
 
 /**
+ * Fetches all registered managers from Cloud Firestore (Developer portal only).
+ */
+export async function getAllManagersFromCloud() {
+  try {
+    const q = query(collection(db, 'managers'), orderBy('lastActive', 'desc'));
+    const snap = await getDocs(q);
+    const managers = [];
+    snap.forEach((docSnap) => {
+      managers.push({ uid: docSnap.id, ...docSnap.data() });
+    });
+    return managers;
+  } catch (err) {
+    console.warn('Error fetching all managers from cloud:', err);
+    return [];
+  }
+}
+
+/**
+ * Saves or updates a manager profile in Firestore collection 'managers/{uid}'.
+ */
+export async function saveManagerProfileToCloud(managerData) {
+  if (!managerData || !managerData.uid) return;
+  try {
+    const managerRef = doc(db, 'managers', managerData.uid);
+    const data = sanitizeForFirestore({
+      uid: managerData.uid,
+      name: managerData.name || 'Manager',
+      email: managerData.email || '',
+      createdAt: managerData.createdAt || Date.now(),
+      lastActive: Date.now()
+    });
+    await setDoc(managerRef, data, { merge: true });
+    return data;
+  } catch (err) {
+    console.warn('Error saving manager profile to cloud:', err);
+  }
+}
+
+/**
  * Deletes a single match and its event subcollection from Cloud.
  */
 export async function deleteMatchFromCloud(matchId) {
   if (!matchId) return;
   try {
-    // 1. Delete events
     const eventsRef = collection(db, 'matches', matchId, 'events');
     const snap = await getDocs(eventsRef);
     const deletions = [];
@@ -186,7 +314,6 @@ export async function deleteMatchFromCloud(matchId) {
       deletions.push(deleteDoc(doc(db, 'matches', matchId, 'events', docSnap.id)));
     });
     await Promise.all(deletions);
-    // 2. Delete main match doc
     await deleteDoc(doc(db, 'matches', matchId));
   } catch (err) {
     console.error(`Failed to delete match ${matchId} from cloud:`, err);
@@ -236,7 +363,6 @@ export async function saveUploadedMatchToCloud(matchId, matchData, events = []) 
       updatedAt: Date.now()
     }), { merge: true });
 
-    // Save events
     if (Array.isArray(events) && events.length > 0) {
       for (const ev of events) {
         if (ev && ev.id) {

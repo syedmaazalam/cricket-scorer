@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash } from 'lucide-react';
+import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash, BarChart2, Shield, Activity } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers } from '../engine/rules.js';
@@ -291,7 +291,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                   <td className="py-1.5 font-semibold" style={{ color: 'var(--text)' }}>
                     <div className="flex items-center gap-1">
                       <span className="font-bold">{b.name}</span>
-                      <span className="text-[9px]" style={{ color: 'var(--primary)' }}>📊</span>
+                      <BarChart2 className="w-3 h-3 text-emerald-500 inline" />
                     </div>
                     <div style={{ color: 'var(--muted)' }} className="text-[10px] font-normal">
                       {b.isOut ? (b.dismissal || 'out') : 'not out'}
@@ -472,13 +472,13 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             {/* Bat Icon in rounded square */}
             <div
               style={{
-                backgroundColor: 'var(--card-alt)',
+                backgroundColor: 'var(--green-15)',
                 borderColor: 'var(--border)',
-                color: 'var(--orange)'
+                color: 'var(--primary)'
               }}
-              className="w-10 h-10 rounded-2xl border flex items-center justify-center text-xl shadow-inner shrink-0"
+              className="w-10 h-10 rounded-xl border flex items-center justify-center text-xl shadow-inner shrink-0"
             >
-              🏏
+              <Activity className="w-5 h-5 text-emerald-500" />
             </div>
 
             <div className="flex flex-col">
@@ -573,8 +573,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             {/* Card Header: Pencil/Bat Icon, Team Name, Score */}
             <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
-                <span className="text-base">🏏</span>
-                <span className="font-black text-sm" style={{ color: 'var(--text)' }}>
+                <Activity className="w-4 h-4 text-emerald-500" />
+                <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
                   {teamAName}
                 </span>
               </div>
@@ -616,8 +616,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             {/* Card Header: Shield/Ball Icon, Team Name, Score */}
             <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
-                <span className="text-base">🛡️</span>
-                <span className="font-black text-sm" style={{ color: 'var(--text)' }}>
+                <Shield className="w-4 h-4 text-emerald-500" />
+                <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
                   {teamBName}
                 </span>
               </div>
@@ -658,8 +658,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
           >
             <div className="flex items-center justify-between min-h-[32px]">
               <div className="flex items-center gap-2">
-                <span className="text-base">🏆</span>
-                <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-black uppercase tracking-wider m-0 leading-normal">
+                <Trophy className="w-4 h-4 text-emerald-500" />
+                <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-semibold uppercase tracking-wider m-0 leading-normal">
                   TOP 3 PLAYERS OF THE MATCH
                 </h3>
               </div>
@@ -774,7 +774,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
           className="pt-4 pb-2 text-center text-xs font-semibold leading-normal"
         >
-          {"CricketScorer • Developed with 🏏 by "}
+          {"© 2026 SmartCricket · Developed by "}
           <span style={{ color: 'var(--text)' }} className="font-bold">
             Syed Maaz Alam
           </span>

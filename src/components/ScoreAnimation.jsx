@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity } from 'lucide-react';
 
 export default function ScoreAnimation({ animationData }) {
   const [visible, setVisible] = useState(false);
@@ -16,38 +17,38 @@ export default function ScoreAnimation({ animationData }) {
 
   const { type, text, subtext } = animationData;
 
-  let bgGradient = 'rgba(123, 97, 240, 0.95)'; // purple
-  let borderGlow = 'var(--purple)';
-  let icon = '🏏';
+  let bgGradient = 'rgba(30, 41, 59, 0.95)';
+  let borderGlow = 'var(--primary)';
+  let IconComponent = Zap;
 
   if (type === 'six') {
-    bgGradient = 'rgba(123, 97, 240, 0.95)';
-    borderGlow = 'var(--purple)';
-    icon = '🏏 💥';
-  } else if (type === 'four') {
-    bgGradient = 'rgba(91, 155, 255, 0.95)';
-    borderGlow = 'var(--blue)';
-    icon = '🏏 ⚡';
-  } else if (type === 'wicket') {
-    bgGradient = 'rgba(255, 107, 139, 0.95)';
-    borderGlow = 'var(--red)';
-    icon = '🎯 ☝️';
-  } else if (type === 'extra') {
-    bgGradient = 'rgba(255, 177, 85, 0.95)';
-    borderGlow = 'var(--orange)';
-    icon = '🚩';
-  } else if (type === 'dot') {
-    bgGradient = 'rgba(35, 46, 58, 0.95)';
-    borderGlow = 'var(--muted)';
-    icon = '⚪';
-  } else if (type === 'run') {
-    bgGradient = 'rgba(29, 185, 84, 0.95)';
-    borderGlow = 'var(--green)';
-    icon = '🏃';
-  } else {
-    bgGradient = 'rgba(43, 45, 110, 0.95)';
+    bgGradient = 'rgba(22, 163, 74, 0.95)';
     borderGlow = 'var(--primary)';
-    icon = '⚡';
+    IconComponent = Flame;
+  } else if (type === 'four') {
+    bgGradient = 'rgba(22, 163, 74, 0.9)';
+    borderGlow = 'var(--primary)';
+    IconComponent = Award;
+  } else if (type === 'wicket') {
+    bgGradient = 'rgba(239, 68, 68, 0.95)';
+    borderGlow = 'var(--red)';
+    IconComponent = ShieldAlert;
+  } else if (type === 'extra') {
+    bgGradient = 'rgba(36, 50, 71, 0.95)';
+    borderGlow = 'var(--border)';
+    IconComponent = Activity;
+  } else if (type === 'dot') {
+    bgGradient = 'rgba(15, 23, 42, 0.95)';
+    borderGlow = 'var(--border)';
+    IconComponent = CircleDot;
+  } else if (type === 'run') {
+    bgGradient = 'rgba(22, 163, 74, 0.95)';
+    borderGlow = 'var(--primary)';
+    IconComponent = Zap;
+  } else {
+    bgGradient = 'rgba(30, 41, 59, 0.95)';
+    borderGlow = 'var(--primary)';
+    IconComponent = Sparkles;
   }
 
   return (
@@ -56,17 +57,19 @@ export default function ScoreAnimation({ animationData }) {
         style={{
           backgroundColor: bgGradient,
           borderColor: borderGlow,
-          boxShadow: `0 4px 20px ${borderGlow}, 0 2px 8px rgba(0, 0, 0, 0.35)`
+          boxShadow: `0 4px 20px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35)`
         }}
-        className="px-4 py-2 rounded-2xl border backdrop-blur-xl text-white flex items-center gap-2.5 transform animate-bounce-short select-none shadow-xl"
+        className="px-4 py-2 rounded-xl border backdrop-blur-xl text-white flex items-center gap-2.5 transform animate-bounce-short select-none shadow-xl"
       >
-        <span className="text-lg">{icon}</span>
+        <span className="flex items-center justify-center">
+          <IconComponent className="w-5 h-5 text-white" />
+        </span>
         <div className="flex flex-col">
-          <span className="text-sm font-black tracking-tight leading-tight">
+          <span className="text-sm font-semibold tracking-tight leading-tight text-white">
             {text}
           </span>
           {subtext && (
-            <span className="text-[9px] font-black tracking-widest uppercase opacity-90 leading-tight">
+            <span className="text-[10px] font-medium tracking-wider uppercase opacity-90 leading-tight text-white">
               {subtext}
             </span>
           )}

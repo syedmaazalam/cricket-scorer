@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Share2, Check, Copy, Trophy, Award, Users, Activity, BarChart2, Calendar } from 'lucide-react';
+import { ArrowLeft, Share2, Check, Copy, Trophy, Award, Users, Activity, BarChart2, Calendar, Sparkles, Info } from 'lucide-react';
 import { computeInningsStats, computeBatterDetails, computeBowlerDetails } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
@@ -159,10 +159,10 @@ export default function MatchSummary({ matchState, onBack }) {
       >
         <div className="flex items-center gap-3">
           <div
-            style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--orange)' }}
-            className="w-12 h-12 rounded-2xl border flex items-center justify-center text-2xl shadow-inner shrink-0"
+            style={{ backgroundColor: 'var(--green-15)', borderColor: 'var(--border)', color: 'var(--primary)' }}
+            className="w-12 h-12 rounded-xl border flex items-center justify-center text-2xl shadow-inner shrink-0"
           >
-            🏏
+            <Activity className="w-6 h-6 text-emerald-500" />
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-black" style={{ color: 'var(--text)' }}>
@@ -218,8 +218,8 @@ export default function MatchSummary({ matchState, onBack }) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-base">🏆</span>
-              <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-black uppercase tracking-wider m-0">
+              <Trophy className="w-4 h-4 text-emerald-500" />
+              <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-semibold uppercase tracking-wider m-0">
                 TOP 3 PLAYERS OF THE MATCH
               </h3>
             </div>
@@ -227,9 +227,10 @@ export default function MatchSummary({ matchState, onBack }) {
               type="button"
               onClick={() => setIsPointingCriteriaOpen(true)}
               style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--primary)' }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[11px] font-bold hover:opacity-80 transition-all shadow-sm"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold hover:opacity-80 transition-all shadow-sm"
             >
-              <span>ℹ️ Criteria</span>
+              <Info className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Criteria</span>
             </button>
           </div>
 
@@ -287,23 +288,23 @@ export default function MatchSummary({ matchState, onBack }) {
                   <div className="grid grid-cols-2 gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                     <div
                       style={{
-                        backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                        backgroundColor: 'var(--green-15)',
                         color: 'var(--green)',
-                        borderColor: 'rgba(34, 197, 94, 0.25)'
+                        borderColor: 'var(--green-30)'
                       }}
-                      className="px-2 py-1 rounded-xl text-center text-[10px] font-bold border truncate"
+                      className="px-2 py-1 rounded-md text-center text-[10px] font-semibold border truncate"
                     >
-                      {p.breakdown?.runs > 0 ? `🏏 ${p.breakdown.runs} runs` : `🔴 ${p.breakdown?.wickets || 0} wkts`}
+                      {p.breakdown?.runs > 0 ? `${p.breakdown.runs} runs` : `${p.breakdown?.wickets || 0} wkts`}
                     </div>
                     <div
                       style={{
-                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                        color: 'var(--blue)',
-                        borderColor: 'rgba(59, 130, 246, 0.25)'
+                        backgroundColor: 'var(--green-15)',
+                        color: 'var(--primary)',
+                        borderColor: 'var(--green-30)'
                       }}
-                      className="px-2 py-1 rounded-xl text-center text-[10px] font-bold border truncate"
+                      className="px-2 py-1 rounded-md text-center text-[10px] font-semibold border truncate"
                     >
-                      {p.breakdown?.boundaries > 0 ? `⚡ +${p.breakdown.boundaries} bound.` : `⚪ ${p.breakdown?.dots || 0} dots`}
+                      {p.breakdown?.boundaries > 0 ? `+${p.breakdown.boundaries} bound.` : `${p.breakdown?.dots || 0} dots`}
                     </div>
                   </div>
                 </div>
@@ -621,7 +622,7 @@ export default function MatchSummary({ matchState, onBack }) {
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
         className="mt-6 pt-4 pb-2 text-center text-xs border-t font-semibold leading-normal"
       >
-        {"CricketScorer • Developed with 🏏 by "}
+        {"© 2026 SmartCricket · Developed by "}
         <span style={{ color: 'var(--text)' }} className="font-bold">
           Syed Maaz Alam
         </span>

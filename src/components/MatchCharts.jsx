@@ -1,5 +1,5 @@
 import React, { useState, useId, useEffect } from 'react';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { BarChart3, TrendingUp, Sparkles } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 
@@ -548,7 +548,7 @@ export default function MatchCharts({ matchState }) {
               </span>
               <div className="text-lg sm:text-xl font-black flex items-center justify-center gap-1 mt-0.5" style={{ color: 'var(--text)' }}>
                 <span>{bestOverRuns}</span>
-                <span style={{ color: 'var(--orange)' }}>★</span>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 inline" />
               </div>
               {bestOverNumber && (
                 <span className="text-[10px] font-bold" style={{ color: 'var(--orange)' }}>
