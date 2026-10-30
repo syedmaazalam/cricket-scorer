@@ -183,8 +183,25 @@ export default function Scoring({
     }
   };
 
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  // 10 seconds waiting time timer after every ball scored
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
+
   const handleScoreBall = (ballData) => {
     onRecordBall(ballData);
+    setCooldownSeconds(10);
+  };
+
+  const handleUndo = () => {
+    setCooldownSeconds(0);
+    onUndo();
   };
 
   return (
@@ -831,9 +848,11 @@ export default function Scoring({
               onScoreBall={handleScoreBall}
               onOpenWicket={() => setIsWicketModalOpen(true)}
               onSwapBatter={onSwapBatter}
-              onUndo={onUndo}
+              onUndo={handleUndo}
               isFreeHit={matchState.isFreeHit}
               disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
+              cooldownSeconds={cooldownSeconds}
+              onSkipCooldown={() => setCooldownSeconds(0)}
             />
           </div>
 
