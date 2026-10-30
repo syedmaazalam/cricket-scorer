@@ -679,6 +679,8 @@ export default function MatchCharts({ matchState }) {
                     x2={wormSvgWidth - wormPad.right}
                     y2={getWormY(matchState.target)}
                     stroke="var(--orange)"
+                    strokeOpacity="0.4"
+                    opacity="0.4"
                     strokeDasharray="4,4"
                     strokeWidth="1.5"
                   />

@@ -432,7 +432,7 @@ export default function Live({
               <span className="text-right">B</span>
               <span className="text-right">4s</span>
               <span className="text-right">6s</span>
-              <span className="text-right">SR</span>
+              <span className="text-right min-w-[36px] pl-2">SR</span>
             </div>
 
             {/* Striker row: Clickable to inspect complete career & bowler match-up */}
@@ -467,7 +467,7 @@ export default function Live({
               <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
                 {strikerStat.sixes}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums min-w-[36px] pl-2">
                 {Math.round(strikerStat.strikeRate || 0)}
               </span>
             </div>
@@ -502,7 +502,7 @@ export default function Live({
               <span style={{ color: 'var(--muted)' }} className="text-right text-xs tabular-nums font-semibold">
                 {nonStrikerStat.sixes}
               </span>
-              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums">
+              <span style={{ color: 'var(--muted)' }} className="text-right text-xs font-bold tabular-nums min-w-[36px] pl-2">
                 {Math.round(nonStrikerStat.strikeRate || 0)}
               </span>
             </div>

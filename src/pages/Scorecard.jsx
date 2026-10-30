@@ -270,7 +270,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
               <th className="py-1 text-right">B</th>
               <th className="py-1 text-right">4S</th>
               <th className="py-1 text-right">6S</th>
-              <th className="py-1 text-right">SR</th>
+              <th className="py-1 text-right min-w-[36px] pl-2">SR</th>
             </tr>
           </thead>
           <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
@@ -301,7 +301,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
                   <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono">{Math.round(b.strikeRate || 0)}</td>
+                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono min-w-[36px] pl-2">{Math.round(b.strikeRate || 0)}</td>
                 </tr>
               ))
             )}
