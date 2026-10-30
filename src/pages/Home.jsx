@@ -5,7 +5,7 @@ import { searchMatches } from '../firebase/matches.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import AuthModal from '../components/AuthModal.jsx';
 
-export default function Home({ onNavigate, onResumeMatch, onWatchLive }) {
+export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDeveloper }) {
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -372,12 +372,21 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive }) {
         onSuccess={handleAuthSuccess}
       />
 
-      {/* Footer Branding */}
+      {/* Footer Branding & Developer Portal Link */}
       <footer
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-        className="mt-auto pt-6 pb-2 text-center text-xs border-t"
+        className="mt-auto pt-6 pb-2 text-center text-xs border-t flex flex-col sm:flex-row items-center justify-between gap-2"
       >
-        Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+        <span>
+          Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
+        </span>
+        <button
+          onClick={onOpenDeveloper}
+          style={{ color: 'var(--primary)' }}
+          className="text-xs font-bold hover:underline flex items-center gap-1 active:scale-95 transition-all"
+        >
+          <span>Developer Console 🔒</span>
+        </button>
       </footer>
     </div>
   );

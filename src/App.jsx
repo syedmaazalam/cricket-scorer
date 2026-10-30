@@ -5,12 +5,22 @@ import Scoring from './pages/Scoring.jsx';
 import Scorecard from './pages/Scorecard.jsx';
 import Live from './pages/Live.jsx';
 import MatchSummary from './pages/MatchSummary.jsx';
+import DeveloperDashboard from './pages/DeveloperDashboard.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 
 export default function App() {
   const getInitialRouting = () => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('dev') === 'true') {
+      return {
+        page: 'developer',
+        matchId: null,
+        liveCode: null,
+        isManager: false
+      };
+    }
+
     const summaryCode = params.get('summary');
     if (summaryCode) {
       return {
@@ -107,6 +117,8 @@ export default function App() {
     retireBatter,
     editPlayer,
     endInnings,
+    addBallToPreviousOver,
+    reopenPreviousOver,
     undo
   } = useMatch(activeMatchId, isSpectator);
 
@@ -206,6 +218,24 @@ export default function App() {
           onNavigate={(p) => setPage(p)}
           onResumeMatch={handleResumeMatch}
           onWatchLive={handleWatchLive}
+          onOpenDeveloper={() => setPage('developer')}
+        />
+      )}
+
+      {page === 'developer' && (
+        <DeveloperDashboard
+          onBack={handleGoHome}
+          onOpenMatch={(m) => {
+            setIsManager(true);
+            localStorage.setItem('cricket_is_manager', 'true');
+            setActiveMatchId(m.matchId);
+            localStorage.setItem('cricket_active_match_id', m.matchId);
+            if (m.code) {
+              setLiveCodeOrId(m.code);
+              localStorage.setItem('cricket_live_code', m.code);
+            }
+            setPage('scoring');
+          }}
         />
       )}
 
@@ -227,6 +257,8 @@ export default function App() {
           onRetireBatter={retireBatter}
           onEditPlayer={editPlayer}
           onEndInnings={endInnings}
+          onAddBallToPreviousOver={addBallToPreviousOver}
+          onReopenPreviousOver={reopenPreviousOver}
           onUndo={undo}
           onNavigate={handleGoHome}
           onOpenScorecard={() => handleOpenScorecard(matchState)}

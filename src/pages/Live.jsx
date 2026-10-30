@@ -61,6 +61,38 @@ export default function Live({
     ? propMatchState
     : fallbackState;
 
+  // Check if developer has restricted viewers for this match
+  if (matchState?.isViewerRestricted || matchState?.maxViewers === 0) {
+    return (
+      <div
+        style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+        className="min-h-screen flex flex-col items-center justify-center p-4 text-center select-none"
+      >
+        <div
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+          className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-2xl">
+            🔒
+          </div>
+          <h2 className="text-lg font-black" style={{ color: 'var(--text)' }}>
+            Viewing Restricted
+          </h2>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+            Live viewer access for this match has been restricted by the match administrator.
+          </p>
+          <button
+            onClick={onBack}
+            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+            className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider mt-2 active:scale-95 transition-all shadow-md"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const scorerOfflineInfo = propOfflineInfo || fallbackOffline;
 
   const curInnIndex = matchState.currentInningsIndex || 0;
@@ -113,13 +145,25 @@ export default function Live({
       const latestBall = balls[balls.length - 1];
       if (latestBall) {
         if (latestBall.isWicket) {
-          setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'OUT!' });
+          setActiveAnimation({ type: 'wicket', text: '☝️ WICKET!', subtext: 'BATTER OUT!' });
         } else if (latestBall.runs === 6) {
-          setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'SIX RUNS!' });
+          setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });
         } else if (latestBall.runs === 4) {
           setActiveAnimation({ type: 'four', text: '+4 BOUNDARY!', subtext: 'FOUR RUNS!' });
         } else if (latestBall.extraType) {
-          setActiveAnimation({ type: 'extra', text: `+${(latestBall.extraRuns || 0) + 1} ${latestBall.extraType.toUpperCase()}` });
+          setActiveAnimation({
+            type: 'extra',
+            text: `+${(latestBall.extraRuns || 0) + (latestBall.extraType === 'wide' || latestBall.extraType === 'no_ball' ? 1 : 0)} ${latestBall.extraType.toUpperCase()}`,
+            subtext: latestBall.extraType === 'no_ball' ? 'Free Hit next!' : 'Extra delivery'
+          });
+        } else if (latestBall.runs === 0) {
+          setActiveAnimation({ type: 'dot', text: '⚪ DOT BALL', subtext: 'No run conceded' });
+        } else if (latestBall.runs === 1) {
+          setActiveAnimation({ type: 'run', text: '+1 SINGLE', subtext: 'Strike rotated' });
+        } else if (latestBall.runs === 2) {
+          setActiveAnimation({ type: 'run', text: '+2 DOUBLE', subtext: 'Good running!' });
+        } else if (latestBall.runs === 3) {
+          setActiveAnimation({ type: 'run', text: '+3 THREE RUNS', subtext: 'Superb running!' });
         }
       }
     }

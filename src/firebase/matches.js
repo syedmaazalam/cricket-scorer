@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  deleteDoc,
   getDocs,
   query,
   where,
@@ -151,4 +152,101 @@ export function subscribeToMatchDoc(matchId, callback) {
   }, (err) => {
     console.warn('Match doc subscription warning:', err);
   });
+}
+
+/**
+ * Fetches all matches from Cloud for the developer portal.
+ */
+export async function getAllMatchesFromCloud() {
+  try {
+    const q = query(collection(db, 'matches'), orderBy('updatedAt', 'desc'));
+    const snap = await getDocs(q);
+    const matches = [];
+    snap.forEach((docSnap) => {
+      matches.push({ matchId: docSnap.id, ...docSnap.data() });
+    });
+    return matches;
+  } catch (err) {
+    console.warn('Error fetching all matches:', err);
+    return [];
+  }
+}
+
+/**
+ * Deletes a single match and its event subcollection from Cloud.
+ */
+export async function deleteMatchFromCloud(matchId) {
+  if (!matchId) return;
+  try {
+    // 1. Delete events
+    const eventsRef = collection(db, 'matches', matchId, 'events');
+    const snap = await getDocs(eventsRef);
+    const deletions = [];
+    snap.forEach((docSnap) => {
+      deletions.push(deleteDoc(doc(db, 'matches', matchId, 'events', docSnap.id)));
+    });
+    await Promise.all(deletions);
+    // 2. Delete main match doc
+    await deleteDoc(doc(db, 'matches', matchId));
+  } catch (err) {
+    console.error(`Failed to delete match ${matchId} from cloud:`, err);
+    throw err;
+  }
+}
+
+/**
+ * Deletes all matches and subcollections from Cloud (Developer capability).
+ */
+export async function deleteAllMatchesFromCloud() {
+  try {
+    const matchesRef = collection(db, 'matches');
+    const snap = await getDocs(matchesRef);
+    for (const docSnap of snap.docs) {
+      await deleteMatchFromCloud(docSnap.id);
+    }
+  } catch (err) {
+    console.error('Failed to delete all matches from cloud:', err);
+    throw err;
+  }
+}
+
+/**
+ * Updates match administrative settings (e.g. maxViewers, isViewerRestricted).
+ */
+export async function updateMatchSettings(matchId, settings = {}) {
+  if (!matchId) return;
+  try {
+    const matchRef = doc(db, 'matches', matchId);
+    await setDoc(matchRef, sanitizeForFirestore(settings), { merge: true });
+  } catch (err) {
+    console.error(`Failed to update settings for match ${matchId}:`, err);
+    throw err;
+  }
+}
+
+/**
+ * Uploads/restores a full match JSON into Cloud Firestore.
+ */
+export async function saveUploadedMatchToCloud(matchId, matchData, events = []) {
+  if (!matchId || !matchData) return;
+  try {
+    const matchRef = doc(db, 'matches', matchId);
+    await setDoc(matchRef, sanitizeForFirestore({
+      ...matchData,
+      updatedAt: Date.now()
+    }), { merge: true });
+
+    // Save events
+    if (Array.isArray(events) && events.length > 0) {
+      for (const ev of events) {
+        if (ev && ev.id) {
+          const evRef = doc(db, 'matches', matchId, 'events', String(ev.id));
+          await setDoc(evRef, sanitizeForFirestore(ev), { merge: true });
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to save uploaded match ${matchId}:`, err);
+    throw err;
+  }
 }

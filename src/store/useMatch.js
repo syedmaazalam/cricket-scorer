@@ -254,6 +254,14 @@ export function useMatch(matchId, isViewerMode = false) {
     return dispatch(EVENT_TYPES.END_INNINGS, inningsPayload);
   }, [dispatch]);
 
+  const addBallToPreviousOver = useCallback((payload) => {
+    return dispatch(EVENT_TYPES.ADD_BALL_TO_PREVIOUS_OVER, payload);
+  }, [dispatch]);
+
+  const reopenPreviousOver = useCallback(() => {
+    return dispatch(EVENT_TYPES.REOPEN_PREVIOUS_OVER, {});
+  }, [dispatch]);
+
   const undo = useCallback(async () => {
     const currentEvents = stateRef.current.events || [];
     const activeMid = matchId || stateRef.current.matchId;
@@ -283,6 +291,8 @@ export function useMatch(matchId, isViewerMode = false) {
     retireBatter,
     editPlayer,
     endInnings,
+    addBallToPreviousOver,
+    reopenPreviousOver,
     undo
   };
 }

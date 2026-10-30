@@ -231,6 +231,43 @@ export async function getMatchSnapshot(matchId) {
 }
 
 /**
+ * Deletes an individual match and its events from IndexedDB and localStorage.
+ */
+export async function deleteMatchLocally(matchId) {
+  try {
+    localStorage.removeItem(`cricket_events_${matchId}`);
+    localStorage.removeItem(`cricket_match_${matchId}`);
+    const db = await openDb();
+    const tx = db.transaction(['matches', 'events'], 'readwrite');
+    tx.objectStore('matches').delete(matchId);
+    const eventStore = tx.objectStore('events');
+    const index = eventStore.index('matchId');
+    const req = index.getAllKeys(matchId);
+    req.onsuccess = () => {
+      (req.result || []).forEach(k => eventStore.delete(k));
+    };
+  } catch (e) {}
+}
+
+/**
+ * Deletes all matches and events from IndexedDB and localStorage.
+ */
+export async function deleteAllMatchesLocally() {
+  try {
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => {
+      if (k.startsWith('cricket_events_') || k.startsWith('cricket_match_')) {
+        localStorage.removeItem(k);
+      }
+    });
+    const db = await openDb();
+    const tx = db.transaction(['matches', 'events'], 'readwrite');
+    tx.objectStore('matches').clear();
+    tx.objectStore('events').clear();
+  } catch (e) {}
+}
+
+/**
  * Lists all matches stored locally, sorted by most recently updated.
  */
 export async function getAllLocalMatches() {

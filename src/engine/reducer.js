@@ -84,6 +84,12 @@ function checkInningsEnd(state) {
     currentInnings.isCompleted = true;
     currentInnings.completedReason = reason;
 
+    // Clear bowler change, over completion, and new batter flags since innings has concluded
+    state.needsBowlerChange = false;
+    state.isOverComplete = false;
+    state.needsNewBatter = false;
+    state.vacantBatterSlot = null;
+
     if (state.currentInningsIndex === 0) {
       // Innings 1 ended
       state.status = MATCH_STATUS.INNINGS_BREAK;
@@ -106,6 +112,10 @@ function checkInningsEnd(state) {
         state.winner = inn1.battingTeam;
         state.resultSummary = `${inn1.battingTeam} won by ${runsDiff} run${runsDiff === 1 ? '' : 's'}`;
       }
+      state.result = {
+        winner: state.winner,
+        summary: state.resultSummary
+      };
     }
   }
 
@@ -546,6 +556,97 @@ export function applyEvent(state, event) {
       if (event.payload.overs != null) {
         next.overs = Number(event.payload.overs);
       }
+      checkInningsEnd(next);
+      break;
+    }
+
+    case EVENT_TYPES.REOPEN_PREVIOUS_OVER: {
+      const curInn = next.innings[next.currentInningsIndex];
+      if (curInn && curInn.balls.length > 0) {
+        if (next.previousBowler) {
+          next.currentBowler = next.previousBowler;
+          next.needsBowlerChange = false;
+          next.isOverComplete = false;
+        }
+      }
+      break;
+    }
+
+    case EVENT_TYPES.ADD_BALL_TO_PREVIOUS_OVER: {
+      const curInn = next.innings[next.currentInningsIndex];
+      if (!curInn) break;
+
+      const {
+        runs = 0,
+        extraType = null,
+        extraRuns = 0,
+        isWicket = false,
+        wicket = null,
+        wicketType = null,
+        dismissedPlayer = null,
+        fielder = null,
+        striker = null,
+        bowler = null
+      } = event.payload;
+
+      const isLegal = isLegalDelivery(extraType);
+      let calculatedWicket = Boolean(isWicket || wicket || wicketType);
+      let normalizedWicket = wicket ? { ...wicket } : null;
+      if (calculatedWicket && !normalizedWicket) {
+        normalizedWicket = {
+          type: wicketType || WICKET_TYPES.BOWLED,
+          playerOut: dismissedPlayer || event.payload.playerOut || next.striker,
+          fielder: fielder || null,
+          bowler: bowler || next.previousBowler || next.currentBowler
+        };
+      }
+
+      let totalBallRuns = 0;
+      if (extraType === EXTRA_TYPES.WIDE) {
+        totalBallRuns = 1 + extraRuns;
+      } else if (extraType === EXTRA_TYPES.NO_BALL) {
+        totalBallRuns = 1 + extraRuns + runs;
+      } else if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE || extraType === EXTRA_TYPES.PENALTY) {
+        totalBallRuns = extraRuns;
+      } else {
+        totalBallRuns = runs;
+      }
+
+      curInn.score += totalBallRuns;
+      if (isLegal) curInn.legalBalls += 1;
+      if (calculatedWicket) curInn.wickets += 1;
+
+      // Find insertion point at previous over's boundary
+      const targetThreshold = Math.max(0, Math.floor((curInn.legalBalls - (isLegal ? 1 : 0)) / 6) * 6);
+      let insertIdx = curInn.balls.length;
+      let count = 0;
+      for (let i = 0; i < curInn.balls.length; i++) {
+        if (curInn.balls[i].isLegal) count++;
+        if (count === targetThreshold) {
+          insertIdx = i + 1;
+          break;
+        }
+      }
+
+      const ballRecord = {
+        ballId: event.id || `ball_prev_${Date.now()}`,
+        seq: event.seq || (next.events.length + 1),
+        striker: striker || next.striker,
+        nonStriker: next.nonStriker,
+        bowler: bowler || next.previousBowler || next.currentBowler,
+        runs,
+        extraType,
+        extraRuns,
+        isLegal,
+        isWicket: calculatedWicket,
+        wicket: calculatedWicket ? normalizedWicket : null,
+        isPreviousOverCorrection: true,
+        scoreAtBall: curInn.score,
+        legalBallsSoFar: curInn.legalBalls,
+        shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
+      };
+
+      curInn.balls.splice(insertIdx, 0, ballRecord);
       checkInningsEnd(next);
       break;
     }

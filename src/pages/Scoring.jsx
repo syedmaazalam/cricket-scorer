@@ -26,6 +26,7 @@ import TimeDeclareModal from '../components/TimeDeclareModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
+import AddPreviousOverBallModal from '../components/AddPreviousOverBallModal.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 
@@ -39,6 +40,8 @@ export default function Scoring({
   onRetireBatter,
   onEditPlayer,
   onEndInnings,
+  onAddBallToPreviousOver,
+  onReopenPreviousOver,
   onUndo,
   onNavigate,
   onOpenScorecard,
@@ -47,6 +50,7 @@ export default function Scoring({
   const [isWicketModalOpen, setIsWicketModalOpen] = useState(false);
   const [isTimeDeclareOpen, setIsTimeDeclareOpen] = useState(false);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
+  const [isAddPrevOverBallOpen, setIsAddPrevOverBallOpen] = useState(false);
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isManualBreakOpen, setIsManualBreakOpen] = useState(false);
@@ -282,6 +286,19 @@ export default function Scoring({
                 >
                   <Flag className="w-4 h-4" />
                   <span>Declare 1st Innings</span>
+                </button>
+              )}
+
+              {currentInnings.legalBalls >= 6 && matchState.status !== 'completed' && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsAddPrevOverBallOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-amber-400"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>+ Ball to Previous Over</span>
                 </button>
               )}
 
@@ -605,7 +622,20 @@ export default function Scoring({
           >
             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
               <span>CURRENT OVER ({formatOvers(currentInnings.legalBalls)} OV):</span>
-              <span>{currentOverBalls.length} ball{currentOverBalls.length === 1 ? '' : 's'}</span>
+              <div className="flex items-center gap-2">
+                {currentInnings.legalBalls >= 6 && matchState.status !== 'completed' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddPrevOverBallOpen(true)}
+                    style={{ borderColor: 'var(--border)', color: 'var(--orange)' }}
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-lg border hover:border-[var(--orange)] active:scale-95 transition-all"
+                    title="Add missed ball to previous over"
+                  >
+                    + Prev Over Ball
+                  </button>
+                )}
+                <span>{currentOverBalls.length} ball{currentOverBalls.length === 1 ? '' : 's'}</span>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -722,8 +752,8 @@ export default function Scoring({
         />
       )}
 
-      {/* 5. Bowler Modal (Over end) */}
-      {matchState.needsBowlerChange && (
+      {/* 5. Bowler Modal (Over end - never shown if innings/match completed) */}
+      {matchState.needsBowlerChange && matchState.status !== 'completed' && !currentInnings.isCompleted && (
         <BowlerModal
           isOpen={matchState.needsBowlerChange}
           bowlingTeam={currentInnings.bowlingTeam}
@@ -763,6 +793,23 @@ export default function Scoring({
         onOpenScorecard={onOpenScorecard}
         onOpenSummary={onOpenSummary}
       />
+
+      {/* 9. Add Ball to Previous Over Modal */}
+      {isAddPrevOverBallOpen && (
+        <AddPreviousOverBallModal
+          isOpen={isAddPrevOverBallOpen}
+          onClose={() => setIsAddPrevOverBallOpen(false)}
+          previousBowler={matchState.previousBowler}
+          striker={matchState.striker}
+          nonStriker={matchState.nonStriker}
+          onAddBall={(payload) => {
+            onAddBallToPreviousOver?.(payload);
+          }}
+          onReopenOver={() => {
+            onReopenPreviousOver?.();
+          }}
+        />
+      )}
     </div>
   );
 }

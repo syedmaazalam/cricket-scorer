@@ -36,6 +36,14 @@ export default function ScoreAnimation({ animationData }) {
     bgGradient = 'rgba(255, 177, 85, 0.95)';
     borderGlow = 'var(--orange)';
     icon = '🚩';
+  } else if (type === 'dot') {
+    bgGradient = 'rgba(35, 46, 58, 0.95)';
+    borderGlow = 'var(--muted)';
+    icon = '⚪';
+  } else if (type === 'run') {
+    bgGradient = 'rgba(29, 185, 84, 0.95)';
+    borderGlow = 'var(--green)';
+    icon = '🏃';
   } else {
     bgGradient = 'rgba(43, 45, 110, 0.95)';
     borderGlow = 'var(--primary)';
