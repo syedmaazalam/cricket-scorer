@@ -9,6 +9,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
+import CelebrationModal from '../components/CelebrationModal.jsx';
 
 export default function Live({
   matchCodeOrId,
@@ -215,18 +216,18 @@ export default function Live({
         </div>
       </div>
 
-      {/* Offline banner */}
+      {/* Offline banner: slim full-width single line strip under header */}
       {scorerOfflineInfo && (
         <div
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--orange) 15%, transparent)',
-            borderColor: 'color-mix(in srgb, var(--orange) 30%, transparent)',
+            backgroundColor: 'var(--orange-15)',
+            borderColor: 'var(--orange-30)',
             color: 'var(--orange)'
           }}
-          className="mt-3 flex items-center gap-2 rounded-2xl p-3 text-xs font-semibold border animate-pulse"
+          className="w-full border-b px-3 py-1.5 text-center text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis animate-pulse"
         >
-          <WifiOff className="w-4 h-4 shrink-0" />
-          <span>{scorerOfflineInfo}. Live score will catch up automatically when online.</span>
+          <WifiOff className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">{scorerOfflineInfo}. Live score will catch up automatically when online.</span>
         </div>
       )}
 
@@ -528,6 +529,13 @@ export default function Live({
           setIsSquadModalOpen(false);
           setSelectedBatterDetails(playerName);
         }}
+      />
+
+      {/* 3. Celebration & Party Poppers Victory Modal */}
+      <CelebrationModal
+        matchState={matchState}
+        onOpenScorecard={onOpenScorecard}
+        onOpenSummary={onOpenSummary}
       />
 
       {/* Footer Branding */}

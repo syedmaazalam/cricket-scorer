@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCcw, ArrowLeftRight, ShieldAlert, Users, Clock } from 'lucide-react';
+import { RotateCcw, ArrowLeftRight, ShieldAlert } from 'lucide-react';
 import { EXTRA_TYPES } from '../engine/constants.js';
 
 export default function RunPad({
@@ -7,8 +7,6 @@ export default function RunPad({
   onOpenWicket,
   onSwapBatter,
   onUndo,
-  onOpenTimeDeclare,
-  onOpenSquad,
   isFreeHit,
   disabled
 }) {
@@ -71,20 +69,20 @@ export default function RunPad({
         backgroundColor: 'var(--card)',
         borderColor: 'var(--border)'
       }}
-      className="w-full border-t p-3 sm:p-4 pb-6 flex flex-col gap-2.5 shadow-lg backdrop-blur-md rounded-t-3xl"
+      className="w-full border-t p-2 sm:p-3 pb-3 sm:pb-4 flex flex-col gap-2 shadow-2xl backdrop-blur-md rounded-t-3xl"
     >
       {/* Free Hit Banner */}
       {isFreeHit && (
         <div
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--orange) 20%, transparent)',
+            backgroundColor: 'var(--orange-15)',
             borderColor: 'var(--orange)',
             color: 'var(--orange)'
           }}
-          className="flex items-center justify-center gap-2 border rounded-xl py-1.5 px-3 font-bold text-xs tracking-wider uppercase animate-pulse"
+          className="flex items-center justify-center gap-1.5 border rounded-xl py-1 px-2.5 font-bold text-[11px] tracking-wider uppercase animate-pulse"
         >
-          <ShieldAlert className="w-4 h-4" />
-          <span>FREE HIT DELIVERY — No dismissal except Run Out</span>
+          <ShieldAlert className="w-3.5 h-3.5" />
+          <span>FREE HIT — Only Run Out / Retired Out</span>
         </div>
       )}
 
@@ -92,27 +90,27 @@ export default function RunPad({
       {extraMode && (
         <div
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--primary) 20%, transparent)',
+            backgroundColor: 'var(--primary-15)',
             borderColor: 'var(--primary)',
             color: 'var(--text)'
           }}
-          className="flex items-center justify-between border rounded-xl px-3 py-1.5 text-xs font-semibold"
+          className="flex items-center justify-between border rounded-xl px-2.5 py-1 text-xs font-semibold"
         >
           <span>
-            Select additional runs for <strong className="uppercase" style={{ color: 'var(--orange)' }}>{extraMode.replace('_', ' ')}</strong>:
+            Select runs for <strong className="uppercase" style={{ color: 'var(--orange)' }}>{extraMode.replace('_', ' ')}</strong>:
           </span>
           <button
             onClick={() => setExtraMode(null)}
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--muted)' }}
-            className="text-xs px-2 py-0.5 rounded-lg border font-bold hover:text-[var(--text)]"
+            className="text-[11px] px-2 py-0.5 rounded-lg border font-bold hover:text-[var(--text)]"
           >
             Cancel
           </button>
         </div>
       )}
 
-      {/* Row 1: 0 (DOT), 1, 2, 3, 4 (FOUR), 6 (SIX) - Matching Image */}
-      <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+      {/* Row 1: 0 (DOT), 1, 2, 3, 4 (FOUR), 6 (SIX) */}
+      <div className="grid grid-cols-6 gap-1.5">
         {/* DOT */}
         <button
           disabled={disabled}
@@ -122,10 +120,10 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="h-16 rounded-2xl border flex flex-col items-center justify-center font-black text-xl active:scale-95 transition-all shadow-sm group hover:border-[var(--primary)]"
+          className="h-11 sm:h-13 rounded-xl border flex flex-col items-center justify-center font-black active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
-          <span className="w-2.5 h-2.5 rounded-full mb-1" style={{ backgroundColor: 'var(--muted)' }} />
-          <span className="text-[10px] font-bold" style={{ color: 'var(--muted)' }}>DOT</span>
+          <span className="w-2 h-2 rounded-full mb-0.5" style={{ backgroundColor: 'var(--muted)' }} />
+          <span className="text-[9px] font-bold" style={{ color: 'var(--muted)' }}>DOT</span>
         </button>
 
         {/* 1 */}
@@ -137,7 +135,7 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-11 sm:h-13 rounded-xl border flex items-center justify-center font-black text-lg active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           1
         </button>
@@ -151,7 +149,7 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-11 sm:h-13 rounded-xl border flex items-center justify-center font-black text-lg active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           2
         </button>
@@ -165,12 +163,12 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="h-16 rounded-2xl border flex items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-11 sm:h-13 rounded-xl border flex items-center justify-center font-black text-lg active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           3
         </button>
 
-        {/* 4 (FOUR) - Blue accent card matching Image */}
+        {/* 4 (FOUR) */}
         <button
           disabled={disabled}
           onClick={() => handleRunClick(4)}
@@ -178,13 +176,13 @@ export default function RunPad({
             backgroundColor: 'var(--blue)',
             color: '#FFFFFF'
           }}
-          className="h-16 rounded-2xl flex flex-col items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-md shadow-[var(--blue)]/30 hover:brightness-110"
+          className="h-11 sm:h-13 rounded-xl flex flex-col items-center justify-center font-black text-lg active:scale-95 transition-all shadow-sm shadow-[var(--blue)]/30 hover:brightness-110"
         >
           <span>4</span>
-          <span className="text-[9px] font-black uppercase tracking-wider -mt-1 opacity-90">FOUR</span>
+          <span className="text-[8px] font-black uppercase tracking-wider -mt-1 opacity-90">FOUR</span>
         </button>
 
-        {/* 6 (SIX) - Purple accent card matching Image */}
+        {/* 6 (SIX) */}
         <button
           disabled={disabled}
           onClick={() => handleRunClick(6)}
@@ -192,16 +190,16 @@ export default function RunPad({
             backgroundColor: 'var(--purple)',
             color: '#FFFFFF'
           }}
-          className="h-16 rounded-2xl flex flex-col items-center justify-center font-black text-2xl active:scale-95 transition-all shadow-md shadow-[var(--purple)]/30 hover:brightness-110"
+          className="h-11 sm:h-13 rounded-xl flex flex-col items-center justify-center font-black text-lg active:scale-95 transition-all shadow-sm shadow-[var(--purple)]/30 hover:brightness-110"
         >
           <span>6</span>
-          <span className="text-[9px] font-black uppercase tracking-wider -mt-1 opacity-90">SIX</span>
+          <span className="text-[8px] font-black uppercase tracking-wider -mt-1 opacity-90">SIX</span>
         </button>
       </div>
 
-      {/* Row 2: WD, NB, BYE, LB, OUT - Matching Image */}
-      <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-        {/* WD WIDE */}
+      {/* Row 2: WD, NB, BYE, LB, OUT */}
+      <div className="grid grid-cols-5 gap-1.5">
+        {/* WD */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.WIDE)}
@@ -210,13 +208,13 @@ export default function RunPad({
             color: extraMode === EXTRA_TYPES.WIDE ? '#FFFFFF' : 'var(--orange)',
             borderColor: 'var(--orange)'
           }}
-          className="h-12 rounded-2xl border text-xs font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
+          className="h-10 sm:h-11 rounded-xl border text-[11px] font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
         >
           <span>WD</span>
-          <span className="text-[8px] font-bold opacity-80 -mt-0.5">WIDE</span>
+          <span className="text-[7px] font-bold opacity-80 -mt-0.5">WIDE</span>
         </button>
 
-        {/* NB NO BALL */}
+        {/* NB */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.NO_BALL)}
@@ -225,10 +223,10 @@ export default function RunPad({
             color: extraMode === EXTRA_TYPES.NO_BALL ? '#FFFFFF' : 'var(--orange)',
             borderColor: 'var(--orange)'
           }}
-          className="h-12 rounded-2xl border text-xs font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
+          className="h-10 sm:h-11 rounded-xl border text-[11px] font-black flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm"
         >
           <span>NB</span>
-          <span className="text-[8px] font-bold opacity-80 -mt-0.5">NO BALL</span>
+          <span className="text-[7px] font-bold opacity-80 -mt-0.5">NO BALL</span>
         </button>
 
         {/* BYE */}
@@ -240,12 +238,12 @@ export default function RunPad({
             color: extraMode === EXTRA_TYPES.BYE ? '#FFFFFF' : 'var(--text)',
             borderColor: 'var(--border)'
           }}
-          className="h-12 rounded-2xl border text-xs font-bold flex items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-10 sm:h-11 rounded-xl border text-[11px] font-bold flex items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           BYE
         </button>
 
-        {/* LB LEG BYE */}
+        {/* LB */}
         <button
           disabled={disabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.LEG_BYE)}
@@ -254,13 +252,13 @@ export default function RunPad({
             color: extraMode === EXTRA_TYPES.LEG_BYE ? '#FFFFFF' : 'var(--text)',
             borderColor: 'var(--border)'
           }}
-          className="h-12 rounded-2xl border text-xs font-bold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-10 sm:h-11 rounded-xl border text-[11px] font-bold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
           <span>LB</span>
-          <span className="text-[8px] font-bold opacity-80 -mt-0.5">LEG BYE</span>
+          <span className="text-[7px] font-bold opacity-80 -mt-0.5">LEG BYE</span>
         </button>
 
-        {/* OUT (Wicket) - Red Card matching Image */}
+        {/* OUT */}
         <button
           disabled={disabled}
           onClick={onOpenWicket}
@@ -268,15 +266,15 @@ export default function RunPad({
             backgroundColor: 'var(--red)',
             color: '#FFFFFF'
           }}
-          className="h-12 rounded-2xl flex items-center justify-center gap-1 font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-md shadow-[var(--red)]/30 hover:brightness-110"
+          className="h-10 sm:h-11 rounded-xl flex items-center justify-center gap-1 font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-sm shadow-[var(--red)]/30 hover:brightness-110"
         >
           <span>⚡</span>
           <span>OUT</span>
         </button>
       </div>
 
-      {/* Row 3: Swap Batter & Undo (Matching Image layout) */}
-      <div className="grid grid-cols-2 gap-2 pt-0.5">
+      {/* Row 3: Swap Batter & Undo */}
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onSwapBatter}
           disabled={disabled}
@@ -285,9 +283,9 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="h-11 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
+          className="h-9 sm:h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm hover:border-[var(--primary)]"
         >
-          <ArrowLeftRight className="w-4 h-4" style={{ color: 'var(--blue)' }} />
+          <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: 'var(--blue)' }} />
           <span>Swap Batter</span>
         </button>
 
@@ -299,40 +297,10 @@ export default function RunPad({
             borderColor: 'var(--orange)',
             color: 'var(--text)'
           }}
-          className="h-11 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm hover:border-[var(--orange)]"
+          className="h-9 sm:h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm hover:border-[var(--orange)]"
         >
-          <RotateCcw className="w-4 h-4" style={{ color: 'var(--orange)' }} />
+          <RotateCcw className="w-3.5 h-3.5" style={{ color: 'var(--orange)' }} />
           <span>Undo Last Ball</span>
-        </button>
-      </div>
-
-      {/* Row 4: Advanced Match Controls: Time Declare & Squad / Edit Players */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={onOpenTimeDeclare}
-          disabled={disabled}
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--orange) 10%, var(--card-alt))',
-            borderColor: 'var(--border)',
-            color: 'var(--orange)'
-          }}
-          className="h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:border-[var(--orange)]"
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>Time Declare / Retire</span>
-        </button>
-
-        <button
-          onClick={onOpenSquad}
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--primary) 10%, var(--card-alt))',
-            borderColor: 'var(--border)',
-            color: 'var(--primary)'
-          }}
-          className="h-10 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:border-[var(--primary)]"
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Squad & Edit Players</span>
         </button>
       </div>
     </div>

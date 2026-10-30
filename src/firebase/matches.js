@@ -37,6 +37,19 @@ export function generateMatchCode() {
 }
 
 /**
+ * Updates match heartbeat (scorer device online pulse).
+ */
+export async function updateMatchHeartbeat(matchId) {
+  if (!matchId) return;
+  try {
+    const matchRef = doc(db, 'matches', matchId);
+    await setDoc(matchRef, { lastSeen: Date.now() }, { merge: true });
+  } catch (err) {
+    // Ignore network dropouts; will update on next pulse
+  }
+}
+
+/**
  * Creates a match document in Firestore.
  */
 export async function createMatchInCloud(matchId, matchData) {

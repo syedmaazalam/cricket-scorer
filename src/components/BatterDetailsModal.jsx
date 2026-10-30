@@ -235,19 +235,24 @@ export default function BatterDetailsModal({
               <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
                 {timeline.map((item, idx) => {
                   let badgeBg = 'var(--card-alt)';
-                  let textColor = 'var(--text)';
+                  let textColor = 'var(--muted)';
+                  let borderColor = 'var(--border)';
                   if (item.isWicket) {
                     badgeBg = 'var(--red)';
                     textColor = '#FFFFFF';
+                    borderColor = 'var(--red)';
                   } else if (item.isSix) {
                     badgeBg = 'var(--purple)';
                     textColor = '#FFFFFF';
+                    borderColor = 'var(--purple)';
                   } else if (item.isFour) {
                     badgeBg = 'var(--blue)';
                     textColor = '#FFFFFF';
+                    borderColor = 'var(--blue)';
                   } else if (item.runs > 0) {
-                    badgeBg = 'color-mix(in srgb, var(--primary) 20%, var(--card-alt))';
-                    textColor = 'var(--text)';
+                    badgeBg = 'var(--primary)';
+                    textColor = '#FFFFFF';
+                    borderColor = 'var(--primary)';
                   }
 
                   return (
@@ -257,7 +262,7 @@ export default function BatterDetailsModal({
                       style={{
                         backgroundColor: badgeBg,
                         color: textColor,
-                        borderColor: 'var(--border)'
+                        borderColor: borderColor
                       }}
                       className="w-8 h-8 rounded-xl border flex flex-col items-center justify-center text-xs font-black shrink-0 transition-transform hover:scale-110 cursor-pointer shadow-sm"
                     >

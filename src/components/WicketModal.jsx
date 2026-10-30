@@ -34,6 +34,9 @@ export default function WicketModal({
         fielder: fielder || null,
         bowler
       },
+      wicketType,
+      dismissedPlayer: playerOut || striker,
+      fielder: fielder || null,
       nextBatter: nextBatter || null
     });
     onClose();

@@ -13,7 +13,7 @@ import {
   subscribeSyncStatus,
   getDeviceId
 } from './sync.js';
-import { subscribeToMatchDoc, subscribeToMatchEvents } from '../firebase/matches.js';
+import { subscribeToMatchDoc, subscribeToMatchEvents, updateMatchHeartbeat } from '../firebase/matches.js';
 
 export function useMatch(matchId, isViewerMode = false) {
   const [matchState, setMatchState] = useState(() => createInitialMatchState());
@@ -107,23 +107,51 @@ export function useMatch(matchId, isViewerMode = false) {
       }
     });
 
+    // Scorer Heartbeat Writer: scorer device writes lastSeen every 10 seconds while app is open
+    let heartbeatTimer = null;
+    if (!isViewerMode) {
+      updateMatchHeartbeat(matchId);
+      heartbeatTimer = setInterval(() => {
+        updateMatchHeartbeat(matchId);
+      }, 10000);
+    }
+
+    // Viewer offline check: show only if lastSeen is older than 45s and match is not finished
+    let lastDocData = null;
+    const evaluateOffline = () => {
+      if (!isViewerMode || !lastDocData) {
+        setScorerOfflineInfo(null);
+        return;
+      }
+      if (lastDocData.status === 'completed') {
+        setScorerOfflineInfo(null);
+        return;
+      }
+      const lastSeen = lastDocData.lastSeen || lastDocData.updatedAt || 0;
+      const now = Date.now();
+      if (lastSeen > 0 && (now - lastSeen > 45000)) {
+        const d = new Date(lastSeen);
+        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        setScorerOfflineInfo(`Scorer offline - last update ${timeStr}`);
+      } else {
+        setScorerOfflineInfo(null);
+      }
+    };
+
     const unsubDoc = subscribeToMatchDoc(matchId, (docData) => {
       if (docData && isViewerMode) {
-        const lastUpdated = docData.updatedAt || 0;
-        const now = Date.now();
-        if (docData.status === 'in_progress' && (now - lastUpdated > 60000)) {
-          const d = new Date(lastUpdated);
-          const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-          setScorerOfflineInfo(`Scorer offline - last update ${timeStr}`);
-        } else {
-          setScorerOfflineInfo(null);
-        }
+        lastDocData = docData;
+        evaluateOffline();
       }
     });
+
+    const offlineCheckInterval = isViewerMode ? setInterval(evaluateOffline, 5000) : null;
 
     return () => {
       unsubEvents();
       unsubDoc();
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (offlineCheckInterval) clearInterval(offlineCheckInterval);
     };
   }, [matchId, isViewerMode]);
 

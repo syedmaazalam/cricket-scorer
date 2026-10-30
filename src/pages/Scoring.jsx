@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Share2, FileText, Check, Trophy, Users, Clock, ShieldCheck, Radio, FileSpreadsheet } from 'lucide-react';
+import {
+  ArrowLeft,
+  Share2,
+  FileText,
+  Check,
+  Trophy,
+  Users,
+  Clock,
+  Radio,
+  FileSpreadsheet,
+  MoreVertical,
+  Flag,
+  Moon,
+  Sun
+} from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
 import WicketModal from '../components/WicketModal.jsx';
@@ -11,13 +25,13 @@ import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import TimeDeclareModal from '../components/TimeDeclareModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
+import CelebrationModal from '../components/CelebrationModal.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 
 export default function Scoring({
   matchState,
   syncStatus,
-  scorerOfflineInfo,
   onRecordBall,
   onSwapBatter,
   onChangeBowler,
@@ -36,6 +50,7 @@ export default function Scoring({
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isManualBreakOpen, setIsManualBreakOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Enforce dark theme on the manager end as required
   useEffect(() => {
@@ -56,6 +71,7 @@ export default function Scoring({
   const prevInnings = curInnIndex === 1 ? matchState.innings?.[0] : null;
 
   const maxWickets = getMaxWickets(matchState.playersPerTeam);
+  const wicketsLeft = Math.max(0, maxWickets - currentInnings.wickets);
   const innStats = computeInningsStats(currentInnings);
 
   // Batters stats
@@ -71,12 +87,11 @@ export default function Scoring({
     economy: 0
   };
 
-  // Squads with resilient index fallbacks
+  // Squads
   const currentBattingTeamObj = matchState.teams?.find(t => t.name === currentInnings.battingTeam) || matchState.teams?.[curInnIndex] || matchState.teams?.[0];
   const currentBowlingTeamObj = matchState.teams?.find(t => t.name === currentInnings.bowlingTeam) || matchState.teams?.[curInnIndex === 0 ? 1 : 0] || matchState.teams?.[1];
 
   const battingSquad = currentBattingTeamObj?.players || [];
-  // Union of bowling squad from setup + any bowler who has already bowled in this innings
   const recordedBowlers = Object.keys(innStats.bowling || {});
   const bowlingSquad = Array.from(new Set([...(currentBowlingTeamObj?.players || []), ...recordedBowlers])).filter(Boolean);
 
@@ -92,7 +107,31 @@ export default function Scoring({
   const progressPercent = Math.min(100, Math.round((currentInnings.legalBalls / Math.max(1, totalBallsAllowed)) * 100));
   const runsNeeded = matchState.target ? Math.max(0, matchState.target - currentInnings.score) : null;
 
-  const recentBalls = (currentInnings.balls || []).slice(-10);
+  // Filter current over balls only (including legal, wides, and no-balls)
+  const currentOverBalls = (() => {
+    const balls = currentInnings.balls || [];
+    if (balls.length === 0) return [];
+
+    let targetLegalThreshold;
+    if (matchState.needsBowlerChange && currentInnings.legalBalls > 0 && currentInnings.legalBalls % 6 === 0) {
+      targetLegalThreshold = currentInnings.legalBalls - 6;
+    } else {
+      targetLegalThreshold = Math.floor(currentInnings.legalBalls / 6) * 6;
+    }
+
+    let legalCount = 0;
+    const overBalls = [];
+
+    for (const b of balls) {
+      if (legalCount >= targetLegalThreshold) {
+        overBalls.push(b);
+      }
+      if (b.isLegal) {
+        legalCount++;
+      }
+    }
+    return overBalls;
+  })();
 
   const shareUrl = `${window.location.origin}/?watch=${matchState.code || ''}`;
 
@@ -110,7 +149,6 @@ export default function Scoring({
     }
   };
 
-  // Manager scores ball directly with zero animation lag
   const handleScoreBall = (ballData) => {
     onRecordBall(ballData);
   };
@@ -118,131 +156,189 @@ export default function Scoring({
   return (
     <div
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen flex flex-col justify-between max-w-6xl mx-auto select-none transition-colors p-2 sm:p-4"
+      className="min-h-screen flex flex-col justify-between max-w-6xl mx-auto w-full box-border min-w-0 overflow-x-hidden p-2 sm:p-4 select-none"
     >
-      {/* 1. Header Bar */}
+      {/* 1. Header Bar: Compact, responsive, no horizontal clipping */}
       <div
         style={{ borderColor: 'var(--border)' }}
-        className="p-3 border-b flex items-center justify-between gap-2"
+        className="p-2 sm:p-3 border-b flex items-center justify-between gap-1.5 sm:gap-2 w-full min-w-0 shrink-0"
       >
-        <button
-          onClick={() => onNavigate('home')}
-          title="Back to Home"
-          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-          className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+        {/* Left: Back button & Match Code */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            onClick={() => onNavigate('home')}
+            title="Back to Home"
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-xl border transition-all active:scale-95 shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
 
-        {/* Match Code Pill */}
-        <button
-          onClick={handleShareLink}
-          title="Click to copy live shareable link"
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--border)',
-            color: 'var(--orange)'
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border text-xs font-mono font-bold shadow-sm"
-        >
-          <span>{matchState.code || 'MATCH'}</span>
-          {copiedCode ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />}
-        </button>
-
-        {/* Live Indicator Badge (matching image) */}
-        <div
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--green) 15%, transparent)',
-            borderColor: 'color-mix(in srgb, var(--green) 30%, transparent)',
-            color: 'var(--green)'
-          }}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
-        >
-          <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
-          <Radio className="w-3.5 h-3.5" />
-          <span>Live</span>
+          <button
+            onClick={handleShareLink}
+            title="Click to copy live shareable link"
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--orange)'
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-sm"
+          >
+            <span>{matchState.code || 'MATCH'}</span>
+            {copiedCode ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />}
+          </button>
         </div>
 
-        {/* Sync Status Badge */}
-        <SyncBadge syncStatus={syncStatus} scorerOfflineInfo={scorerOfflineInfo} />
+        {/* Center: Live indicator & Sync badge */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div
+            style={{
+              backgroundColor: 'var(--green-15)',
+              borderColor: 'var(--green-30)',
+              color: 'var(--green)'
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border"
+          >
+            <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
+            <Radio className="w-3 h-3" />
+            <span className="hidden xs:inline">Live</span>
+          </div>
 
-        <div className="flex items-center gap-1.5">
-          {onOpenSummary && (
-            <button
-              onClick={() => onOpenSummary(matchState)}
+          <SyncBadge syncStatus={syncStatus} />
+        </div>
+
+        {/* Right: Scorecard button & More Menu Toggle */}
+        <div className="flex items-center gap-1.5 shrink-0 relative">
+          <button
+            onClick={onOpenScorecard}
+            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+            className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Scorecard</span>
+          </button>
+
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-xl border shadow-sm active:scale-95 transition-all"
+            title="More Options"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+
+          {/* More Dropdown Menu */}
+          {isMenuOpen && (
+            <div
               style={{
                 backgroundColor: 'var(--card)',
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
-              className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
-              title="View Complete Match Summary & Records"
+              className="absolute right-0 top-11 z-50 w-52 rounded-2xl border shadow-2xl p-1.5 flex flex-col gap-1 text-xs font-bold animate-in fade-in zoom-in-95 duration-150"
             >
-              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--orange)' }} />
-              <span className="hidden sm:inline">Summary</span>
-            </button>
+              {onOpenSummary && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenSummary(matchState);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-amber-400" />
+                  <span>Match Summary</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsSquadModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left"
+              >
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span>Squad & Edit Players</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsTimeDeclareOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left"
+              >
+                <Clock className="w-4 h-4 text-orange-400" />
+                <span>Time Declare / Retire</span>
+              </button>
+
+              {curInnIndex === 0 && matchState.status === 'in_progress' && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsManualBreakOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-orange-400"
+                >
+                  <Flag className="w-4 h-4" />
+                  <span>Declare 1st Innings</span>
+                </button>
+              )}
+
+              <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
+
+              <div className="px-3 py-1 flex items-center justify-between text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
+                <span>Theme Mode</span>
+                <ThemeToggle />
+              </div>
+            </div>
           )}
-
-          <ThemeToggle />
-
-          {/* Scorecard Button */}
-          <button
-            onClick={onOpenScorecard}
-            style={{
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF'
-            }}
-            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Scorecard</span>
-          </button>
         </div>
       </div>
 
       {/* Main Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 flex-1 items-start">
-        {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Recent */}
-        <div className="flex flex-col gap-3">
-          {/* Main Score Card (Solid --card, matching uploaded image) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 py-2 flex-1 items-start w-full min-w-0">
+        {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Current Over Strip */}
+        <div className="flex flex-col gap-2.5 w-full min-w-0">
+          {/* Main Score Card */}
           <div
             style={{
               backgroundColor: 'var(--card)',
               borderColor: 'var(--border)'
             }}
-            className="app-card p-4 sm:p-5 flex flex-col gap-2.5"
+            className="app-card p-3 sm:p-4 flex flex-col gap-2 w-full box-border"
           >
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
-              <span style={{ color: 'var(--text)' }}>
-                {currentInnings.battingTeam || 'Batting Team'} · INNINGS {curInnIndex + 1}
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+              <span style={{ color: 'var(--text)' }} className="truncate">
+                {currentInnings.battingTeam || 'Batting Team'} · INN {curInnIndex + 1}
               </span>
-              <span style={{ color: 'var(--primary)' }} className="font-extrabold">
+              <span style={{ color: 'var(--primary)' }} className="font-extrabold truncate">
                 vs {currentInnings.bowlingTeam || 'Bowling Team'}
               </span>
             </div>
 
-            {/* Score row: Score in --text, wickets in --red, overs in --orange */}
-            <div className="flex items-baseline justify-between py-1">
-              <div className="flex items-baseline gap-2">
-                <span style={{ color: 'var(--text)' }} className="text-5xl font-black tracking-tight">
+            {/* Score row */}
+            <div className="flex items-baseline justify-between py-0.5">
+              <div className="flex items-baseline gap-1.5">
+                <span style={{ color: 'var(--text)' }} className="text-4xl sm:text-5xl font-black tracking-tight">
                   {currentInnings.score}
                 </span>
-                <span style={{ color: 'var(--red)' }} className="text-3xl font-extrabold">
+                <span style={{ color: 'var(--red)' }} className="text-2xl sm:text-3xl font-extrabold">
                   /{currentInnings.wickets}
                 </span>
               </div>
               <div className="text-right">
-                <div style={{ color: 'var(--orange)' }} className="text-2xl font-black font-mono">
+                <div style={{ color: 'var(--orange)' }} className="text-xl sm:text-2xl font-black font-mono">
                   {formatOvers(currentInnings.legalBalls)}{' '}
-                  <span style={{ color: 'var(--muted)' }} className="text-sm font-normal">
+                  <span style={{ color: 'var(--muted)' }} className="text-xs sm:text-sm font-normal">
                     / {matchState.overs} ov
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Progress Bar & Max Wickets Pill (matching image) */}
-            <div className="flex items-center gap-3 pt-1">
+            {/* Progress Bar & Wickets Left Pill */}
+            <div className="flex items-center gap-2.5 pt-0.5">
               <div
                 style={{ backgroundColor: 'var(--card-alt)' }}
                 className="flex-1 h-2 rounded-full overflow-hidden"
@@ -261,21 +357,21 @@ export default function Scoring({
                   borderColor: 'var(--border)',
                   color: 'var(--muted)'
                 }}
-                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0 uppercase"
+                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border shrink-0"
               >
-                Max Wickets: {maxWickets}
+                Wickets left: <strong style={{ color: 'var(--text)' }}>{wicketsLeft}</strong>
               </span>
             </div>
 
-            {/* CRR & Projected / Target Pill Badges (matching image) */}
-            <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+            {/* CRR & Projected / Target Pill Badges */}
+            <div className="flex items-center gap-2 pt-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
               <div
                 style={{
-                  backgroundColor: 'color-mix(in srgb, var(--green) 15%, var(--card-alt))',
-                  borderColor: 'color-mix(in srgb, var(--green) 30%, var(--border))',
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="flex-1 py-1.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
               >
                 <span style={{ color: 'var(--green)' }}>📈</span>
                 <span style={{ color: 'var(--muted)' }}>CRR</span>
@@ -285,34 +381,37 @@ export default function Scoring({
               {matchState.target ? (
                 <div
                   style={{
-                    backgroundColor: 'color-mix(in srgb, var(--orange) 15%, var(--card-alt))',
-                    borderColor: 'color-mix(in srgb, var(--orange) 30%, var(--border))',
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)',
                     color: 'var(--text)'
                   }}
-                  className="flex-1 py-1.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
                 >
                   <span style={{ color: 'var(--orange)' }}>🎯</span>
                   <span style={{ color: 'var(--muted)' }}>Need</span>
                   <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
-                  <span style={{ color: 'var(--muted)' }}>({rrr} RRR)</span>
+                  <span style={{ color: 'var(--muted)' }} className="text-[10px]">({rrr} RRR)</span>
                 </div>
               ) : (
-                <div
-                  style={{
-                    backgroundColor: 'color-mix(in srgb, var(--blue) 15%, var(--card-alt))',
-                    borderColor: 'color-mix(in srgb, var(--blue) 30%, var(--border))',
-                    color: 'var(--text)'
-                  }}
-                  className="flex-1 py-1.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-1.5"
-                >
-                  <span style={{ color: 'var(--blue)' }}>🎯</span>
-                  <span style={{ color: 'var(--muted)' }}>Projected</span>
-                  <strong style={{ color: 'var(--blue)' }}>{Math.round(crr * matchState.overs)}</strong>
-                </div>
+                /* Hide Projected until at least 2 overs (12 legal balls) are bowled per spec */
+                currentInnings.legalBalls >= 12 && (
+                  <div
+                    style={{
+                      backgroundColor: 'var(--card-alt)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text)'
+                    }}
+                    className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                  >
+                    <span style={{ color: 'var(--blue)' }}>🎯</span>
+                    <span style={{ color: 'var(--muted)' }}>Projected</span>
+                    <strong style={{ color: 'var(--blue)' }}>{Math.round(crr * matchState.overs)}</strong>
+                  </div>
+                )
               )}
             </div>
 
-            {/* Previous Team Batting Score & comparative score at this point */}
+            {/* Previous Team Batting Score */}
             {prevInnings && (
               <div
                 style={{
@@ -320,7 +419,7 @@ export default function Scoring({
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="py-1.5 px-3 rounded-xl border text-xs flex items-center justify-between font-semibold mt-1"
+                className="py-1 px-2.5 rounded-xl border text-[11px] flex items-center justify-between font-semibold mt-0.5"
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <span style={{ color: 'var(--muted)' }}>1st Inn: {prevInnings.battingTeam}</span>
@@ -329,7 +428,7 @@ export default function Scoring({
                   </span>
                 </div>
                 {currentInnings.legalBalls > 0 && (
-                  <div className="text-right text-[11px] shrink-0 font-medium" style={{ color: 'var(--muted)' }}>
+                  <div className="text-right text-[10px] shrink-0 font-medium" style={{ color: 'var(--muted)' }}>
                     At {formatOvers(currentInnings.legalBalls)} ov:{' '}
                     <strong style={{ color: 'var(--orange)' }}>
                       {getScoreAtLegalBalls(prevInnings, currentInnings.legalBalls).score}/{getScoreAtLegalBalls(prevInnings, currentInnings.legalBalls).wickets}
@@ -340,13 +439,13 @@ export default function Scoring({
             )}
           </div>
 
-          {/* Batters Card (Solid --card, matching image) */}
+          {/* Batters Card */}
           <div
             style={{
               backgroundColor: 'var(--card)',
               borderColor: 'var(--border)'
             }}
-            className="app-card p-3 sm:p-4 flex flex-col gap-2"
+            className="app-card p-2.5 sm:p-3 flex flex-col gap-1.5 w-full box-border"
           >
             <div
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
@@ -360,24 +459,21 @@ export default function Scoring({
               <span className="col-span-1 text-right">SR</span>
             </div>
 
-            {/* Striker Row (Bat icon, green highlight, clickable for breakdown) */}
+            {/* Striker Row */}
             <div
               onClick={() => setSelectedBatterDetails(matchState.striker)}
-              title="Click to view complete batter innings & bowler match-ups"
+              title="Click for complete breakdown"
               style={{
-                backgroundColor: 'color-mix(in srgb, var(--green) 15%, transparent)',
-                borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)'
+                backgroundColor: 'var(--green-15)',
+                borderColor: 'var(--green-30)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-2 px-2.5 rounded-2xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all shadow-sm"
+              className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border cursor-pointer hover:brightness-105 active:scale-99 transition-all shadow-sm"
             >
-              <div
-                style={{ color: 'var(--green)' }}
-                className="col-span-6 font-bold truncate flex items-center gap-2"
-              >
-                <span className="text-base">🏏</span>
+              <div style={{ color: 'var(--green)' }} className="col-span-6 font-bold truncate flex items-center gap-1.5">
+                <span className="text-sm">🏏</span>
                 <div className="truncate">
                   <div className="font-extrabold truncate">{matchState.striker || 'Select Striker'}</div>
-                  <div className="text-[9px] font-normal opacity-80">(Striker) • Tap for stats</div>
+                  <div className="text-[8px] font-normal opacity-80">(Striker) • Tap for stats</div>
                 </div>
               </div>
               <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black text-sm">
@@ -397,21 +493,21 @@ export default function Scoring({
               </span>
             </div>
 
-            {/* Non-Striker Row (Helmet icon, clickable for breakdown) */}
+            {/* Non-Striker Row */}
             <div
               onClick={() => setSelectedBatterDetails(matchState.nonStriker)}
-              title="Click to view complete batter innings & bowler match-ups"
+              title="Click for complete breakdown"
               style={{
                 backgroundColor: 'var(--card-alt)',
                 borderColor: 'var(--border)'
               }}
-              className="grid grid-cols-12 items-center text-xs py-2 px-2.5 rounded-2xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all shadow-sm"
+              className="grid grid-cols-12 items-center text-xs py-1.5 px-2 rounded-xl border cursor-pointer hover:border-[var(--primary)] active:scale-99 transition-all shadow-sm"
             >
-              <div className="col-span-6 font-semibold truncate flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                <span className="text-base">⛑️</span>
+              <div className="col-span-6 font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                <span className="text-sm">⛑️</span>
                 <div className="truncate">
                   <div className="font-bold truncate">{matchState.nonStriker || 'Select Non-Striker'}</div>
-                  <div className="text-[9px] font-normal" style={{ color: 'var(--muted)' }}>(Non-Striker) • Tap for stats</div>
+                  <div className="text-[8px] font-normal" style={{ color: 'var(--muted)' }}>(Non-Striker) • Tap for stats</div>
                 </div>
               </div>
               <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-black text-sm">
@@ -431,14 +527,14 @@ export default function Scoring({
               </span>
             </div>
 
-            {/* Partnership & Extras Bottom Strip (matching image) */}
+            {/* Partnership & Extras Bottom Strip */}
             <div
               style={{
                 borderColor: 'var(--border)',
                 backgroundColor: 'var(--card-alt)',
                 color: 'var(--muted)'
               }}
-              className="flex items-center justify-between text-[11px] py-1.5 px-3 rounded-xl border font-medium mt-0.5"
+              className="flex items-center justify-between text-[11px] py-1 px-2.5 rounded-xl border font-medium mt-0.5"
             >
               <span>
                 👥 Partnership:{' '}
@@ -455,13 +551,13 @@ export default function Scoring({
             </div>
           </div>
 
-          {/* Bowler Card (Solid --card, matching image) */}
+          {/* Bowler Card */}
           <div
             style={{
               backgroundColor: 'var(--card)',
               borderColor: 'var(--border)'
             }}
-            className="app-card p-3 sm:p-4 flex flex-col gap-1.5"
+            className="app-card p-2.5 sm:p-3 flex flex-col gap-1 w-full box-border"
           >
             <div
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
@@ -475,13 +571,13 @@ export default function Scoring({
             </div>
 
             <div className="grid grid-cols-12 items-center text-xs py-1">
-              <div className="col-span-5 truncate flex items-center gap-2">
+              <div className="col-span-5 truncate flex items-center gap-1.5">
                 <span className="text-sm">🎯</span>
                 <div className="truncate">
                   <div style={{ color: 'var(--blue)' }} className="font-bold truncate">
                     {matchState.currentBowler || 'Select Bowler'}
                   </div>
-                  <div className="text-[9px]" style={{ color: 'var(--muted)' }}>Active Bowler</div>
+                  <div className="text-[8px]" style={{ color: 'var(--muted)' }}>Active Bowler</div>
                 </div>
               </div>
               <span style={{ color: 'var(--text)' }} className="col-span-2 text-right font-mono font-bold">
@@ -499,72 +595,64 @@ export default function Scoring({
             </div>
           </div>
 
-          {/* Recent Deliveries Strip */}
-          <div className="flex items-center gap-2 overflow-x-auto py-1">
-            <span style={{ color: 'var(--muted)' }} className="text-[10px] font-bold uppercase tracking-wider shrink-0">
-              RECENT:
-            </span>
-            {recentBalls.length === 0 ? (
-              <span style={{ color: 'var(--muted)' }} className="text-xs">No deliveries yet in this innings</span>
-            ) : (
-              recentBalls.map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    backgroundColor: b.isWicket
-                      ? 'var(--red)'
-                      : b.runs === 6
-                      ? 'var(--purple)'
-                      : b.runs === 4
-                      ? 'var(--blue)'
-                      : b.extraType
-                      ? 'var(--orange)'
-                      : 'var(--card-alt)',
-                    color: b.runs === 0 && !b.extraType && !b.isWicket ? 'var(--muted)' : '#FFFFFF',
-                    borderColor: 'var(--border)'
-                  }}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm"
-                >
-                  {b.shortLabel}
-                </div>
-              ))
-            )}
+          {/* Ball Strip: ONLY Current Over's Deliveries, Wrapped Horizontally, Never Clipped */}
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card p-2 sm:p-2.5 flex flex-col gap-1.5 w-full box-border"
+          >
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+              <span>CURRENT OVER ({formatOvers(currentInnings.legalBalls)} OV):</span>
+              <span>{currentOverBalls.length} ball{currentOverBalls.length === 1 ? '' : 's'}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {currentOverBalls.length === 0 ? (
+                <span style={{ color: 'var(--muted)' }} className="text-xs py-1">No balls bowled in this over yet</span>
+              ) : (
+                currentOverBalls.map((b, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      backgroundColor: b.isWicket
+                        ? 'var(--red)'
+                        : b.runs === 6
+                        ? 'var(--purple)'
+                        : b.runs === 4
+                        ? 'var(--blue)'
+                        : b.extraType
+                        ? 'var(--orange)'
+                        : 'var(--card-alt)',
+                      color: b.runs === 0 && !b.extraType && !b.isWicket ? 'var(--muted)' : '#FFFFFF',
+                      borderColor: 'var(--border)'
+                    }}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm transition-transform hover:scale-105"
+                  >
+                    {b.shortLabel}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: RunPad, Actions, and Desktop Charts */}
-        <div className="flex flex-col gap-3">
-          {/* Interactive RunPad */}
-          <RunPad
-            onScoreBall={handleScoreBall}
-            onOpenWicket={() => setIsWicketModalOpen(true)}
-            onSwapBatter={onSwapBatter}
-            onUndo={onUndo}
-            onOpenTimeDeclare={() => setIsTimeDeclareOpen(true)}
-            onOpenSquad={() => setIsSquadModalOpen(true)}
-            isFreeHit={matchState.isFreeHit}
-            disabled={Boolean(matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
-          />
+        {/* RIGHT COLUMN: RunPad & Desktop Charts */}
+        <div className="flex flex-col gap-2.5 w-full min-w-0">
+          {/* Scoring RunPad: Sticky pinned on mobile bottom so all buttons fit on 360x640 screen */}
+          <div className="sticky bottom-0 z-30 lg:static w-full">
+            <RunPad
+              onScoreBall={handleScoreBall}
+              onOpenWicket={() => setIsWicketModalOpen(true)}
+              onSwapBatter={onSwapBatter}
+              onUndo={onUndo}
+              isFreeHit={matchState.isFreeHit}
+              disabled={Boolean(matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
+            />
+          </div>
 
-          {/* Manager Quick Action: End / Declare 1st Innings */}
-          {curInnIndex === 0 && matchState.status === 'in_progress' && (
-            <div className="flex items-center justify-end px-1 -mt-1">
-              <button
-                type="button"
-                onClick={() => setIsManualBreakOpen(true)}
-                style={{
-                  backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--orange)'
-                }}
-                className="py-1.5 px-3 rounded-xl border text-xs font-bold hover:border-[var(--orange)] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
-              >
-                <span>End / Declare 1st Innings ➔</span>
-              </button>
-            </div>
-          )}
-
-          {/* Desktop Over & Worm Charts (shown directly beside scoring pad on desktop screens) */}
+          {/* Desktop Over & Worm Charts */}
           <div className="hidden lg:block mt-1">
             <MatchCharts matchState={matchState} />
           </div>
@@ -614,18 +702,20 @@ export default function Scoring({
           striker={matchState.striker}
           nonStriker={matchState.nonStriker}
           bowler={matchState.currentBowler}
+          bowlingTeamPlayers={bowlingSquad}
           availableBatters={availableBatters}
           isFreeHit={matchState.isFreeHit}
           onConfirmWicket={(wicketData) => {
             handleScoreBall({
-              runs: wicketData.runsOffBat || 0,
+              runs: wicketData.runs || wicketData.runsOffBat || 0,
               extraType: wicketData.extraType || null,
               extraRuns: wicketData.extraRuns || 0,
               isWicket: true,
-              wicketType: wicketData.wicketType,
-              dismissedPlayer: wicketData.dismissedBatter,
-              fielder: wicketData.fielder || null,
-              nextBatter: wicketData.newBatter || null
+              wicket: wicketData.wicket,
+              wicketType: wicketData.wicket?.type || wicketData.wicketType,
+              dismissedPlayer: wicketData.wicket?.playerOut || wicketData.dismissedPlayer || wicketData.dismissedBatter,
+              fielder: wicketData.wicket?.fielder || wicketData.fielder || null,
+              nextBatter: wicketData.nextBatter || wicketData.newBatter || null
             });
             setIsWicketModalOpen(false);
           }}
@@ -649,51 +739,30 @@ export default function Scoring({
         <NewBatterModal
           isOpen={matchState.needsNewBatter}
           battingTeam={currentInnings.battingTeam}
-          vacantSlot={matchState.vacantBatterSlot || 'striker'}
           availableBatters={availableBatters}
           onSelectBatter={onAddNewBatter}
         />
       )}
 
-      {/* 7. Innings Break Modal */}
-      {(matchState.status === 'innings_break' || isManualBreakOpen) && (
+      {/* 7. Manual Innings Break / Declare Modal */}
+      {isManualBreakOpen && (
         <InningsBreakModal
-          isOpen={matchState.status === 'innings_break' || isManualBreakOpen}
-          firstInnings={matchState.innings[0]}
-          innings1={matchState.innings[0]}
-          target={matchState.target || (matchState.innings[0]?.score || 0) + 1}
-          battingTeam={currentInnings.bowlingTeam}
-          bowlingTeam={currentInnings.battingTeam}
-          battingTeamSquad={currentBowlingTeamObj?.players || []}
-          bowlingTeamSquad={currentBattingTeamObj?.players || []}
-          onStartInnings2={(openers) => {
-            onEndInnings({
-              reason: 'Innings completed',
-              striker: openers.striker,
-              nonStriker: openers.nonStriker,
-              bowler: openers.bowler
-            });
-            setIsManualBreakOpen(false);
-          }}
-          onStartSecondInnings={(openers) => {
-            onEndInnings({
-              reason: 'Innings completed',
-              striker: openers.striker,
-              nonStriker: openers.nonStriker,
-              bowler: openers.bowler
-            });
+          isOpen={isManualBreakOpen}
+          matchState={matchState}
+          onClose={() => setIsManualBreakOpen(false)}
+          onStartSecondInnings={(payload) => {
+            onEndInnings?.(payload);
             setIsManualBreakOpen(false);
           }}
         />
       )}
 
-      {/* Footer Branding */}
-      <footer
-        style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-        className="mt-4 pt-3 pb-2 text-center text-xs border-t"
-      >
-        Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
-      </footer>
+      {/* 8. Celebration & Party Poppers Victory Modal */}
+      <CelebrationModal
+        matchState={matchState}
+        onOpenScorecard={onOpenScorecard}
+        onOpenSummary={onOpenSummary}
+      />
     </div>
   );
 }

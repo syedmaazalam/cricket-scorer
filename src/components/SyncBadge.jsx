@@ -1,17 +1,8 @@
 import React from 'react';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
-export default function SyncBadge({ syncStatus, scorerOfflineInfo }) {
+export default function SyncBadge({ syncStatus }) {
   const { status, pendingCount, errorMessage } = syncStatus || { status: 'synced', pendingCount: 0 };
-
-  if (scorerOfflineInfo) {
-    return (
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-        <WifiOff className="w-3.5 h-3.5" />
-        <span>{scorerOfflineInfo}</span>
-      </div>
-    );
-  }
 
   if (status === 'syncing') {
     return (

@@ -185,7 +185,15 @@ export function computeInningsStats(inningsData) {
       bowler.overs = formatOvers(bowler.legalBalls);
     }
 
-    // 4. Wicket
+    // 4. Wicket & Partnership Accounting
+    // Track partnership contributions for this ball
+    partnership.runs += ballTotalRuns;
+    if (extraType !== EXTRA_TYPES.WIDE) {
+      partnership.balls += 1;
+    }
+    if (ball.striker === partnership.batter1) partnership.b1Runs += runs;
+    if (ball.striker === partnership.batter2) partnership.b2Runs += runs;
+
     if (isWicket && wicket) {
       const outPlayer = getBatter(wicket.playerOut);
       if (outPlayer) {
@@ -212,30 +220,27 @@ export function computeInningsStats(inningsData) {
         bowler.wickets += 1;
       }
 
-      // Record Fall of Wicket
+      // Record Fall of Wicket (with partnership stats)
       fow.push({
         wicketNumber: fow.length + 1,
         score: ball.scoreAtBall || (inningsData.totalRunsSoFar || 0),
         overs: formatOvers(ball.legalBallsSoFar || 0),
         playerOut: wicket.playerOut,
-        dismissal: outPlayer ? outPlayer.dismissal : wicket.type
+        dismissal: outPlayer ? outPlayer.dismissal : wicket.type,
+        partnershipRuns: partnership.runs,
+        partnershipBalls: partnership.balls
       });
 
-      // Reset partnership for new batter
+      // Reset partnership for the new pair after wicket
+      const survivingBatter = wicket.playerOut === ball.striker ? ball.nonStriker : ball.striker;
       partnership = {
         runs: 0,
         balls: 0,
-        batter1: wicket.playerOut === ball.striker ? ball.nextBatter : ball.striker,
-        batter2: wicket.playerOut === ball.nonStriker ? ball.nextBatter : ball.nonStriker,
+        batter1: survivingBatter,
+        batter2: ball.nextBatter || null,
         b1Runs: 0,
         b2Runs: 0
       };
-    } else {
-      // Add to partnership
-      partnership.runs += ballTotalRuns;
-      if (isLegal) partnership.balls += 1;
-      if (ball.striker === partnership.batter1) partnership.b1Runs += runs;
-      if (ball.striker === partnership.batter2) partnership.b2Runs += runs;
     }
 
     // 5. Over Summaries tracking

@@ -220,7 +220,6 @@ export default function App() {
         <Scoring
           matchState={matchState}
           syncStatus={syncStatus}
-          scorerOfflineInfo={scorerOfflineInfo}
           onRecordBall={recordBall}
           onSwapBatter={swapBatter}
           onChangeBowler={changeBowler}

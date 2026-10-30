@@ -296,20 +296,30 @@ export default function MatchSummary({ matchState, onBack }) {
                             Ball-by-Ball Timeline
                           </span>
                           <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-                            {bRec.timeline.map((del, dIdx) => (
-                              <div
-                                key={dIdx}
-                                style={{
-                                  backgroundColor: del.isWicket ? 'var(--red)' : del.isSix ? 'var(--purple)' : del.isFour ? 'var(--blue)' : 'var(--card-alt)',
-                                  color: del.isWicket || del.isSix || del.isFour ? '#FFFFFF' : 'var(--text)',
-                                  borderColor: 'var(--border)'
-                                }}
-                                className="w-6 h-6 rounded-lg border flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm"
-                                title={`Ball ${del.ballInOver} vs ${del.bowler}: ${del.shortLabel} runs`}
-                              >
-                                {del.shortLabel}
-                              </div>
-                            ))}
+                            {bRec.timeline.map((del, dIdx) => {
+                              const isW = del.isWicket;
+                              const is6 = del.isSix;
+                              const is4 = del.isFour;
+                              const hasRuns = del.runs > 0;
+                              const bg = isW ? 'var(--red)' : is6 ? 'var(--purple)' : is4 ? 'var(--blue)' : hasRuns ? 'var(--primary)' : 'var(--card-alt)';
+                              const fg = (isW || is6 || is4 || hasRuns) ? '#FFFFFF' : 'var(--muted)';
+                              const bc = (isW || is6 || is4 || hasRuns) ? bg : 'var(--border)';
+
+                              return (
+                                <div
+                                  key={dIdx}
+                                  style={{
+                                    backgroundColor: bg,
+                                    color: fg,
+                                    borderColor: bc
+                                  }}
+                                  className="w-6 h-6 rounded-lg border flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm"
+                                  title={`Ball ${del.ballInOver} vs ${del.bowler}: ${del.shortLabel} runs`}
+                                >
+                                  {del.shortLabel}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

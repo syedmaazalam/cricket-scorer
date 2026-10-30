@@ -153,22 +153,52 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     try {
       setIsExporting(true);
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const canvas = await html2canvas(scorecardRef.current, {
+      const element = scorecardRef.current;
+
+      const canvas = await html2canvas(element, {
         backgroundColor: isDark ? '#1B232C' : '#E0E1EE',
         scale: 2,
         useCORS: true,
-        logging: false
+        allowTaint: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: element.scrollWidth,
+        onclone: (clonedDoc) => {
+          // Ensure all cloned elements have visible layout and resolved standard colors
+          const el = clonedDoc.querySelector('[ref="scorecardRef"]') || clonedDoc.body;
+          if (el) el.style.overflow = 'visible';
+        }
       });
 
-      const image = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
       const cleanTeams = `${teamAName.replace(/\s+/g, '_')}-vs-${teamBName.replace(/\s+/g, '_')}`;
-      link.download = `Scorecard_${cleanTeams}_${matchState?.code || 'live'}.png`;
-      link.href = image;
-      link.click();
+      const fileName = `Scorecard_${cleanTeams}_${matchState?.code || 'live'}.png`;
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          // Fallback to dataURL
+          const dataUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }, 'image/png');
     } catch (err) {
       console.error('PNG export failed:', err);
-      alert('Could not export image. Please try again.');
+      alert('Could not export image directly. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -436,9 +466,9 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
           {/* Live Status Pill */}
           <div
             style={{
-              backgroundColor: 'color-mix(in srgb, var(--green) 15%, transparent)',
+              backgroundColor: 'var(--green-15)',
               color: 'var(--green)',
-              borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)'
+              borderColor: 'var(--green-30)'
             }}
             className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5"
           >

@@ -194,30 +194,53 @@ export function applyEvent(state, event) {
         extraRuns = 0,
         isWicket = false,
         wicket = null,
+        wicketType = null,
+        dismissedPlayer = null,
+        fielder = null,
         nextBatter = null
       } = event.payload;
 
       const isLegal = isLegalDelivery(extraType);
-      let calculatedWicket = Boolean(isWicket || wicket);
+      let calculatedWicket = Boolean(isWicket || wicket || wicketType);
+
+      // Normalize wicket object
+      let normalizedWicket = wicket ? { ...wicket } : null;
+      if (calculatedWicket && !normalizedWicket) {
+        normalizedWicket = {
+          type: wicketType || WICKET_TYPES.BOWLED,
+          playerOut: dismissedPlayer || event.payload.playerOut || next.striker,
+          fielder: fielder || null,
+          bowler: next.currentBowler
+        };
+      }
+      if (normalizedWicket && !normalizedWicket.playerOut) {
+        normalizedWicket.playerOut = next.striker;
+      }
+      if (normalizedWicket && !normalizedWicket.bowler) {
+        normalizedWicket.bowler = next.currentBowler;
+      }
 
       // Check Free Hit rules: only run-outs / obstructing / hit ball twice / retired are valid on Free Hit
-      if (next.isFreeHit && calculatedWicket && wicket) {
-        if (!isWicketValidOnFreeHit(wicket.type)) {
+      if (next.isFreeHit && calculatedWicket && normalizedWicket) {
+        if (!isWicketValidOnFreeHit(normalizedWicket.type)) {
           calculatedWicket = false; // Disallowed dismissal on free hit
+          normalizedWicket = null;
         }
       }
 
       // Check No-Ball dismissal rules (MCC Law 21.18): only run-out / obstructing / hit ball twice / retired
-      if (extraType === EXTRA_TYPES.NO_BALL && calculatedWicket && wicket) {
-        if (!isWicketValidOnNoBall(wicket.type)) {
+      if (extraType === EXTRA_TYPES.NO_BALL && calculatedWicket && normalizedWicket) {
+        if (!isWicketValidOnNoBall(normalizedWicket.type)) {
           calculatedWicket = false; // Disallowed dismissal off a no-ball
+          normalizedWicket = null;
         }
       }
 
       // Check Wide dismissal rules (MCC Law 22.17): bowled, caught, lbw are strictly disallowed
-      if (extraType === EXTRA_TYPES.WIDE && calculatedWicket && wicket) {
-        if (!isWicketValidOnWide(wicket.type)) {
+      if (extraType === EXTRA_TYPES.WIDE && calculatedWicket && normalizedWicket) {
+        if (!isWicketValidOnWide(normalizedWicket.type)) {
           calculatedWicket = false; // Disallowed dismissal off a wide
+          normalizedWicket = null;
         }
       }
 
@@ -251,10 +274,10 @@ export function applyEvent(state, event) {
         extraRuns,
         isLegal,
         isWicket: calculatedWicket,
-        wicket: calculatedWicket ? { ...wicket, bowler: next.currentBowler } : null,
+        wicket: calculatedWicket ? normalizedWicket : null,
         scoreAtBall: curInn.score,
         legalBallsSoFar: curInn.legalBalls,
-        shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, wicket?.type)
+        shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
       };
       curInn.balls.push(ballRecord);
       next.lastBallSummary = ballRecord.shortLabel;
@@ -282,9 +305,9 @@ export function applyEvent(state, event) {
 
       // Handle Wickets
       let batterDismissedSlot = null;
-      if (calculatedWicket && wicket) {
+      if (calculatedWicket && normalizedWicket) {
         curInn.wickets += 1;
-        const playerOut = wicket.playerOut || next.striker;
+        const playerOut = normalizedWicket.playerOut || next.striker;
         if (playerOut === curStriker) {
           batterDismissedSlot = 'striker';
         } else if (playerOut === curNonStriker) {
