@@ -266,7 +266,7 @@ export function computeInningsStats(inningsData) {
           balls: [...currentOver.balls]
         });
         currentOver = {
-          overIndex: overSummaries.length + 2,
+          overIndex: overSummaries.length + 1,
           bowler: null,
           balls: [],
           legalBallsCount: 0,

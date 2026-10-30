@@ -269,4 +269,80 @@ describe('QA Tests: Match Completion & Developer Features', () => {
     expect(restored.innings[0].score).toBe(state.innings[0].score);
     expect(restored.innings[0].legalBalls).toBe(state.innings[0].legalBalls);
   });
+
+  it('Scenario 7: Consecutive over indices and best over calculation', () => {
+    let state = createTwoOverMatch();
+
+    // Over 1: 10 runs (1, 1, 2, 2, 2, 2)
+    const over1Runs = [1, 1, 2, 2, 2, 2];
+    for (const r of over1Runs) {
+      state = applyEvent(state, {
+        type: EVENT_TYPES.BALL,
+        payload: { runs: r, extraType: null, extraRuns: 0, isWicket: false }
+      });
+    }
+
+    state = applyEvent(state, {
+      type: EVENT_TYPES.CHANGE_BOWLER,
+      payload: { bowler: 'B2' }
+    });
+
+    // Over 2: 24 runs (4, 4, 4, 4, 4, 4)
+    for (let i = 0; i < 6; i++) {
+      state = applyEvent(state, {
+        type: EVENT_TYPES.BALL,
+        payload: { runs: 4, extraType: null, extraRuns: 0, isWicket: false }
+      });
+    }
+
+    const stats = computeInningsStats(state.innings[0]);
+    expect(stats.overSummaries.length).toBe(2);
+    expect(stats.overSummaries[0].overIndex).toBe(1);
+    expect(stats.overSummaries[0].runs).toBe(10);
+    expect(stats.overSummaries[1].overIndex).toBe(2);
+    expect(stats.overSummaries[1].runs).toBe(24);
+
+    // Innings 1 is completed and target is 35
+    expect(state.innings[0].isCompleted).toBe(true);
+    expect(state.target).toBe(35);
+    expect(state.status).toBe(MATCH_STATUS.INNINGS_BREAK);
+  });
+
+  it('Scenario 8: Starting Innings 2 properly resets striker, non-striker, and bowler', () => {
+    let state = createTwoOverMatch();
+
+    // Bowl 12 balls in Innings 1
+    for (let i = 0; i < 12; i++) {
+      if (i === 6) {
+        state = applyEvent(state, {
+          type: EVENT_TYPES.CHANGE_BOWLER,
+          payload: { bowler: 'B2' }
+        });
+      }
+      state = applyEvent(state, {
+        type: EVENT_TYPES.BALL,
+        payload: { runs: 1, extraType: null, extraRuns: 0, isWicket: false }
+      });
+    }
+
+    expect(state.status).toBe(MATCH_STATUS.INNINGS_BREAK);
+
+    // Start 2nd Innings
+    state = applyEvent(state, {
+      type: EVENT_TYPES.END_INNINGS,
+      payload: {
+        striker: 'B1',
+        nonStriker: 'B2',
+        bowler: 'A1'
+      }
+    });
+
+    expect(state.currentInningsIndex).toBe(1);
+    expect(state.status).toBe(MATCH_STATUS.IN_PROGRESS);
+    expect(state.striker).toBe('B1');
+    expect(state.nonStriker).toBe('B2');
+    expect(state.currentBowler).toBe('A1');
+    expect(state.innings[1].score).toBe(0);
+    expect(state.innings[1].legalBalls).toBe(0);
+  });
 });

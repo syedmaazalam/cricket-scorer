@@ -59,10 +59,22 @@ export default function MatchCharts({ matchState }) {
 
   // Best Over, Average, Total Stats for bottom cards
   const recordedOvers = allOversData.filter(o => o.hasData);
-  const bestOverRuns = recordedOvers.length > 0 ? Math.max(...recordedOvers.map(o => o.runs)) : 0;
+  let bestOverObj = null;
+  if (recordedOvers.length > 0) {
+    bestOverObj = recordedOvers.reduce((prev, curr) => (curr.runs > prev.runs ? curr : prev), recordedOvers[0]);
+  }
+  const bestOverRuns = bestOverObj ? bestOverObj.runs : 0;
+  const bestOverNumber = bestOverObj ? bestOverObj.overIndex : null;
   const avgRunsPerOver = recordedOvers.length > 0
     ? (recordedOvers.reduce((acc, o) => acc + o.runs, 0) / recordedOvers.length).toFixed(1)
     : crrValue.toFixed(1);
+
+  // Sync selected innings when match enters 2nd innings
+  useEffect(() => {
+    if (matchState?.currentInningsIndex != null) {
+      setSelectedInnings(matchState.currentInningsIndex);
+    }
+  }, [matchState?.currentInningsIndex]);
 
   // Set default selected over for the tooltip if none selected yet
   useEffect(() => {
@@ -531,6 +543,11 @@ export default function MatchCharts({ matchState }) {
                 <span>{bestOverRuns}</span>
                 <span style={{ color: 'var(--orange)' }}>★</span>
               </div>
+              {bestOverNumber && (
+                <span className="text-[10px] font-bold" style={{ color: 'var(--orange)' }}>
+                  Over {bestOverNumber}
+                </span>
+              )}
             </div>
 
             {/* Average */}

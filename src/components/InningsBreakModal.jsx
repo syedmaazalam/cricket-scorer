@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, ArrowRight, UserCheck, Shield } from 'lucide-react';
+import { Trophy, ArrowRight, UserCheck, Shield, X } from 'lucide-react';
 
 export default function InningsBreakModal({
   isOpen,
@@ -10,6 +10,7 @@ export default function InningsBreakModal({
   target,
   battingTeamSquad = [],
   bowlingTeamSquad = [],
+  onClose,
   onStartSecondInnings,
   onStartInnings2
 }) {
@@ -67,8 +68,19 @@ export default function InningsBreakModal({
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95"
+        className="w-full max-w-md rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 relative"
       >
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{ color: 'var(--muted)' }}
+            className="absolute top-4 right-4 p-1 rounded-full hover:bg-white/10 active:scale-95 transition-all"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         <div className="text-center flex flex-col items-center">
           <div
             style={{

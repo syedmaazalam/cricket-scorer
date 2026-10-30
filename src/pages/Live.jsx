@@ -10,6 +10,10 @@ import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
+import BottomNavBar from '../components/BottomNavBar.jsx';
+import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
+import Scorecard from './Scorecard.jsx';
+import MatchSummary from './MatchSummary.jsx';
 
 export default function Live({
   matchCodeOrId,
@@ -25,6 +29,7 @@ export default function Live({
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState(null);
+  const [activeTab, setActiveTab] = useState('score');
   const prevBallCountRef = useRef(null);
 
   useEffect(() => {
@@ -175,7 +180,7 @@ export default function Live({
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
       className="min-h-screen flex flex-col p-2 sm:p-4 max-w-6xl mx-auto select-none transition-colors"
     >
-      {/* 1. Top Header */}
+      {/* 1. Top Header matching user screenshot */}
       <div
         style={{ borderColor: 'var(--border)' }}
         className="flex items-center justify-between pb-3 border-b"
@@ -188,24 +193,37 @@ export default function Live({
           <ArrowLeft className="w-5 h-5" />
         </button>
 
+        {/* Center: Green Pill with Team A vs Team B + LIVE badge */}
         <div className="flex items-center gap-2">
-          {/* LIVE VIEW badge */}
           <div
             style={{
-              backgroundColor: 'color-mix(in srgb, var(--red) 15%, transparent)',
-              borderColor: 'color-mix(in srgb, var(--red) 30%, transparent)',
-              color: 'var(--red)'
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF'
             }}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black shadow-sm truncate max-w-[130px] sm:max-w-[220px]"
           >
-            <span
-              style={{ backgroundColor: 'var(--red)' }}
-              className="w-2 h-2 rounded-full animate-ping"
-            />
-            <Radio className="w-3.5 h-3.5" style={{ color: 'var(--red)' }} />
-            <span>LIVE VIEW</span>
+            <span className="truncate">
+              {matchState.teams?.[0]?.name || 'Team 1'} vs {matchState.teams?.[1]?.name || 'Team 2'}
+            </span>
           </div>
 
+          <div
+            style={{
+              backgroundColor: 'var(--green-15)',
+              borderColor: 'var(--green-30)',
+              color: 'var(--green)'
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border"
+          >
+            <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
+            <Radio className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} />
+            <span>Live</span>
+          </div>
+        </div>
+
+        {/* Right: Theme Toggle & Share */}
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <button
             onClick={handleShare}
             style={{
@@ -213,49 +231,10 @@ export default function Live({
               borderColor: 'var(--border)',
               color: 'var(--orange)'
             }}
-            className="flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-1 rounded-xl border shadow-sm"
+            className="p-2 rounded-2xl border shadow-sm active:scale-95 transition-all"
+            title="Share match link"
           >
-            <span>{matchState.code || matchCodeOrId || 'MATCH'}</span>
-            {copied ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />}
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {onOpenSummary && (
-            <button
-              onClick={() => onOpenSummary(matchState)}
-              style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-              className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
-              title="View Full Match Summary & Records"
-            >
-              <FileSpreadsheet className="w-4 h-4" style={{ color: 'var(--orange)' }} />
-              <span className="hidden sm:inline">Summary</span>
-            </button>
-          )}
-
-          <ThemeToggle />
-
-          {/* Squad Button */}
-          <button
-            onClick={() => setIsSquadModalOpen(true)}
-            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
-          >
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Squads</span>
-          </button>
-
-          {/* Scorecard button */}
-          <button
-            onClick={() => onOpenScorecard(matchState)}
-            style={{
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF'
-            }}
-            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Scorecard</span>
+            {copied ? <Check className="w-4 h-4" style={{ color: 'var(--green)' }} /> : <Share2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -275,19 +254,42 @@ export default function Live({
         </div>
       )}
 
-      {/* Main Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 flex-1 items-start">
-        {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Recent */}
-        <div className="flex flex-col gap-3">
-          {/* Main Score Card (Solid --card, matching image) */}
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4 sm:p-5 flex flex-col gap-2.5"
-          >
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
+      {/* Innings Break Banner for Viewer */}
+      {curInnIndex === 0 && (currentInnings.isCompleted || matchState.status === 'innings_break') && (
+        <div
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--orange)'
+          }}
+          className="p-4 rounded-3xl border-2 text-center flex flex-col items-center gap-1.5 my-2 shadow-md animate-in fade-in"
+        >
+          <span className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--orange)' }}>
+            🏆 1st Innings Concluded ({currentInnings.score}/{currentInnings.wickets})
+          </span>
+          <span className="text-sm font-extrabold" style={{ color: 'var(--text)' }}>
+            Target: {matchState.target || currentInnings.score + 1} runs ({matchState.teams?.[1]?.name || 'Chasing Team'} needs {matchState.target || currentInnings.score + 1} from {matchState.overs} ov)
+          </span>
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+            Second innings will begin shortly...
+          </span>
+        </div>
+      )}
+
+      {/* Main Tab Routing */}
+      {activeTab === 'score' && (
+        /* Main Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 py-3 flex-1 items-start pb-20">
+          {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Recent */}
+          <div className="flex flex-col gap-3">
+            {/* Main Score Card (Solid --card, matching image) */}
+            <div
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)'
+              }}
+              className="app-card p-4 sm:p-5 flex flex-col gap-2.5"
+            >
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
               <span style={{ color: 'var(--text)' }}>
                 {currentInnings.battingTeam || 'Batting Team'} · Innings {curInnIndex + 1}
               </span>
@@ -382,9 +384,13 @@ export default function Live({
                 <div>
                   <span style={{ color: 'var(--muted)' }}>Target: </span>
                   <strong style={{ color: 'var(--orange)' }}>{matchState.target}</strong>
-                  <span style={{ color: 'var(--muted)' }}> (RRR: </span>
-                  <strong style={{ color: 'var(--red)' }}>{rrr}</strong>
-                  <span style={{ color: 'var(--muted)' }}>)</span>
+                  {curInnIndex === 1 && (
+                    <>
+                      <span style={{ color: 'var(--muted)' }}> (RRR: </span>
+                      <strong style={{ color: 'var(--red)' }}>{rrr}</strong>
+                      <span style={{ color: 'var(--muted)' }}>)</span>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -549,6 +555,28 @@ export default function Live({
           <MatchCharts matchState={matchState} />
         </div>
       </div>
+      )}
+
+      {/* Scorecard Tab */}
+      {activeTab === 'scorecard' && (
+        <div className="w-full flex-1 pb-20">
+          <Scorecard matchState={matchState} onBack={() => setActiveTab('score')} onOpenSummary={() => setActiveTab('summary')} />
+        </div>
+      )}
+
+      {/* Teams / Head-to-Head Tab */}
+      {activeTab === 'teams' && (
+        <div className="w-full flex-1 pb-20">
+          <PlayersHeadToHead matchState={matchState} />
+        </div>
+      )}
+
+      {/* Summary Tab */}
+      {activeTab === 'summary' && (
+        <div className="w-full flex-1 pb-20">
+          <MatchSummary matchState={matchState} onBack={() => setActiveTab('score')} />
+        </div>
+      )}
 
       {/* Floating Spectator Live Score Animation */}
       <ScoreAnimation animationData={activeAnimation} />
@@ -585,10 +613,13 @@ export default function Live({
       {/* Footer Branding */}
       <footer
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-        className="mt-8 pt-4 pb-4 text-center text-xs border-t"
+        className="mt-8 pt-4 pb-24 text-center text-xs border-t"
       >
         Cricket Scorer • Developed with 🏏 by <span style={{ color: 'var(--text)' }} className="font-bold">Syed Maaz Alam</span>
       </footer>
+
+      {/* Persistent Bottom Navigation Bar */}
+      <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
     </div>
   );
 }

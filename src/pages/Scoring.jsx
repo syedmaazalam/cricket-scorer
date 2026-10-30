@@ -27,6 +27,10 @@ import SquadModal from '../components/SquadModal.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
 import AddPreviousOverBallModal from '../components/AddPreviousOverBallModal.jsx';
+import BottomNavBar from '../components/BottomNavBar.jsx';
+import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
+import Scorecard from './Scorecard.jsx';
+import MatchSummary from './MatchSummary.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 
@@ -54,6 +58,8 @@ export default function Scoring({
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isManualBreakOpen, setIsManualBreakOpen] = useState(false);
+  const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('score');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Enforce dark theme on the manager end as required
@@ -73,6 +79,15 @@ export default function Scoring({
   };
 
   const prevInnings = curInnIndex === 1 ? matchState.innings?.[0] : null;
+
+  const isFirstInningsEnded = curInnIndex === 0 && (currentInnings.isCompleted || matchState.status === 'innings_break');
+
+  // Automatically pop up innings break modal when innings 1 completes
+  useEffect(() => {
+    if (isFirstInningsEnded) {
+      setIsBreakModalOpen(true);
+    }
+  }, [isFirstInningsEnded]);
 
   const maxWickets = getMaxWickets(matchState.playersPerTeam);
   const wicketsLeft = Math.max(0, maxWickets - currentInnings.wickets);
@@ -193,8 +208,20 @@ export default function Scoring({
           </button>
         </div>
 
-        {/* Center: Live indicator & Sync badge */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Center: Green Pill with Team A vs Team B & LIVE badge */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            style={{
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF'
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black shadow-sm truncate max-w-[130px] sm:max-w-[220px]"
+          >
+            <span className="truncate">
+              {matchState.teams?.[0]?.name || 'Team 1'} vs {matchState.teams?.[1]?.name || 'Team 2'}
+            </span>
+          </div>
+
           <div
             style={{
               backgroundColor: 'var(--green-15)',
@@ -205,23 +232,14 @@ export default function Scoring({
           >
             <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
             <Radio className="w-3 h-3" />
-            <span className="hidden xs:inline">Live</span>
+            <span>Live</span>
           </div>
-
-          <SyncBadge syncStatus={syncStatus} />
         </div>
 
-        {/* Right: Scorecard button & More Menu Toggle */}
+        {/* Right: ThemeToggle, Sync badge & More Menu Toggle */}
         <div className="flex items-center gap-1.5 shrink-0 relative">
-          <button
-            onClick={onOpenScorecard}
-            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-            className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Scorecard</span>
-          </button>
-
+          <ThemeToggle />
+          <SyncBadge syncStatus={syncStatus} />
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
@@ -313,10 +331,12 @@ export default function Scoring({
         </div>
       </div>
 
-      {/* Main Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 py-2 flex-1 items-start w-full min-w-0">
-        {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Current Over Strip */}
-        <div className="flex flex-col gap-2.5 w-full min-w-0">
+      {/* Main Content by Tab */}
+      {activeTab === 'score' && (
+        /* Main Responsive Grid: 2 columns on Desktop (lg:), 1 column on Mobile */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 py-2 flex-1 items-start w-full min-w-0 pb-20">
+          {/* LEFT COLUMN: Main Scorecard, Batters, Bowler, Current Over Strip */}
+          <div className="flex flex-col gap-2.5 w-full min-w-0">
           {/* Main Score Card */}
           <div
             style={{
@@ -395,7 +415,7 @@ export default function Scoring({
                 <strong style={{ color: 'var(--green)' }}>{crr}</strong>
               </div>
 
-              {matchState.target ? (
+              {curInnIndex === 1 && matchState.target ? (
                 <div
                   style={{
                     backgroundColor: 'var(--card-alt)',
@@ -409,9 +429,21 @@ export default function Scoring({
                   <strong style={{ color: 'var(--red)' }}>{runsNeeded}</strong>
                   <span style={{ color: 'var(--muted)' }} className="text-[10px]">({rrr} RRR)</span>
                 </div>
+              ) : isFirstInningsEnded ? (
+                <div
+                  style={{
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)'
+                  }}
+                  className="flex-1 py-1 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                >
+                  <span style={{ color: 'var(--orange)' }}>🎯</span>
+                  <span style={{ color: 'var(--muted)' }}>Target</span>
+                  <strong style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1}</strong>
+                </div>
               ) : (
-                /* Hide Projected until at least 2 overs (12 legal balls) are bowled per spec */
-                currentInnings.legalBalls >= 12 && (
+                currentInnings.legalBalls >= 6 && (
                   <div
                     style={{
                       backgroundColor: 'var(--card-alt)',
@@ -670,6 +702,35 @@ export default function Scoring({
 
         {/* RIGHT COLUMN: RunPad & Desktop Charts */}
         <div className="flex flex-col gap-2.5 w-full min-w-0">
+          {/* Innings 1 Concluded / Start 2nd Innings Banner */}
+          {isFirstInningsEnded && (
+            <div
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--orange)'
+              }}
+              className="p-4 sm:p-5 rounded-3xl border-2 text-center flex flex-col items-center gap-2 mb-2 shadow-xl animate-in zoom-in-95"
+            >
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider"
+                style={{ backgroundColor: 'var(--orange-15)', color: 'var(--orange)' }}
+              >
+                🏆 1st Innings Completed ({currentInnings.score}/{currentInnings.wickets})
+              </div>
+              <p className="text-sm font-black m-0" style={{ color: 'var(--text)' }}>
+                Target for {matchState.teams?.[1]?.name || '2nd Team'}:{' '}
+                <span style={{ color: 'var(--orange)' }}>{matchState.target || currentInnings.score + 1} runs</span>
+              </p>
+              <button
+                onClick={() => setIsBreakModalOpen(true)}
+                style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+                className="w-full max-w-xs py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
+              >
+                <span>▶ Start 2nd Innings</span>
+              </button>
+            </div>
+          )}
+
           {/* Scoring RunPad: Sticky pinned on mobile bottom so all buttons fit on 360x640 screen */}
           <div className="sticky bottom-0 z-30 lg:static w-full">
             <RunPad
@@ -678,7 +739,7 @@ export default function Scoring({
               onSwapBatter={onSwapBatter}
               onUndo={onUndo}
               isFreeHit={matchState.isFreeHit}
-              disabled={Boolean(matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
+              disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
             />
           </div>
 
@@ -688,6 +749,28 @@ export default function Scoring({
           </div>
         </div>
       </div>
+      )}
+
+      {/* Scorecard Tab */}
+      {activeTab === 'scorecard' && (
+        <div className="w-full flex-1 pb-20">
+          <Scorecard matchState={matchState} onBack={() => setActiveTab('score')} onOpenSummary={() => setActiveTab('summary')} />
+        </div>
+      )}
+
+      {/* Teams / Head-to-Head Tab */}
+      {activeTab === 'teams' && (
+        <div className="w-full flex-1 pb-20">
+          <PlayersHeadToHead matchState={matchState} onEditPlayer={onEditPlayer} />
+        </div>
+      )}
+
+      {/* Summary Tab */}
+      {activeTab === 'summary' && (
+        <div className="w-full flex-1 pb-20">
+          <MatchSummary matchState={matchState} onBack={() => setActiveTab('score')} />
+        </div>
+      )}
 
       {/* Modals */}
       {/* 1. Batter Career & Detailed Breakdown Modal */}
@@ -774,14 +857,24 @@ export default function Scoring({
         />
       )}
 
-      {/* 7. Manual Innings Break / Declare Modal */}
-      {isManualBreakOpen && (
+      {/* 7. Innings Break Modal */}
+      {(isBreakModalOpen || isManualBreakOpen) && (
         <InningsBreakModal
-          isOpen={isManualBreakOpen}
-          matchState={matchState}
-          onClose={() => setIsManualBreakOpen(false)}
+          isOpen={isBreakModalOpen || isManualBreakOpen}
+          firstInnings={matchState.innings?.[0]}
+          innings1={matchState.innings?.[0]}
+          battingTeam={matchState.teams?.[1]?.name || currentInnings.bowlingTeam || 'Team 2'}
+          bowlingTeam={matchState.teams?.[0]?.name || currentInnings.battingTeam || 'Team 1'}
+          target={matchState.target || (matchState.innings?.[0]?.score || 0) + 1}
+          battingTeamSquad={matchState.teams?.[1]?.players || []}
+          bowlingTeamSquad={matchState.teams?.[0]?.players || []}
+          onClose={() => {
+            setIsBreakModalOpen(false);
+            setIsManualBreakOpen(false);
+          }}
           onStartSecondInnings={(payload) => {
             onEndInnings?.(payload);
+            setIsBreakModalOpen(false);
             setIsManualBreakOpen(false);
           }}
         />
@@ -810,6 +903,9 @@ export default function Scoring({
           }}
         />
       )}
+
+      {/* Persistent Bottom Navigation Bar */}
+      <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
     </div>
   );
 }
