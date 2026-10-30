@@ -1,5 +1,5 @@
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from './constants.js';
-import { isLegalDelivery, doesBatterEarnRuns, isWicketValidOnFreeHit, getMaxWickets, formatOvers } from './rules.js';
+import { isLegalDelivery, doesBatterEarnRuns, isWicketValidOnFreeHit, isWicketValidOnNoBall, isWicketValidOnWide, getMaxWickets, formatOvers } from './rules.js';
 import { computeInningsStats } from './stats.js';
 
 /**
@@ -200,10 +200,24 @@ export function applyEvent(state, event) {
       const isLegal = isLegalDelivery(extraType);
       let calculatedWicket = Boolean(isWicket || wicket);
 
-      // Check Free Hit rules: only run-outs / obstructing / retired are valid on Free Hit
-      if (next.isFreeHit && isWicket && wicket) {
+      // Check Free Hit rules: only run-outs / obstructing / hit ball twice / retired are valid on Free Hit
+      if (next.isFreeHit && calculatedWicket && wicket) {
         if (!isWicketValidOnFreeHit(wicket.type)) {
           calculatedWicket = false; // Disallowed dismissal on free hit
+        }
+      }
+
+      // Check No-Ball dismissal rules (MCC Law 21.18): only run-out / obstructing / hit ball twice / retired
+      if (extraType === EXTRA_TYPES.NO_BALL && calculatedWicket && wicket) {
+        if (!isWicketValidOnNoBall(wicket.type)) {
+          calculatedWicket = false; // Disallowed dismissal off a no-ball
+        }
+      }
+
+      // Check Wide dismissal rules (MCC Law 22.17): bowled, caught, lbw are strictly disallowed
+      if (extraType === EXTRA_TYPES.WIDE && calculatedWicket && wicket) {
+        if (!isWicketValidOnWide(wicket.type)) {
+          calculatedWicket = false; // Disallowed dismissal off a wide
         }
       }
 
@@ -245,50 +259,66 @@ export function applyEvent(state, event) {
       curInn.balls.push(ballRecord);
       next.lastBallSummary = ballRecord.shortLabel;
 
+      // Strike Rotation & Wickets handling (MCC Law 18.11, 18.12, 21.18, 22.17)
+      let curStriker = next.striker;
+      let curNonStriker = next.nonStriker;
+
+      // Determine physical runs completed
+      let physicalRunsRan = 0;
+      if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE) {
+        physicalRunsRan = extraRuns;
+      } else if (extraType === EXTRA_TYPES.WIDE) {
+        physicalRunsRan = extraRuns; // extra runs run on wide (e.g. overthrows)
+      } else {
+        physicalRunsRan = runs;
+      }
+
+      // If odd physical runs were completed, batters crossed ends
+      if (physicalRunsRan % 2 === 1 && curStriker && curNonStriker) {
+        const temp = curStriker;
+        curStriker = curNonStriker;
+        curNonStriker = temp;
+      }
+
       // Handle Wickets
       let batterDismissedSlot = null;
       if (calculatedWicket && wicket) {
         curInn.wickets += 1;
         const playerOut = wicket.playerOut || next.striker;
-        if (playerOut === next.striker) {
+        if (playerOut === curStriker) {
           batterDismissedSlot = 'striker';
-        } else if (playerOut === next.nonStriker) {
+        } else if (playerOut === curNonStriker) {
+          batterDismissedSlot = 'nonStriker';
+        } else if (playerOut === next.striker) {
+          batterDismissedSlot = 'striker';
+        } else {
           batterDismissedSlot = 'nonStriker';
         }
 
         const maxWickets = getMaxWickets(next.playersPerTeam);
         if (curInn.wickets < maxWickets) {
           if (nextBatter) {
-            if (batterDismissedSlot === 'striker') next.striker = nextBatter;
-            else next.nonStriker = nextBatter;
+            if (batterDismissedSlot === 'striker') curStriker = nextBatter;
+            else curNonStriker = nextBatter;
             next.needsNewBatter = false;
             next.vacantBatterSlot = null;
           } else {
             next.needsNewBatter = true;
-            next.vacantBatterSlot = batterDismissedSlot || 'striker';
-            if (batterDismissedSlot === 'striker') next.striker = null;
-            else next.nonStriker = null;
+            next.vacantBatterSlot = batterDismissedSlot;
+            if (batterDismissedSlot === 'striker') curStriker = null;
+            else curNonStriker = null;
           }
+        } else {
+          // All out
+          if (batterDismissedSlot === 'striker') curStriker = null;
+          else curNonStriker = null;
+          next.needsNewBatter = false;
+          next.vacantBatterSlot = null;
         }
       }
 
-      // Strike Rotation
-      // Batters run on normal runs, byes, leg-byes, and no-ball bat runs
-      let physicalRunsRan = 0;
-      if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE) {
-        physicalRunsRan = extraRuns;
-      } else if (extraType === EXTRA_TYPES.WIDE) {
-        physicalRunsRan = extraRuns; // extra runs on wide (e.g. overthrows)
-      } else {
-        physicalRunsRan = runs;
-      }
-
-      // Odd runs swap ends
-      if (physicalRunsRan % 2 === 1 && next.striker && next.nonStriker) {
-        const temp = next.striker;
-        next.striker = next.nonStriker;
-        next.nonStriker = temp;
-      }
+      next.striker = curStriker;
+      next.nonStriker = curNonStriker;
 
       // Check Over Completion (6 legal balls in current over)
       if (isLegal && curInn.legalBalls % 6 === 0) {
@@ -297,11 +327,16 @@ export function applyEvent(state, event) {
         next.previousBowler = next.currentBowler;
         next.currentBowler = null;
 
-        // Change ends at end of over
-        if (next.striker && next.nonStriker) {
-          const temp = next.striker;
-          next.striker = next.nonStriker;
-          next.nonStriker = temp;
+        // Change ends at end of over (MCC Law 18.11 / 18.12)
+        // Swap slots, preserving whether a slot is occupied or vacant
+        const temp = next.striker;
+        next.striker = next.nonStriker;
+        next.nonStriker = temp;
+
+        if (next.vacantBatterSlot === 'striker') {
+          next.vacantBatterSlot = 'nonStriker';
+        } else if (next.vacantBatterSlot === 'nonStriker') {
+          next.vacantBatterSlot = 'striker';
         }
       } else {
         next.isOverComplete = false;
@@ -333,12 +368,25 @@ export function applyEvent(state, event) {
 
     case EVENT_TYPES.CHANGE_BOWLER: {
       const newBowler = event.payload.bowler;
+      const curInn = next.innings[next.currentInningsIndex];
+      let bowlingSquadSize = 0;
+      if (curInn && next.teams) {
+        const bowlingTeam = next.teams.find(t => t.name === curInn.bowlingTeam);
+        if (bowlingTeam && bowlingTeam.players) {
+          bowlingSquadSize = bowlingTeam.players.length;
+        }
+      }
+
+      // MCC Law 21.1: Bowler cannot bowl consecutive overs if bowling squad > 1
+      if (bowlingSquadSize > 1 && next.previousBowler && newBowler === next.previousBowler && !event.payload.allowConsecutive) {
+        return state; // Consecutive overs disallowed
+      }
+
       next.currentBowler = newBowler;
       next.needsBowlerChange = false;
       next.isOverComplete = false;
 
       // Ensure new bowler is in bowling team's squad list
-      const curInn = next.innings[next.currentInningsIndex];
       if (curInn && newBowler && next.teams) {
         const bowlingTeam = next.teams.find(t => t.name === curInn.bowlingTeam);
         if (bowlingTeam && bowlingTeam.players && !bowlingTeam.players.includes(newBowler)) {

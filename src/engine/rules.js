@@ -42,6 +42,35 @@ export function isWicketValidOnFreeHit(wicketType) {
 }
 
 /**
+ * Validates whether a wicket is legal during a No-Ball delivery (MCC Law 21.18).
+ * Only run out, obstructing field, hit ball twice, and retired are permitted.
+ */
+export function isWicketValidOnNoBall(wicketType) {
+  return [
+    WICKET_TYPES.RUN_OUT,
+    WICKET_TYPES.OBSTRUCTING_FIELD,
+    WICKET_TYPES.HIT_BALL_TWICE,
+    WICKET_TYPES.RETIRED_OUT,
+    WICKET_TYPES.RETIRED_HURT
+  ].includes(wicketType);
+}
+
+/**
+ * Validates whether a wicket is legal during a Wide delivery (MCC Law 22.17).
+ * Bowled, Caught, and LBW are strictly not permitted.
+ */
+export function isWicketValidOnWide(wicketType) {
+  return [
+    WICKET_TYPES.STUMPED,
+    WICKET_TYPES.RUN_OUT,
+    WICKET_TYPES.HIT_WICKET,
+    WICKET_TYPES.OBSTRUCTING_FIELD,
+    WICKET_TYPES.RETIRED_OUT,
+    WICKET_TYPES.RETIRED_HURT
+  ].includes(wicketType);
+}
+
+/**
  * Calculates the maximum wickets before all-out based on number of players per team.
  * All out occurs when only 1 batter remains (players - 1).
  */

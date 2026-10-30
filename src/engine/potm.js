@@ -98,6 +98,18 @@ export function getTopPlayers(allPlayerStats = {}, fieldingStats = {}, limit = 3
     };
   });
 
-  ranked.sort((a, b) => b.totalPoints - a.totalPoints);
+  ranked.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) {
+      return b.totalPoints - a.totalPoints;
+    }
+    // Tie-break 1: Most wickets taken
+    const wDiff = (b.bowling?.wickets || 0) - (a.bowling?.wickets || 0);
+    if (wDiff !== 0) return wDiff;
+    // Tie-break 2: Most runs scored
+    const rDiff = (b.batting?.runs || 0) - (a.batting?.runs || 0);
+    if (rDiff !== 0) return rDiff;
+    // Tie-break 3: Name alphabetical
+    return (a.name || '').localeCompare(b.name || '');
+  });
   return ranked.slice(0, limit);
 }

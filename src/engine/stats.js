@@ -165,11 +165,23 @@ export function computeInningsStats(inningsData) {
       striker.strikeRate = Number(((striker.runs / striker.balls) * 100).toFixed(1));
     }
 
+    // Bowler runs conceded on this delivery (byes, leg-byes, penalty are not conceded by bowler)
+    let bowlerRunsThisBall = 0;
+    if (extraType === EXTRA_TYPES.WIDE) {
+      bowlerRunsThisBall = 1 + extraRuns;
+    } else if (extraType === EXTRA_TYPES.NO_BALL) {
+      bowlerRunsThisBall = 1 + extraRuns + runs;
+    } else if (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE || extraType === EXTRA_TYPES.PENALTY) {
+      bowlerRunsThisBall = 0;
+    } else {
+      bowlerRunsThisBall = runs;
+    }
+
     // 3. Bowler Stats
     const isLegal = extraType !== EXTRA_TYPES.WIDE && extraType !== EXTRA_TYPES.NO_BALL;
     if (isLegal && bowler) {
       bowler.legalBalls += 1;
-      if (ballTotalRuns === 0) bowler.dots += 1;
+      if (bowlerRunsThisBall === 0) bowler.dots += 1;
       bowler.overs = formatOvers(bowler.legalBalls);
     }
 
@@ -230,7 +242,7 @@ export function computeInningsStats(inningsData) {
     currentOver.bowler = ball.bowler || currentOver.bowler;
     currentOver.balls.push(ball.shortLabel || (runs + (extraType ? ` (${extraType})` : '')));
     currentOver.runs += ballTotalRuns;
-    if (ballTotalRuns > 0) currentOver.isMaiden = false;
+    if (bowlerRunsThisBall > 0) currentOver.isMaiden = false;
     if (isWicket) currentOver.wickets += 1;
 
     if (isLegal) {
