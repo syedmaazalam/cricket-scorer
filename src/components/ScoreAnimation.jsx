@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity } from 'lucide-react';
+import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity, AlertCircle, Info } from 'lucide-react';
 
 export default function ScoreAnimation({ animationData }) {
   const [visible, setVisible] = useState(false);
@@ -7,9 +7,10 @@ export default function ScoreAnimation({ animationData }) {
   useEffect(() => {
     if (!animationData) return;
     setVisible(true);
+    // User requirement: Keep six, four, wickets, and wide pop-up messages lasting for 2 seconds (2000ms)
     const timer = setTimeout(() => {
       setVisible(false);
-    }, 1300);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [animationData]);
 
@@ -33,7 +34,15 @@ export default function ScoreAnimation({ animationData }) {
     bgGradient = 'rgba(239, 68, 68, 0.95)';
     borderGlow = 'var(--red)';
     IconComponent = ShieldAlert;
-  } else if (type === 'extra') {
+  } else if (type === 'wide') {
+    bgGradient = 'rgba(217, 119, 6, 0.95)';
+    borderGlow = '#F59E0B';
+    IconComponent = AlertCircle;
+  } else if (type === 'no_ball') {
+    bgGradient = 'rgba(220, 38, 38, 0.95)';
+    borderGlow = '#EF4444';
+    IconComponent = AlertCircle;
+  } else if (type === 'extra' || type === 'bye' || type === 'leg_bye') {
     bgGradient = 'rgba(36, 50, 71, 0.95)';
     borderGlow = 'var(--border)';
     IconComponent = Activity;

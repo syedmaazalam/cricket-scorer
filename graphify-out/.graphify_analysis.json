@@ -3,6 +3,10 @@
     "0": [
       "ref_lucide_react",
       "ref_react",
+      "src_components_abdullahmotivationmodal",
+      "src_components_abdullahmotivationmodal_abdullahmotivationmodal",
+      "src_components_abdullahmotivationmodal_isabdullah",
+      "src_components_abdullahmotivationmodal_isabdullahmessagesenabled",
       "src_components_addpreviousoverballmodal",
       "src_components_addpreviousoverballmodal_addpreviousoverballmodal",
       "src_components_batterdetailsmodal",
@@ -13,6 +17,7 @@
       "src_components_bowlermodal_bowlermodal",
       "src_components_celebrationmodal",
       "src_components_celebrationmodal_celebrationmodal",
+      "src_components_errorboundary",
       "src_components_inningsbreakmodal",
       "src_components_inningsbreakmodal_inningsbreakmodal",
       "src_components_matchcharts",
@@ -31,10 +36,11 @@
       "src_components_squadmodal_squadmodal",
       "src_components_syncbadge",
       "src_components_syncbadge_syncbadge",
+      "src_components_themetoggle",
+      "src_components_themetoggle_themetoggle",
       "src_components_timedeclaremodal",
       "src_components_timedeclaremodal_timedeclaremodal",
       "src_engine_rules_calculatecrr",
-      "src_engine_rules_calculaterrr",
       "src_engine_rules_doesbatterearnruns",
       "src_engine_rules_formatovers",
       "src_engine_rules_isbowlerwicket",
@@ -55,6 +61,60 @@
       "src_pages_scoring_scoring"
     ],
     "1": [
+      "ref_firebase",
+      "ref_react_dom",
+      "src_app",
+      "src_app_app",
+      "src_app_app_resolvelivecode",
+      "src_components_abdullahmotivationmodal_setabdullahmessagesenabled",
+      "src_components_actionlogsmodal",
+      "src_components_actionlogsmodal_actionlogsmodal",
+      "src_components_actionlogsmodal_actionlogsmodal_load",
+      "src_components_authmodal",
+      "src_components_authmodal_authmodal",
+      "src_components_developerscorerchatmodal",
+      "src_components_developerscorerchatmodal_developerscorerchatmodal",
+      "src_firebase_config",
+      "src_firebase_config_auth",
+      "src_firebase_config_db",
+      "src_firebase_config_ensureanonymousauth",
+      "src_firebase_config_firebaseconfig",
+      "src_firebase_matches",
+      "src_firebase_matches_creatematchincloud",
+      "src_firebase_matches_deleteallmatchesfromcloud",
+      "src_firebase_matches_deletematchfromcloud",
+      "src_firebase_matches_derivematchdisplayscore",
+      "src_firebase_matches_findmatchbycode",
+      "src_firebase_matches_generatematchcode",
+      "src_firebase_matches_getactionlogsfromcloud",
+      "src_firebase_matches_getallmanagersfromcloud",
+      "src_firebase_matches_getallmatchesfromcloud",
+      "src_firebase_matches_getmatchstatusmeta",
+      "src_firebase_matches_sanitizeforfirestore",
+      "src_firebase_matches_saveactionlogtocloud",
+      "src_firebase_matches_savemanagerprofiletocloud",
+      "src_firebase_matches_saveuploadedmatchtocloud",
+      "src_firebase_matches_searchmatches",
+      "src_firebase_matches_sendmatchmessage",
+      "src_firebase_matches_subscribematchmessages",
+      "src_firebase_matches_updatematchsettings",
+      "src_index",
+      "src_main",
+      "src_pages_developerdashboard",
+      "src_pages_developerdashboard_checkisdeveloper",
+      "src_pages_developerdashboard_developerdashboard",
+      "src_pages_developerdashboard_sanitizestring",
+      "src_pages_home",
+      "src_pages_home_home",
+      "src_pages_home_home_loadmatches",
+      "src_pages_live_live_resolve",
+      "src_pages_setup",
+      "src_pages_setup_setup",
+      "src_store_localdb_getactionlogslocally",
+      "src_store_localdb_getalllocalmatches",
+      "src_store_localdb_savemanagerlocally"
+    ],
+    "2": [
       "ref_fs",
       "ref_path",
       "ref_vitest",
@@ -78,6 +138,7 @@
       "src_engine_reducer_replayevents",
       "src_engine_reducer_undolastevent",
       "src_engine_rules",
+      "src_engine_rules_calculaterrr",
       "src_engine_rules_getmaxwickets",
       "src_engine_rules_islegaldelivery",
       "src_engine_rules_iswicketvalidonfreehit",
@@ -95,9 +156,10 @@
       "src_tests_qa_scenarios_test_creatematchwithplayers",
       "src_tests_qa_scoring_rules_test",
       "src_tests_qa_scoring_rules_test_setupmatch",
-      "src_tests_qa_simulation_and_top3_test"
+      "src_tests_qa_simulation_and_top3_test",
+      "test_report_bug_table_root_cause_fixes"
     ],
-    "2": [
+    "3": [
       "package",
       "package_dependencies",
       "package_dependencies_firebase",
@@ -135,14 +197,14 @@
       "ref_vitejs_plugin_react",
       "vite_config"
     ],
-    "3": [
-      "src_firebase_config_ensureanonymousauth",
+    "4": [
       "src_firebase_matches_subscribetomatchdoc",
       "src_firebase_matches_subscribetomatchevents",
       "src_firebase_matches_updatematchheartbeat",
       "src_store_localdb",
       "src_store_localdb_deleteallmatcheslocally",
       "src_store_localdb_deletematchlocally",
+      "src_store_localdb_getalllocalmanagers",
       "src_store_localdb_geteventsformatch",
       "src_store_localdb_getmatchsnapshot",
       "src_store_localdb_getunsyncedevents",
@@ -163,68 +225,25 @@
       "src_store_usematch_usematch",
       "src_store_usematch_usematch_loadmatch"
     ],
-    "4": [
-      "ref_firebase",
-      "src_firebase_config",
-      "src_firebase_config_auth",
-      "src_firebase_config_db",
-      "src_firebase_config_firebaseconfig",
-      "src_firebase_matches",
-      "src_firebase_matches_deleteallmatchesfromcloud",
-      "src_firebase_matches_deletematchfromcloud",
-      "src_firebase_matches_sanitizeforfirestore",
-      "src_firebase_matches_saveactionlogtocloud",
-      "src_firebase_matches_saveuploadedmatchtocloud",
-      "src_firebase_matches_updatematchsettings"
-    ],
     "5": [
-      "ref_react_dom",
-      "src_components_errorboundary",
       "src_components_errorboundary_errorboundary",
       "src_components_errorboundary_errorboundary_componentdidcatch",
       "src_components_errorboundary_errorboundary_constructor",
       "src_components_errorboundary_errorboundary_getderivedstatefromerror",
       "src_components_errorboundary_errorboundary_handlegohome",
       "src_components_errorboundary_errorboundary_handlereload",
-      "src_components_errorboundary_errorboundary_render",
-      "src_index",
-      "src_main"
+      "src_components_errorboundary_errorboundary_render"
     ],
     "6": [
-      "src_app",
-      "src_app_app",
-      "src_app_app_resolvelivecode",
-      "src_firebase_matches_creatematchincloud",
-      "src_firebase_matches_findmatchbycode",
-      "src_firebase_matches_generatematchcode",
-      "src_firebase_matches_searchmatches",
-      "src_pages_live_live_resolve",
-      "src_pages_setup",
-      "src_pages_setup_setup"
+      "test_report",
+      "test_report_100_match_randomized_simulation_verification",
+      "test_report_cricket_rules_assumptions_standards_mcc_laws_of_cricket",
+      "test_report_executive_summary",
+      "test_report_pass_fail_summary_table",
+      "test_report_production_deployment",
+      "test_report_qa_engineering_cricket_rules_audit_report"
     ],
     "7": [
-      "src_components_authmodal",
-      "src_components_authmodal_authmodal",
-      "src_components_themetoggle",
-      "src_components_themetoggle_themetoggle",
-      "src_firebase_matches_savemanagerprofiletocloud",
-      "src_pages_home",
-      "src_pages_home_home",
-      "src_pages_home_home_loadmatches",
-      "src_store_localdb_getalllocalmatches",
-      "src_store_localdb_savemanagerlocally"
-    ],
-    "8": [
-      "src_firebase_matches_derivematchdisplayscore",
-      "src_firebase_matches_getallmanagersfromcloud",
-      "src_firebase_matches_getallmatchesfromcloud",
-      "src_pages_developerdashboard",
-      "src_pages_developerdashboard_checkisdeveloper",
-      "src_pages_developerdashboard_developerdashboard",
-      "src_pages_developerdashboard_sanitizestring",
-      "src_store_localdb_getalllocalmanagers"
-    ],
-    "9": [
       "oxlintrc",
       "oxlintrc_plugins",
       "oxlintrc_rules",
@@ -232,56 +251,72 @@
       "oxlintrc_rules_react_rules_of_hooks",
       "oxlintrc_schema"
     ],
+    "8": [
+      "fix_report",
+      "fix_report_deployment_verification",
+      "fix_report_fix_report_cricket_scorer_scoring_screen_rules_layout_fixes",
+      "fix_report_issue_resolution_table",
+      "fix_report_responsive_layout_matrix_verification"
+    ],
+    "9": [
+      "plan",
+      "plan_chunks",
+      "plan_developer_auth_silicon123_abdullah_motivational_messages_scorer_chat",
+      "plan_overview"
+    ],
     "10": [
-      "src_components_actionlogsmodal",
-      "src_components_actionlogsmodal_actionlogsmodal",
-      "src_components_actionlogsmodal_actionlogsmodal_load",
-      "src_firebase_matches_getactionlogsfromcloud",
-      "src_store_localdb_getactionlogslocally"
+      "readme",
+      "readme_expanding_the_oxlint_configuration",
+      "readme_react_compiler",
+      "readme_react_vite"
     ],
     "11": [
-      "tailwind_config",
-      "tailwindcss"
+      "postcss_config"
     ],
     "12": [
-      "postcss_config"
+      "tailwind_config"
     ]
   },
   "cohesion": {
-    "0": 0.16817496229260936,
-    "1": 0.18536585365853658,
-    "2": 0.05714285714285714,
-    "3": 0.20923076923076922,
-    "4": 0.24242424242424243,
-    "5": 0.2,
-    "6": 0.3333333333333333,
-    "7": 0.37777777777777777,
-    "8": 0.4642857142857143,
-    "9": 0.3333333333333333,
-    "10": 0.8,
+    "0": 0.14095583787053842,
+    "1": 0.09276018099547512,
+    "2": 0.17497231450719822,
+    "3": 0.05714285714285714,
+    "4": 0.2153846153846154,
+    "5": 0.2857142857142857,
+    "6": 0.2857142857142857,
+    "7": 0.3333333333333333,
+    "8": 0.4,
+    "9": 0.5,
+    "10": 0.5,
     "11": 1.0,
     "12": 1.0
   },
   "gods": [
     {
-      "id": "ref_react",
-      "label": "react",
-      "degree": 31
-    },
-    {
       "id": "src_pages_scoring_scoring",
       "label": "Scoring()",
-      "degree": 28
+      "degree": 34
+    },
+    {
+      "id": "ref_react",
+      "label": "react",
+      "degree": 33
     },
     {
       "id": "ref_lucide_react",
       "label": "lucide-react",
-      "degree": 28
+      "degree": 30
     },
     {
       "id": "src_engine_stats_computeinningsstats",
       "label": "computeInningsStats()",
       "degree": 27
+    },
+    {
+      "id": "src_pages_live_live",
+      "label": "Live()",
+      "degree": 25
     },
     {
       "id": "src_engine_rules_formatovers",
@@ -294,88 +329,83 @@
       "degree": 23
     },
     {
-      "id": "src_pages_live_live",
-      "label": "Live()",
-      "degree": 22
-    },
-    {
       "id": "src_store_usematch_usematch",
       "label": "useMatch()",
       "degree": 22
     },
     {
-      "id": "src_engine_reducer_replayevents",
-      "label": "replayEvents()",
-      "degree": 17
-    },
-    {
       "id": "src_pages_developerdashboard_developerdashboard",
       "label": "DeveloperDashboard()",
+      "degree": 21
+    },
+    {
+      "id": "src_engine_reducer_replayevents",
+      "label": "replayEvents()",
       "degree": 17
     }
   ],
   "surprises": [
     {
-      "source": "CelebrationModal()",
-      "target": "getMaxWickets()",
+      "source": "Bug Table & Root Cause Fixes",
+      "target": "getTopPlayers()",
       "source_files": [
-        "src/components/CelebrationModal.jsx",
+        "TEST_REPORT.md",
+        "src/engine/potm.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories"
+    },
+    {
+      "source": "Bug Table & Root Cause Fixes",
+      "target": "isWicketValidOnNoBall()",
+      "source_files": [
+        "TEST_REPORT.md",
         "src/engine/rules.js"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories"
     },
     {
-      "source": "deriveMatchDisplayScore()",
-      "target": "formatOvers()",
+      "source": "Bug Table & Root Cause Fixes",
+      "target": "isWicketValidOnWide()",
       "source_files": [
-        "src/firebase/matches.js",
+        "TEST_REPORT.md",
         "src/engine/rules.js"
       ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories"
     },
     {
-      "source": "App()",
-      "target": "Live()",
+      "source": "DeveloperDashboard()",
+      "target": "isAbdullahMessagesEnabled()",
       "source_files": [
-        "src/App.jsx",
-        "src/pages/Live.jsx"
+        "src/pages/DeveloperDashboard.jsx",
+        "src/components/AbdullahMotivationModal.jsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "Scoring()",
+      "target": "AddPreviousOverBallModal()",
+      "source_files": [
+        "src/pages/Scoring.jsx",
+        "src/components/AddPreviousOverBallModal.jsx"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "Live()",
-      "target": "ThemeToggle()",
-      "source_files": [
-        "src/pages/Live.jsx",
-        "src/components/ThemeToggle.jsx"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
-    },
-    {
-      "source": "Live()",
-      "target": "getMaxWickets()",
-      "source_files": [
-        "src/pages/Live.jsx",
-        "src/engine/rules.js"
-      ],
-      "confidence": "EXTRACTED",
-      "relation": "calls",
-      "why": "bridges separate communities"
+      "why": "peripheral node `AddPreviousOverBallModal()` unexpectedly reaches hub `Scoring()`"
     }
   ],
   "questions": [
     {
       "type": "bridge_node",
-      "question": "Why does `react` connect `Scoring.jsx` to `reducer.js`, `package.json`, `useMatch.js`, `ErrorBoundary`, `App.jsx`, `ThemeToggle`, `DeveloperDashboard.jsx`, `ActionLogsModal.jsx`?",
-      "why": "High betweenness centrality (0.153) - this node is a cross-community bridge."
+      "question": "Why does `react` connect `Scoring.jsx` to `reducer.js`, `package.json`, `package.json`, `useMatch.js`?",
+      "why": "High betweenness centrality (0.130) - this node is a cross-community bridge."
     },
     {
       "type": "isolated_nodes",
@@ -384,13 +414,23 @@
     },
     {
       "type": "low_cohesion",
-      "question": "Should `package.json` be split into smaller, more focused modules?",
-      "why": "Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected."
+      "question": "Should `Scoring.jsx` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.14095583787053842 - nodes in this community are weakly interconnected."
     },
     {
       "type": "bridge_node",
-      "question": "Why does `lucide-react` connect `Scoring.jsx` to `reducer.js`, `package.json`, `ErrorBoundary`, `App.jsx`, `ThemeToggle`, `DeveloperDashboard.jsx`, `ActionLogsModal.jsx`?",
-      "why": "High betweenness centrality (0.094) - this node is a cross-community bridge."
+      "question": "Why does `lucide-react` connect `Scoring.jsx` to `reducer.js`, `package.json`, `package.json`?",
+      "why": "High betweenness centrality (0.085) - this node is a cross-community bridge."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `reducer.js` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.09276018099547512 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `package.json` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected."
     }
   ]
 }

@@ -340,4 +340,93 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(meta.label).toBe('COMPLETED');
     });
   });
+
+  // Test 4: Developer Auth ("Silicon123@"), Abdullah Motivational Messages & 2-Second Popups
+  describe('Developer Auth, Abdullah Motivational Messages & 2-Second Event Popups', () => {
+    it('Verifies developer console password is Silicon123@', () => {
+      const devDashboardCode = fs.readFileSync(
+        path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'),
+        'utf-8'
+      );
+      // Password must match Silicon123@ and authenticate immediately
+      expect(devDashboardCode).toContain('Silicon123@');
+      expect(devDashboardCode).toContain("sessionStorage.setItem('dev_auth', 'true')");
+    });
+
+    it('Verifies isAbdullah helper detects Abdullah case-insensitively', async () => {
+      const { isAbdullah } = await import('../components/AbdullahMotivationModal.jsx');
+      expect(isAbdullah('Abdullah')).toBe(true);
+      expect(isAbdullah('abdullah')).toBe(true);
+      expect(isAbdullah('ABDULLAH')).toBe(true);
+      expect(isAbdullah('Syed Abdullah')).toBe(true);
+      expect(isAbdullah('Mohammad abdullah alam')).toBe(true);
+      expect(isAbdullah('Maaz')).toBe(false);
+      expect(isAbdullah('')).toBe(false);
+      expect(isAbdullah(null)).toBe(false);
+    });
+
+    it('Verifies exact brother motivational messages for Abdullah events', async () => {
+      const modalCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/AbdullahMotivationModal.jsx'),
+        'utf-8'
+      );
+      // Wicket taken
+      expect(modalCode).toContain('You can take another wicket');
+      // Comes to bat
+      expect(modalCode).toContain('Shabash Abdullah You Can Do It!');
+      // Hits a six
+      expect(modalCode).toContain('Shabash Abdullah You Can Hit Another Six Proud of You! Maaz..');
+      // Hits a four
+      expect(modalCode).toContain('You Can Do It!');
+      // Gets out on score
+      expect(modalCode).toContain('Good! Your Brother Maaz is always Proud of You! Love You Abdullah');
+    });
+
+    it('Verifies 4-second unskippable countdown lock for Abdullah messages', () => {
+      const modalCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/AbdullahMotivationModal.jsx'),
+        'utf-8'
+      );
+      expect(modalCode).toContain('setSecondsRemaining(4)');
+      expect(modalCode).toContain('canDismiss = secondsRemaining === 0');
+      expect(modalCode).toContain('Unskippable ({secondsRemaining}s remaining)');
+    });
+
+    it('Verifies Abdullah messages developer toggle works with localStorage persistence', async () => {
+      const { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } = await import(
+        '../components/AbdullahMotivationModal.jsx'
+      );
+      // Toggle off
+      setAbdullahMessagesEnabled(false);
+      expect(isAbdullahMessagesEnabled()).toBe(false);
+      // Toggle on
+      setAbdullahMessagesEnabled(true);
+      expect(isAbdullahMessagesEnabled()).toBe(true);
+    });
+
+    it('Verifies standard event popups (wide, no ball, 4, 6, wicket) last for 2 seconds (2000ms)', () => {
+      const scoreAnimCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/ScoreAnimation.jsx'),
+        'utf-8'
+      );
+      expect(scoreAnimCode).toContain('2000');
+      expect(scoreAnimCode).toContain('wide');
+      expect(scoreAnimCode).toContain('no_ball');
+    });
+
+    it('Verifies Real-time Developer-to-Scorer Chat is wired in Scoring and Developer Dashboard', () => {
+      const scoringCode = fs.readFileSync(
+        path.resolve(__dirname, '../pages/Scoring.jsx'),
+        'utf-8'
+      );
+      const devDashCode = fs.readFileSync(
+        path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'),
+        'utf-8'
+      );
+      expect(scoringCode).toContain('DeveloperScorerChatModal');
+      expect(scoringCode).toContain('subscribeMatchMessages');
+      expect(devDashCode).toContain('DeveloperScorerChatModal');
+      expect(devDashCode).toContain('Chat with Scorer');
+    });
+  });
 });

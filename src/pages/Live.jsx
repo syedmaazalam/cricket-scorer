@@ -9,6 +9,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
+import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
 import BottomNavBar from '../components/BottomNavBar.jsx';
 import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
@@ -29,6 +30,7 @@ export default function Live({
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState(null);
+  const [abdullahEvent, setAbdullahEvent] = useState(null);
   const [activeTab, setActiveTab] = useState('score');
   const prevBallCountRef = useRef(null);
 
@@ -146,31 +148,63 @@ export default function Live({
     }
   };
 
-  // Trigger small celebration animations exclusively on spectator / watcher end
+  // Trigger animations & special messages on spectator / watcher end
   useEffect(() => {
     const balls = currentInnings.balls || [];
     if (prevBallCountRef.current !== null && balls.length > prevBallCountRef.current) {
       const latestBall = balls[balls.length - 1];
       if (latestBall) {
-        if (latestBall.isWicket) {
+        const isWicket = Boolean(latestBall.isWicket);
+        const runs = Number(latestBall.runs || 0);
+        const extraType = latestBall.extraType;
+
+        // 1. Abdullah motivational messages check (4-second unskippable)
+        if (isAbdullahMessagesEnabled()) {
+          if (isWicket && isAbdullah(latestBall.bowler || currentInnings.bowler)) {
+            setAbdullahEvent({ type: 'wicket_taken' });
+          } else if (isWicket && (isAbdullah(latestBall.dismissedPlayer) || isAbdullah(latestBall.striker || currentInnings.striker))) {
+            const abdullahBatter = currentInnings?.batters?.find((b) => isAbdullah(b.name));
+            setAbdullahEvent({ type: 'out', score: abdullahBatter?.runs || 0 });
+          } else if (runs === 6 && isAbdullah(latestBall.striker || currentInnings.striker)) {
+            setAbdullahEvent({ type: 'six' });
+          } else if (runs === 4 && isAbdullah(latestBall.striker || currentInnings.striker)) {
+            setAbdullahEvent({ type: 'four' });
+          }
+        }
+
+        // 2. Standard 2-second event popups (wide, no ball, four, six, wicket, extra)
+        if (isWicket) {
           setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'BATTER OUT!' });
-        } else if (latestBall.runs === 6) {
+        } else if (runs === 6) {
           setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });
-        } else if (latestBall.runs === 4) {
+        } else if (runs === 4) {
           setActiveAnimation({ type: 'four', text: '+4 BOUNDARY!', subtext: 'FOUR RUNS!' });
-        } else if (latestBall.extraType) {
+        } else if (extraType === 'wide') {
+          const totalWideRuns = (latestBall.extraRuns || 0) + 1;
+          setActiveAnimation({
+            type: 'wide',
+            text: `+${totalWideRuns} WIDE`,
+            subtext: 'WIDE BALL'
+          });
+        } else if (extraType === 'no_ball') {
+          setActiveAnimation({
+            type: 'no_ball',
+            text: '+1 NO BALL',
+            subtext: 'Free Hit next!'
+          });
+        } else if (extraType) {
           setActiveAnimation({
             type: 'extra',
-            text: `+${(latestBall.extraRuns || 0) + (latestBall.extraType === 'wide' || latestBall.extraType === 'no_ball' ? 1 : 0)} ${latestBall.extraType.toUpperCase()}`,
-            subtext: latestBall.extraType === 'no_ball' ? 'Free Hit next!' : 'Extra delivery'
+            text: `+${latestBall.extraRuns || 1} ${extraType.toUpperCase()}`,
+            subtext: 'Extra delivery'
           });
-        } else if (latestBall.runs === 0) {
+        } else if (runs === 0) {
           setActiveAnimation({ type: 'dot', text: 'DOT BALL', subtext: 'No run conceded' });
-        } else if (latestBall.runs === 1) {
+        } else if (runs === 1) {
           setActiveAnimation({ type: 'run', text: '+1 SINGLE', subtext: 'Strike rotated' });
-        } else if (latestBall.runs === 2) {
+        } else if (runs === 2) {
           setActiveAnimation({ type: 'run', text: '+2 DOUBLE', subtext: 'Good running!' });
-        } else if (latestBall.runs === 3) {
+        } else if (runs === 3) {
           setActiveAnimation({ type: 'run', text: '+3 THREE RUNS', subtext: 'Superb running!' });
         }
       }
@@ -603,8 +637,16 @@ export default function Live({
         </div>
       )}
 
-      {/* Floating Spectator Live Score Animation */}
+      {/* Floating Spectator Live Score Animation (2-second duration) */}
       <ScoreAnimation animationData={activeAnimation} />
+
+      {/* Special Unskippable 4-Second Motivational Brother Message for Abdullah */}
+      {abdullahEvent && (
+        <AbdullahMotivationModal
+          eventData={abdullahEvent}
+          onClose={() => setAbdullahEvent(null)}
+        />
+      )}
 
       {/* Modals */}
       {/* 1. Batter Career & Detailed Breakdown Modal */}

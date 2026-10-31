@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,7 +18,8 @@ import {
   Target,
   User,
   Shield,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
@@ -37,6 +38,10 @@ import BottomNavBar from '../components/BottomNavBar.jsx';
 import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import ActionLogsModal from '../components/ActionLogsModal.jsx';
+import ScoreAnimation from '../components/ScoreAnimation.jsx';
+import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
+import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
+import { subscribeMatchMessages } from '../firebase/matches.js';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -71,6 +76,49 @@ export default function Scoring({
   const [isActionLogsOpen, setIsActionLogsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('score');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scoreAnimationData, setScoreAnimationData] = useState(null);
+  const [abdullahEvent, setAbdullahEvent] = useState(null);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [latestDevMessage, setLatestDevMessage] = useState(null);
+  const lastSeenMsgCountRef = useRef(0);
+  const hasGreetedAbdullahRef = useRef(new Set());
+
+  // Real-time Developer to Scorer chat subscription
+  useEffect(() => {
+    if (!matchState.matchId) return;
+    const unsub = subscribeMatchMessages(matchState.matchId, (msgs) => {
+      if (!Array.isArray(msgs)) return;
+      if (lastSeenMsgCountRef.current > 0 && msgs.length > lastSeenMsgCountRef.current) {
+        const newest = msgs[msgs.length - 1];
+        if (newest && newest.sender === 'developer' && !isChatModalOpen) {
+          setUnreadChatCount((prev) => prev + 1);
+          setLatestDevMessage(newest);
+          setTimeout(() => setLatestDevMessage(null), 6000);
+        }
+      }
+      lastSeenMsgCountRef.current = msgs.length;
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [matchState.matchId, isChatModalOpen]);
+
+  // Greet Abdullah when he comes to bat (once per innings)
+  useEffect(() => {
+    if (!isAbdullahMessagesEnabled()) return;
+    const currentInningsNum = matchState.currentInnings || 1;
+    const striker = matchState.striker;
+    const nonStriker = matchState.nonStriker;
+
+    if (isAbdullah(striker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${striker}`)) {
+      hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${striker}`);
+      setAbdullahEvent({ type: 'comes_to_bat' });
+    } else if (isAbdullah(nonStriker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${nonStriker}`)) {
+      hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${nonStriker}`);
+      setAbdullahEvent({ type: 'comes_to_bat' });
+    }
+  }, [matchState.striker, matchState.nonStriker, matchState.currentInnings]);
 
   // Enforce dark theme on the manager end as required
   useEffect(() => {
@@ -195,6 +243,52 @@ export default function Scoring({
   }, [cooldownSeconds]);
 
   const handleScoreBall = (ballData) => {
+    const isWicket = Boolean(ballData.isWicket);
+    const runs = Number(ballData.runs || 0);
+    const extraType = ballData.extraType;
+    const currentBowler = matchState.currentBowler;
+    const currentStriker = matchState.striker;
+    const dismissedPlayer = ballData.dismissedPlayer || currentStriker;
+
+    // 1. Abdullah motivational messages check (unskippable 4-sec modal)
+    if (isAbdullahMessagesEnabled()) {
+      if (isWicket && isAbdullah(currentBowler)) {
+        // When he takes a wicket
+        setAbdullahEvent({ type: 'wicket_taken' });
+      } else if (isWicket && (isAbdullah(dismissedPlayer) || isAbdullah(currentStriker))) {
+        // When he gets out on some score
+        const abdullahBatter = currentInnings?.batters?.find((b) => isAbdullah(b.name));
+        const finalScore = abdullahBatter ? (abdullahBatter.runs || 0) : 0;
+        setAbdullahEvent({ type: 'out', score: finalScore });
+      } else if (runs === 6 && isAbdullah(currentStriker)) {
+        // Hits a six
+        setAbdullahEvent({ type: 'six' });
+      } else if (runs === 4 && isAbdullah(currentStriker)) {
+        // Hits a four
+        setAbdullahEvent({ type: 'four' });
+      }
+    }
+
+    // 2. Standard 2-second event pop-up messages (wide, no ball, 4, 6, wicket)
+    if (isWicket) {
+      setScoreAnimationData({ type: 'wicket', text: 'WICKET!', subtext: 'BATTER OUT!' });
+    } else if (runs === 6) {
+      setScoreAnimationData({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });
+    } else if (runs === 4) {
+      setScoreAnimationData({ type: 'four', text: '+4 BOUNDARY!', subtext: 'FOUR RUNS!' });
+    } else if (extraType === 'wide') {
+      const extraRuns = ballData.extraRuns || 1;
+      setScoreAnimationData({ type: 'wide', text: `+${extraRuns} WIDE`, subtext: 'WIDE BALL' });
+    } else if (extraType === 'no_ball') {
+      setScoreAnimationData({ type: 'no_ball', text: '+1 NO BALL', subtext: 'FREE HIT NEXT!' });
+    } else if (extraType) {
+      setScoreAnimationData({
+        type: 'extra',
+        text: `+${ballData.extraRuns || 1} ${String(extraType).toUpperCase()}`,
+        subtext: 'EXTRA DELIVERY'
+      });
+    }
+
     onRecordBall(ballData);
     setCooldownSeconds(10);
   };
@@ -268,8 +362,29 @@ export default function Scoring({
           </div>
         </div>
 
-        {/* Right: ThemeToggle, Sync badge & More Menu Toggle */}
+        {/* Right: Chat button, ThemeToggle, Sync badge & More Menu Toggle */}
         <div className="flex items-center gap-1.5 shrink-0 relative">
+          <button
+            onClick={() => {
+              setIsChatModalOpen(true);
+              setUnreadChatCount(0);
+              setLatestDevMessage(null);
+            }}
+            style={{
+              backgroundColor: unreadChatCount > 0 ? 'rgba(34, 197, 94, 0.15)' : 'var(--card)',
+              borderColor: unreadChatCount > 0 ? '#22C55E' : 'var(--border)',
+              color: unreadChatCount > 0 ? '#22C55E' : 'var(--text)'
+            }}
+            className="p-2 rounded-xl border shadow-sm active:scale-95 transition-all relative"
+            title="Chat with Developer (Maaz)"
+          >
+            <MessageSquare className="w-4 h-4 text-[#22C55E]" />
+            {unreadChatCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#22C55E] text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-sm">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
           <ThemeToggle />
           <SyncBadge syncStatus={syncStatus} />
           <button
@@ -384,6 +499,34 @@ export default function Scoring({
           )}
         </div>
       </div>
+
+      {/* Real-time Developer Message Toast Notification */}
+      {latestDevMessage && !isChatModalOpen && (
+        <div
+          onClick={() => {
+            setIsChatModalOpen(true);
+            setUnreadChatCount(0);
+            setLatestDevMessage(null);
+          }}
+          style={{
+            backgroundColor: 'rgba(34, 197, 94, 0.15)',
+            borderColor: '#22C55E',
+            color: 'var(--text)'
+          }}
+          className="mx-auto w-full max-w-xl my-2 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-lg cursor-pointer animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#22C55E] animate-ping shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-[#22C55E]">{latestDevMessage.senderName || 'Developer'}: </span>
+              <span className="opacity-90">{latestDevMessage.text}</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-[#22C55E] uppercase shrink-0 px-2.5 py-1 rounded-lg bg-[#22C55E]/20">
+            Open Chat
+          </span>
+        </div>
+      )}
 
       {/* Main Content by Tab */}
       {activeTab === 'score' && (
@@ -966,7 +1109,12 @@ export default function Scoring({
           isOpen={matchState.needsNewBatter}
           battingTeam={currentInnings.battingTeam}
           availableBatters={availableBatters}
-          onSelectBatter={onAddNewBatter}
+          onSelectBatter={(batterName) => {
+            if (isAbdullahMessagesEnabled() && isAbdullah(batterName)) {
+              setAbdullahEvent({ type: 'comes_to_bat' });
+            }
+            onAddNewBatter(batterName);
+          }}
         />
       )}
 
@@ -993,6 +1141,9 @@ export default function Scoring({
               setIsManualBreakOpen(false);
             }}
             onStartSecondInnings={(payload) => {
+              if (isAbdullahMessagesEnabled() && (isAbdullah(payload?.striker) || isAbdullah(payload?.nonStriker))) {
+                setAbdullahEvent({ type: 'comes_to_bat' });
+              }
               onEndInnings?.(payload);
               setIsBreakModalOpen(false);
               setIsManualBreakOpen(false);
@@ -1037,6 +1188,32 @@ export default function Scoring({
         onClose={() => setIsActionLogsOpen(false)}
         matchId={matchState.matchId}
       />
+
+      {/* 12. 2-Second Scoring & Extras Animation Modal */}
+      <ScoreAnimation animationData={scoreAnimationData} />
+
+      {/* 13. Special Unskippable 4-Second Motivational Brother Message for Abdullah */}
+      {abdullahEvent && (
+        <AbdullahMotivationModal
+          eventData={abdullahEvent}
+          onClose={() => setAbdullahEvent(null)}
+        />
+      )}
+
+      {/* 14. Real-time Developer to Scorer Chat Modal */}
+      {isChatModalOpen && (
+        <DeveloperScorerChatModal
+          isOpen={isChatModalOpen}
+          onClose={() => {
+            setIsChatModalOpen(false);
+            setUnreadChatCount(0);
+          }}
+          matchId={matchState.matchId}
+          matchTitle={`${matchState.teams?.[0]?.name || 'Team 1'} vs ${matchState.teams?.[1]?.name || 'Team 2'} (${matchState.code || ''})`}
+          role="scorer"
+          senderName="Match Scorer"
+        />
+      )}
 
       {/* Persistent Bottom Navigation Bar */}
       <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />

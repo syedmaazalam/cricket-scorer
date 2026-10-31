@@ -47,6 +47,11 @@ service cloud.firestore {
       match /actionLogs/{logId} {
         allow read, write: if true;
       }
+
+      // Chat and developer-scorer messages subcollection
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
     }
   }
 }

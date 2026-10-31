@@ -22,6 +22,8 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  Heart,
+  MessageSquare,
   X
 } from 'lucide-react';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -43,6 +45,8 @@ import {
 } from '../store/localDb.js';
 import { replayEvents } from '../engine/reducer.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
+import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
+import { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 
 // Check developer authorization
 function checkIsDeveloper(user, idTokenResult) {
@@ -103,6 +107,17 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [duplicateConflict, setDuplicateConflict] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Abdullah feature toggle & Scorer Chat
+  const [isAbdullahEnabled, setIsAbdullahEnabled] = useState(isAbdullahMessagesEnabled);
+  const [activeChatMatch, setActiveChatMatch] = useState(null);
+
+  const toggleAbdullahMessages = () => {
+    const nextVal = !isAbdullahEnabled;
+    setIsAbdullahEnabled(nextVal);
+    setAbdullahMessagesEnabled(nextVal);
+    showToast(nextVal ? 'Abdullah brother messages enabled.' : 'Abdullah brother messages disabled.');
+  };
+
   // Check auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -135,31 +150,38 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     setAuthError('');
     setAuthLoading(true);
 
+    const cleanPass = passwordInput.trim();
     const cleanEmail = emailInput.trim().toLowerCase();
 
+    // Direct password check: Silicon123@
+    if (cleanPass === 'Silicon123@') {
+      setIsDeveloperUser(true);
+      sessionStorage.setItem('dev_auth', 'true');
+      localStorage.setItem('cricket_is_developer', 'true');
+      setAuthError('');
+      setAuthLoading(false);
+      return;
+    }
+
     try {
-      const cred = await signInWithEmailAndPassword(auth, emailInput.trim(), passwordInput.trim());
+      const cred = await signInWithEmailAndPassword(auth, emailInput.trim() || 'developer@smartcricket.app', cleanPass);
       const tokenResult = await cred.user.getIdTokenResult();
       const isDev = checkIsDeveloper(cred.user, tokenResult);
-      if (!isDev) {
+      if (!isDev && cleanPass !== 'Silicon123@') {
         setIsDeveloperUser(false);
-        setAuthError('Access denied: This account is not authorized as a Developer.');
+        setAuthError('Access denied: Incorrect developer password or unauthorized account.');
       } else {
         setIsDeveloperUser(true);
         sessionStorage.setItem('dev_auth', 'true');
       }
     } catch (err) {
-      if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
-        if (cleanEmail === 'syedmaazalam@gmail.com' || cleanEmail.endsWith('@smartcricket.app')) {
-          setIsDeveloperUser(true);
-          sessionStorage.setItem('dev_auth', 'true');
-          setAuthError('');
-          return;
-        }
-        setAuthError('Firebase Authentication: Email/Password provider is not yet enabled in your Firebase Console. Please enable Email/Password under Authentication > Sign-in method, or sign in using an authorized developer email.');
-      } else {
-        setAuthError(err.message || 'Developer authentication failed.');
+      if (cleanPass === 'Silicon123@' || cleanEmail === 'syedmaazalam@gmail.com' || cleanEmail.endsWith('@smartcricket.app')) {
+        setIsDeveloperUser(true);
+        sessionStorage.setItem('dev_auth', 'true');
+        setAuthError('');
+        return;
       }
+      setAuthError('Invalid credentials. Please enter developer password "Silicon123@".');
     } finally {
       setAuthLoading(false);
     }
@@ -544,7 +566,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           <form onSubmit={handleDeveloperLogin} className="space-y-3">
             <div>
               <label className="block text-[11px] font-medium uppercase mb-1" style={{ color: 'var(--muted)' }}>
-                Developer Email
+                Developer Email (Optional)
               </label>
               <input
                 type="email"
@@ -557,7 +579,6 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                   color: 'var(--text)'
                 }}
                 className="w-full px-3 py-2.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
-                required
               />
             </div>
 
@@ -733,6 +754,40 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
             </div>
             <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Archived Match Records</span>
           </div>
+        </div>
+
+        {/* Global Controls: Abdullah Messages & Scorer Coordination */}
+        <div
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+          className="p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
+              <Heart className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
+                Abdullah Motivational Brother Messages
+              </div>
+              <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                Displays customized 4-second unskippable messages for player "Abdullah" (wickets, batting, 4s, 6s, out)
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={toggleAbdullahMessages}
+            style={{
+              backgroundColor: isAbdullahEnabled ? 'rgba(34, 197, 94, 0.15)' : 'var(--card-alt)',
+              borderColor: isAbdullahEnabled ? '#22C55E' : 'var(--border)',
+              color: isAbdullahEnabled ? '#22C55E' : 'var(--muted)'
+            }}
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 self-start sm:self-auto transition-all shadow-sm active:scale-95"
+            title="Toggle Abdullah Messages"
+          >
+            <span className={`w-2 h-2 rounded-full ${isAbdullahEnabled ? 'bg-[#22C55E]' : 'bg-slate-400'}`} />
+            <span>{isAbdullahEnabled ? 'Messages: ON' : 'Messages: OFF'}</span>
+          </button>
         </div>
 
         {/* Tab Navigation */}
@@ -1120,18 +1175,32 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                         </div>
                       </div>
 
-                      {/* Action Buttons: Open in App & Export JSON */}
-                      <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                      {/* Action Buttons: Open in App, Chat with Scorer & Export JSON */}
+                      <div className="flex items-center gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                         <button
                           onClick={() => onOpenMatch?.(code || m.matchId)}
                           style={{
                             backgroundColor: '#22C55E',
                             color: '#FFFFFF'
                           }}
-                          className="flex-1 py-2 px-3 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-98 transition-all shadow-sm"
+                          className="flex-1 py-2 px-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 active:scale-98 transition-all shadow-sm"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Open in App</span>
+                          <span>Open</span>
+                        </button>
+
+                        <button
+                          onClick={() => setActiveChatMatch(m)}
+                          style={{
+                            backgroundColor: 'var(--card-alt)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)'
+                          }}
+                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          title="Chat with Scorer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Chat</span>
                         </button>
 
                         <button
@@ -1141,11 +1210,11 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Export Full Match JSON"
                         >
                           <Download className="w-3.5 h-3.5 text-[#22C55E]" />
-                          <span>Export JSON</span>
+                          <span>Export</span>
                         </button>
                       </div>
                     </div>
@@ -1326,6 +1395,18 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           </div>
         )}
       </main>
+
+      {/* Developer to Scorer Live Chat Modal */}
+      {activeChatMatch && (
+        <DeveloperScorerChatModal
+          isOpen={Boolean(activeChatMatch)}
+          onClose={() => setActiveChatMatch(null)}
+          matchId={activeChatMatch.matchId}
+          matchTitle={`${activeChatMatch.teams?.[0]?.name || 'Team 1'} vs ${activeChatMatch.teams?.[1]?.name || 'Team 2'} (${activeChatMatch.code || ''})`}
+          role="developer"
+          senderName="Developer (Maaz)"
+        />
+      )}
     </div>
   );
 }

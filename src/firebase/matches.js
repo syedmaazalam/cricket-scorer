@@ -452,3 +452,50 @@ export async function getActionLogsFromCloud(matchId) {
     return [];
   }
 }
+
+/**
+ * Sends a real-time message between Developer and Scorer.
+ */
+export async function sendMatchMessage(matchId, { sender, senderName, text }) {
+  if (!matchId || !text || !text.trim()) return;
+  try {
+    const msgId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const msgRef = doc(db, 'matches', matchId, 'messages', msgId);
+    const msgData = sanitizeForFirestore({
+      id: msgId,
+      matchId,
+      sender: sender || 'developer', // 'developer' | 'scorer'
+      senderName: senderName || (sender === 'developer' ? 'Developer (Maaz)' : 'Scorer'),
+      text: text.trim(),
+      timestamp: Date.now()
+    });
+    await setDoc(msgRef, msgData);
+    return msgData;
+  } catch (err) {
+    console.warn('sendMatchMessage error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Subscribes to real-time chat messages between Developer and Scorer.
+ */
+export function subscribeMatchMessages(matchId, onMessagesUpdated) {
+  if (!matchId) return () => {};
+  try {
+    const msgsCol = collection(db, 'matches', matchId, 'messages');
+    const q = query(msgsCol, orderBy('timestamp', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+      const messages = [];
+      snapshot.forEach((docSnap) => {
+        messages.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      onMessagesUpdated(messages);
+    }, (err) => {
+      console.warn('subscribeMatchMessages warning:', err);
+    });
+  } catch (err) {
+    console.warn('subscribeMatchMessages init error:', err);
+    return () => {};
+  }
+}

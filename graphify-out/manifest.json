@@ -25,9 +25,9 @@
   },
   "src/App.jsx": {
     "mtime": 1793405502.019835,
-    "seen": 1793405574.016746,
+    "seen": 1793489697.1137981,
     "ast_hash": "b1717fdf7ecb234a3d029edc4b7a57c4",
-    "semantic_hash": ""
+    "semantic_hash": "b1717fdf7ecb234a3d029edc4b7a57c4"
   },
   "src/components/ActionLogsModal.jsx": {
     "mtime": 1793369031.0713642,
@@ -114,10 +114,10 @@
     "semantic_hash": "6896545c0ff03a706641699e9830587f"
   },
   "src/components/ScoreAnimation.jsx": {
-    "mtime": 1793399926.0573628,
-    "seen": 1793404689.086667,
-    "ast_hash": "711f68f66754302f3bc6701c3f3e6aff",
-    "semantic_hash": "711f68f66754302f3bc6701c3f3e6aff"
+    "mtime": 1793488739.9631214,
+    "seen": 1793489697.1179,
+    "ast_hash": "5c729fa1298e3c9c2ca9af2ae95f14f3",
+    "semantic_hash": "5c729fa1298e3c9c2ca9af2ae95f14f3"
   },
   "src/components/SquadModal.jsx": {
     "mtime": 1793309511.7094257,
@@ -186,10 +186,10 @@
     "semantic_hash": "fb22ad0305474d9db51699b02b9f2782"
   },
   "src/firebase/matches.js": {
-    "mtime": 1793449980.3122222,
-    "seen": 1793450429.560077,
-    "ast_hash": "4e75dd1c2c8e1ff185c233f5dc02fd99",
-    "semantic_hash": ""
+    "mtime": 1793488831.33357,
+    "seen": 1793489697.1202822,
+    "ast_hash": "cf875e4445c449134d6965114e64a374",
+    "semantic_hash": "cf875e4445c449134d6965114e64a374"
   },
   "src/main.jsx": {
     "mtime": 1793377166.778277,
@@ -198,22 +198,22 @@
     "semantic_hash": "ebf750cb11d78c6cac2ecb621228f1cf"
   },
   "src/pages/DeveloperDashboard.jsx": {
-    "mtime": 1793450022.2888484,
-    "seen": 1793450429.5600848,
-    "ast_hash": "7c8d5e5a6311f3fc7160e67c466ddbbe",
-    "semantic_hash": ""
+    "mtime": 1793489022.828555,
+    "seen": 1793489697.1204984,
+    "ast_hash": "b247351137842b6eeb59a30b672b319d",
+    "semantic_hash": "b247351137842b6eeb59a30b672b319d"
   },
   "src/pages/Home.jsx": {
     "mtime": 1793450187.5221946,
-    "seen": 1793450429.560088,
+    "seen": 1793489697.1205015,
     "ast_hash": "10d7b72d150039f5a6f4128d3f7f6a37",
-    "semantic_hash": ""
+    "semantic_hash": "10d7b72d150039f5a6f4128d3f7f6a37"
   },
   "src/pages/Live.jsx": {
-    "mtime": 1793405520.286687,
-    "seen": 1793405574.0168707,
-    "ast_hash": "29a726d99adca73aa552b16d64ad3b64",
-    "semantic_hash": ""
+    "mtime": 1793489533.2020128,
+    "seen": 1793489697.1205041,
+    "ast_hash": "c80c08a6f6103e155e1e340d41f81374",
+    "semantic_hash": "c80c08a6f6103e155e1e340d41f81374"
   },
   "src/pages/MatchSummary.jsx": {
     "mtime": 1793400186.044313,
@@ -228,10 +228,10 @@
     "semantic_hash": "e9d3f5ab266306da0f962802472cd35b"
   },
   "src/pages/Scoring.jsx": {
-    "mtime": 1793402938.3023815,
-    "seen": 1793404689.0867186,
-    "ast_hash": "2b281bee995a616feac8fbfcfa97150c",
-    "semantic_hash": "2b281bee995a616feac8fbfcfa97150c"
+    "mtime": 1793489458.7549384,
+    "seen": 1793489697.1209347,
+    "ast_hash": "052ecd8b672151f375819dd8dd152620",
+    "semantic_hash": "052ecd8b672151f375819dd8dd152620"
   },
   "src/pages/Setup.jsx": {
     "mtime": 1793400784.6866689,
@@ -247,9 +247,9 @@
   },
   "src/store/sync.js": {
     "mtime": 1793405385.2162867,
-    "seen": 1793405429.7649224,
+    "seen": 1793489697.1213613,
     "ast_hash": "831f4c11712583c285968686a1074c61",
-    "semantic_hash": ""
+    "semantic_hash": "831f4c11712583c285968686a1074c61"
   },
   "src/store/useMatch.js": {
     "mtime": 1793400109.1132832,
@@ -258,10 +258,10 @@
     "semantic_hash": "141c03225eb02f4bdaa5b89cf7c9f90a"
   },
   "src/tests/developer_console_and_scores.test.js": {
-    "mtime": 1793450222.4415238,
-    "seen": 1793450429.5601175,
-    "ast_hash": "fa2f37a9adee1ebb8b12b223fe341673",
-    "semantic_hash": ""
+    "mtime": 1793489603.1452324,
+    "seen": 1793489697.1215758,
+    "ast_hash": "0d30214f7b0daa37c4c8fc51b6f6902d",
+    "semantic_hash": "0d30214f7b0daa37c4c8fc51b6f6902d"
   },
   "src/tests/engine.test.js": {
     "mtime": 1793318684.939501,
@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "plan.md": {
-    "mtime": 1793450389.8856719,
-    "seen": 1793450429.5601597,
-    "ast_hash": "3d81ed69f5152e8705d482227dbea84c",
+    "mtime": 1793488671.2685456,
+    "seen": 1793488704.3074305,
+    "ast_hash": "97d73101fb314aed8050dc98936788f2",
     "semantic_hash": ""
   },
   "public/favicon.svg": {
@@ -370,5 +370,17 @@
     "seen": 1793405295.665087,
     "ast_hash": "9960a24288958394ac50e57ff638b036",
     "semantic_hash": ""
+  },
+  "src/components/AbdullahMotivationModal.jsx": {
+    "mtime": 1793489594.0440614,
+    "seen": 1793489697.1138058,
+    "ast_hash": "d3c4336ab60e71650ae6a2d2d7e7e53f",
+    "semantic_hash": "d3c4336ab60e71650ae6a2d2d7e7e53f"
+  },
+  "src/components/DeveloperScorerChatModal.jsx": {
+    "mtime": 1793488852.041505,
+    "seen": 1793489697.1162918,
+    "ast_hash": "e00a88f2977b2ecc78fa3d2c29754855",
+    "semantic_hash": "e00a88f2977b2ecc78fa3d2c29754855"
   }
 }
