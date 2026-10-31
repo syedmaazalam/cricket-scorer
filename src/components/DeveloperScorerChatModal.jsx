@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare, ShieldCheck, User, X, RefreshCw } from 'lucide-react';
-import { sendMatchMessage, subscribeMatchMessages } from '../firebase/matches.js';
+import { Send, MessageSquare, ShieldCheck, User, X, RefreshCw, Trash2 } from 'lucide-react';
+import { sendMatchMessage, subscribeMatchMessages, setMatchMessageInactive } from '../firebase/matches.js';
 
 export default function DeveloperScorerChatModal({
   isOpen,
@@ -58,6 +58,15 @@ export default function DeveloperScorerChatModal({
     }
   };
 
+  const handleDeleteMessage = async (msgId) => {
+    if (!matchId || !msgId) return;
+    try {
+      await setMatchMessageInactive(matchId, msgId);
+    } catch (err) {
+      console.warn('Failed to set message inactive:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div
@@ -111,8 +120,13 @@ export default function DeveloperScorerChatModal({
             </div>
           ) : (
             messages.map((msg) => {
+              if (role !== 'developer' && msg.status === 'inactive') {
+                return null;
+              }
+
               const isMine = msg.sender === role;
               const isDev = msg.sender === 'developer';
+              const isInactive = msg.status === 'inactive';
               const timeStr = msg.timestamp
                 ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : '';
@@ -130,19 +144,58 @@ export default function DeveloperScorerChatModal({
                     )}
                     <span className="font-semibold">{msg.senderName || (isDev ? 'Developer' : 'Scorer')}</span>
                     <span>• {timeStr}</span>
+                    {isInactive && (
+                      <span className="text-amber-500 font-bold ml-1">(Inactive)</span>
+                    )}
                   </div>
 
-                  <div
-                    style={{
-                      backgroundColor: isMine
-                        ? 'var(--primary)'
-                        : 'var(--card-alt)',
-                      color: isMine ? '#FFFFFF' : 'var(--text)',
-                      borderColor: isMine ? 'transparent' : 'var(--border)'
-                    }}
-                    className="max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed border shadow-sm break-words"
-                  >
-                    {msg.text}
+                  <div className="flex items-center gap-1.5 max-w-[85%] group">
+                    {isMine && role === 'developer' && !isInactive && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-red-400 transition-all text-xs"
+                        title="Delete message (set status to inactive)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <div
+                      style={{
+                        backgroundColor: isInactive
+                          ? 'rgba(148, 163, 184, 0.1)'
+                          : isMine
+                          ? 'var(--primary)'
+                          : 'var(--card-alt)',
+                        color: isInactive
+                          ? 'var(--muted)'
+                          : isMine
+                          ? '#FFFFFF'
+                          : 'var(--text)',
+                        borderColor: isInactive
+                          ? 'var(--border)'
+                          : isMine
+                          ? 'transparent'
+                          : 'var(--border)'
+                      }}
+                      className={`px-3 py-2 rounded-2xl text-xs leading-relaxed border shadow-sm break-words ${
+                        isInactive ? 'italic line-through border-dashed' : ''
+                      }`}
+                    >
+                      {isInactive ? 'Message deleted (status: inactive)' : msg.text}
+                    </div>
+
+                    {!isMine && role === 'developer' && !isInactive && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-red-400 transition-all text-xs"
+                        title="Delete message (set status to inactive)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

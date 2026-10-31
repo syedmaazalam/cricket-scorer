@@ -429,4 +429,61 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(devDashCode).toContain('Chat with Scorer');
     });
   });
+
+  // Test 5: Watch & Chat, Chart Colors, Ball Contrast, Main Page Route & Message Soft Deletion
+  describe('Watch & Chat Studio, Chart Colors, Ball Contrast, Main Page Route & Soft Deletion', () => {
+    it('Verifies opening web defaults directly to main page (home)', () => {
+      const appCode = fs.readFileSync(path.resolve(__dirname, '../App.jsx'), 'utf-8');
+      expect(appCode).toContain("return { page: 'home', matchId: null, liveCode: null, isManager: false };");
+      // Must not auto-restore saved match page without query params
+      expect(appCode).not.toContain("localStorage.getItem('cricket_current_page')");
+    });
+
+    it('Verifies score 1 and 2 balls in current over have high-contrast styling', () => {
+      const indexCss = fs.readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8');
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+
+      expect(indexCss).toContain('--ball-run-bg');
+      expect(indexCss).toContain('--ball-run-text');
+      expect(scoringCode).toContain('var(--ball-run-bg)');
+      expect(scoringCode).toContain('var(--ball-run-text)');
+      expect(liveCode).toContain('var(--ball-run-bg)');
+      expect(liveCode).toContain('var(--ball-run-text)');
+    });
+
+    it('Verifies Normal Over and 10+ Over in graph use distinct colors', () => {
+      const chartsCode = fs.readFileSync(path.resolve(__dirname, '../components/MatchCharts.jsx'), 'utf-8');
+      const indexCss = fs.readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8');
+
+      expect(chartsCode).toContain('var(--chart-normal');
+      expect(chartsCode).toContain('var(--chart-high');
+      expect(indexCss).toContain('--chart-normal: #2563EB;');
+      expect(indexCss).toContain('--chart-high: #16A34A;');
+      expect(indexCss).toContain('--chart-normal: #3B82F6;');
+      expect(indexCss).toContain('--chart-high: #22C55E;');
+    });
+
+    it('Verifies developer message deletion sets status to inactive without hard deleting', async () => {
+      const matchesCode = fs.readFileSync(path.resolve(__dirname, '../firebase/matches.js'), 'utf-8');
+      const chatModalCode = fs.readFileSync(path.resolve(__dirname, '../components/DeveloperScorerChatModal.jsx'), 'utf-8');
+
+      expect(matchesCode).toContain('export async function setMatchMessageInactive');
+      expect(matchesCode).toContain("status: 'inactive'");
+      expect(chatModalCode).toContain('setMatchMessageInactive');
+      expect(chatModalCode).toContain("status === 'inactive'");
+    });
+
+    it('Verifies Developer Watch & Chat Studio and Live Screen Chat are fully wired', () => {
+      const devDashCode = fs.readFileSync(path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'), 'utf-8');
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+      const watchStudioCode = fs.readFileSync(path.resolve(__dirname, '../components/DeveloperWatchAndChatModal.jsx'), 'utf-8');
+
+      expect(devDashCode).toContain('DeveloperWatchAndChatModal');
+      expect(devDashCode).toContain('Watch & Chat');
+      expect(liveCode).toContain('DeveloperScorerChatModal');
+      expect(liveCode).toContain('isDevAuthed');
+      expect(watchStudioCode).toContain('Live Chat with Scorer');
+    });
+  });
 });

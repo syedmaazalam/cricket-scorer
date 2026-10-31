@@ -24,10 +24,10 @@
     "semantic_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
   },
   "src/App.jsx": {
-    "mtime": 1793405502.019835,
-    "seen": 1793489697.1137981,
-    "ast_hash": "b1717fdf7ecb234a3d029edc4b7a57c4",
-    "semantic_hash": "b1717fdf7ecb234a3d029edc4b7a57c4"
+    "mtime": 1793490609.3879952,
+    "seen": 1793491167.6214807,
+    "ast_hash": "72a72b46d3d2ad24aa3a1d0c43b2a85e",
+    "semantic_hash": "72a72b46d3d2ad24aa3a1d0c43b2a85e"
   },
   "src/components/ActionLogsModal.jsx": {
     "mtime": 1793369031.0713642,
@@ -84,10 +84,10 @@
     "semantic_hash": "d091ebab25652b719e364b87e4488af7"
   },
   "src/components/MatchCharts.jsx": {
-    "mtime": 1793400083.9323123,
-    "seen": 1793404689.0866532,
-    "ast_hash": "7878323710b1ed44c838654aef7634a1",
-    "semantic_hash": "7878323710b1ed44c838654aef7634a1"
+    "mtime": 1793490718.2491064,
+    "seen": 1793491167.6260746,
+    "ast_hash": "4715790cee3aa95bc4bf1b2cb8f65b36",
+    "semantic_hash": "4715790cee3aa95bc4bf1b2cb8f65b36"
   },
   "src/components/NewBatterModal.jsx": {
     "mtime": 1793314766.658905,
@@ -186,10 +186,10 @@
     "semantic_hash": "fb22ad0305474d9db51699b02b9f2782"
   },
   "src/firebase/matches.js": {
-    "mtime": 1793488831.33357,
-    "seen": 1793489697.1202822,
-    "ast_hash": "cf875e4445c449134d6965114e64a374",
-    "semantic_hash": "cf875e4445c449134d6965114e64a374"
+    "mtime": 1793490759.2702205,
+    "seen": 1793491167.6333716,
+    "ast_hash": "f25bf43d78cea967bfa3ce5f54a72d08",
+    "semantic_hash": "f25bf43d78cea967bfa3ce5f54a72d08"
   },
   "src/main.jsx": {
     "mtime": 1793377166.778277,
@@ -198,10 +198,10 @@
     "semantic_hash": "ebf750cb11d78c6cac2ecb621228f1cf"
   },
   "src/pages/DeveloperDashboard.jsx": {
-    "mtime": 1793489022.828555,
-    "seen": 1793489697.1204984,
-    "ast_hash": "b247351137842b6eeb59a30b672b319d",
-    "semantic_hash": "b247351137842b6eeb59a30b672b319d"
+    "mtime": 1793491015.6424103,
+    "seen": 1793491167.6339762,
+    "ast_hash": "90321d1f2b8868f34efe5f6ef53c87e0",
+    "semantic_hash": "90321d1f2b8868f34efe5f6ef53c87e0"
   },
   "src/pages/Home.jsx": {
     "mtime": 1793450187.5221946,
@@ -210,10 +210,10 @@
     "semantic_hash": "10d7b72d150039f5a6f4128d3f7f6a37"
   },
   "src/pages/Live.jsx": {
-    "mtime": 1793489533.2020128,
-    "seen": 1793489697.1205041,
-    "ast_hash": "c80c08a6f6103e155e1e340d41f81374",
-    "semantic_hash": "c80c08a6f6103e155e1e340d41f81374"
+    "mtime": 1793490900.5035634,
+    "seen": 1793491167.6344388,
+    "ast_hash": "5cd48c89a59857c74b18e215f10f4f9f",
+    "semantic_hash": "5cd48c89a59857c74b18e215f10f4f9f"
   },
   "src/pages/MatchSummary.jsx": {
     "mtime": 1793400186.044313,
@@ -228,10 +228,10 @@
     "semantic_hash": "e9d3f5ab266306da0f962802472cd35b"
   },
   "src/pages/Scoring.jsx": {
-    "mtime": 1793489458.7549384,
-    "seen": 1793489697.1209347,
-    "ast_hash": "052ecd8b672151f375819dd8dd152620",
-    "semantic_hash": "052ecd8b672151f375819dd8dd152620"
+    "mtime": 1793490637.790921,
+    "seen": 1793491167.6357582,
+    "ast_hash": "da8022826e0bac4b328df2427e7faa2a",
+    "semantic_hash": "da8022826e0bac4b328df2427e7faa2a"
   },
   "src/pages/Setup.jsx": {
     "mtime": 1793400784.6866689,
@@ -258,10 +258,10 @@
     "semantic_hash": "141c03225eb02f4bdaa5b89cf7c9f90a"
   },
   "src/tests/developer_console_and_scores.test.js": {
-    "mtime": 1793489603.1452324,
-    "seen": 1793489697.1215758,
-    "ast_hash": "0d30214f7b0daa37c4c8fc51b6f6902d",
-    "semantic_hash": "0d30214f7b0daa37c4c8fc51b6f6902d"
+    "mtime": 1793491045.5021372,
+    "seen": 1793491167.6376472,
+    "ast_hash": "c66678b93367141ec6c4220c4d99be5d",
+    "semantic_hash": "c66678b93367141ec6c4220c4d99be5d"
   },
   "src/tests/engine.test.js": {
     "mtime": 1793318684.939501,
@@ -378,9 +378,15 @@
     "semantic_hash": "d3c4336ab60e71650ae6a2d2d7e7e53f"
   },
   "src/components/DeveloperScorerChatModal.jsx": {
-    "mtime": 1793488852.041505,
-    "seen": 1793489697.1162918,
-    "ast_hash": "e00a88f2977b2ecc78fa3d2c29754855",
-    "semantic_hash": "e00a88f2977b2ecc78fa3d2c29754855"
+    "mtime": 1793490804.2867787,
+    "seen": 1793491167.6248384,
+    "ast_hash": "817be2873eba6c21c9f27424efd1e4b3",
+    "semantic_hash": "817be2873eba6c21c9f27424efd1e4b3"
+  },
+  "src/components/DeveloperWatchAndChatModal.jsx": {
+    "mtime": 1793490936.9809904,
+    "seen": 1793491167.6248486,
+    "ast_hash": "717d429fed248b80679f0a2f06c5e667",
+    "semantic_hash": "717d429fed248b80679f0a2f06c5e667"
   }
 }

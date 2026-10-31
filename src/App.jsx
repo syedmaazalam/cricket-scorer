@@ -41,20 +41,7 @@ export default function App() {
       };
     }
 
-    const savedPage = localStorage.getItem('cricket_current_page');
-    const savedMatchId = localStorage.getItem('cricket_active_match_id');
-    const savedLiveCode = localStorage.getItem('cricket_live_code');
-    const savedIsManager = localStorage.getItem('cricket_is_manager') === 'true';
-
-    if (savedPage && (savedMatchId || savedLiveCode)) {
-      return {
-        page: savedPage,
-        matchId: savedMatchId,
-        liveCode: savedLiveCode,
-        isManager: savedIsManager
-      };
-    }
-
+    // User requirement: While opening the web, direct directly to the main page (home)
     return { page: 'home', matchId: null, liveCode: null, isManager: false };
   };
 

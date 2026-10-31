@@ -22,6 +22,12 @@
   --blue: #16A34A;
   --purple: #16A34A;
   --orange: #16A34A;
+  --ball-run-bg: #1E293B;
+  --ball-run-text: #FFFFFF;
+  --ball-run-border: #0F172A;
+  --chart-normal: #2563EB;
+  --chart-high: #16A34A;
+  --chart-wicket: #DC2626;
   --card-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
   color-scheme: light;
 }
@@ -43,6 +49,12 @@
   --blue: #22C55E;
   --purple: #22C55E;
   --orange: #22C55E;
+  --ball-run-bg: #334155;
+  --ball-run-text: #FFFFFF;
+  --ball-run-border: #475569;
+  --chart-normal: #3B82F6;
+  --chart-high: #22C55E;
+  --chart-wicket: #EF4444;
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
   color-scheme: dark;
 }

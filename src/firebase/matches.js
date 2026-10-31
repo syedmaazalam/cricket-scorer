@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   getDocs,
   getDoc,
@@ -467,12 +468,31 @@ export async function sendMatchMessage(matchId, { sender, senderName, text }) {
       sender: sender || 'developer', // 'developer' | 'scorer'
       senderName: senderName || (sender === 'developer' ? 'Developer (Maaz)' : 'Scorer'),
       text: text.trim(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      status: 'active'
     });
     await setDoc(msgRef, msgData);
     return msgData;
   } catch (err) {
     console.warn('sendMatchMessage error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Sets a message status to 'inactive' (soft deletion for developer).
+ * Document is preserved with status set to 'inactive'.
+ */
+export async function setMatchMessageInactive(matchId, messageId) {
+  if (!matchId || !messageId) return;
+  try {
+    const msgRef = doc(db, 'matches', matchId, 'messages', messageId);
+    await updateDoc(msgRef, {
+      status: 'inactive'
+    });
+    return true;
+  } catch (err) {
+    console.warn('setMatchMessageInactive error:', err);
     throw err;
   }
 }

@@ -939,9 +939,17 @@ export default function Scoring({
                         ? 'var(--blue)'
                         : b.extraType
                         ? 'var(--orange)'
+                        : b.runs > 0
+                        ? 'var(--ball-run-bg)'
                         : 'var(--card-alt)',
-                      color: b.runs === 0 && !b.extraType && !b.isWicket ? 'var(--muted)' : '#FFFFFF',
-                      borderColor: 'var(--border)'
+                      color: b.runs === 0 && !b.extraType && !b.isWicket
+                        ? 'var(--muted)'
+                        : b.runs > 0 && !b.extraType && !b.isWicket
+                        ? 'var(--ball-run-text)'
+                        : '#FFFFFF',
+                      borderColor: b.runs > 0 && !b.extraType && !b.isWicket
+                        ? 'var(--ball-run-border)'
+                        : 'var(--border)'
                     }}
                     className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm transition-transform hover:scale-105"
                   >

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap } from 'lucide-react';
+import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap, MessageSquare } from 'lucide-react';
 import { useMatch } from '../store/useMatch.js';
-import { findMatchByCode } from '../firebase/matches.js';
+import { findMatchByCode, subscribeMatchMessages } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
 import MatchCharts from '../components/MatchCharts.jsx';
@@ -10,6 +10,7 @@ import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
 import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
+import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
 import BottomNavBar from '../components/BottomNavBar.jsx';
 import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
@@ -32,7 +33,36 @@ export default function Live({
   const [activeAnimation, setActiveAnimation] = useState(null);
   const [abdullahEvent, setAbdullahEvent] = useState(null);
   const [activeTab, setActiveTab] = useState('score');
+  const [isDevChatOpen, setIsDevChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const prevBallCountRef = useRef(null);
+  const lastSeenDevMsgCountRef = useRef(0);
+
+  const isDevAuthed = typeof window !== 'undefined' && (
+    sessionStorage.getItem('dev_auth') === 'true' ||
+    localStorage.getItem('cricket_is_developer') === 'true'
+  );
+
+  // Subscribe to chat if developer is watching
+  useEffect(() => {
+    const effectiveMatchId = matchState.matchId || resolvedMatchId;
+    if (!isDevAuthed || !effectiveMatchId) return;
+
+    const unsub = subscribeMatchMessages(effectiveMatchId, (msgs) => {
+      if (!Array.isArray(msgs)) return;
+      if (lastSeenDevMsgCountRef.current > 0 && msgs.length > lastSeenDevMsgCountRef.current) {
+        const newest = msgs[msgs.length - 1];
+        if (newest && newest.sender === 'scorer' && !isDevChatOpen) {
+          setUnreadChatCount((prev) => prev + 1);
+        }
+      }
+      lastSeenDevMsgCountRef.current = msgs.length;
+    });
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [matchState.matchId, resolvedMatchId, isDevAuthed, isDevChatOpen]);
 
   useEffect(() => {
     async function resolve() {
@@ -258,8 +288,31 @@ export default function Live({
           </div>
         </div>
 
-        {/* Right: Theme Toggle & Share */}
+        {/* Right: Developer Chat, Theme Toggle & Share */}
         <div className="flex items-center gap-1.5">
+          {isDevAuthed && (
+            <button
+              onClick={() => {
+                setIsDevChatOpen(true);
+                setUnreadChatCount(0);
+              }}
+              style={{
+                backgroundColor: unreadChatCount > 0 ? 'rgba(34, 197, 94, 0.15)' : 'var(--card)',
+                borderColor: unreadChatCount > 0 ? '#22C55E' : 'var(--border)',
+                color: unreadChatCount > 0 ? '#22C55E' : 'var(--text)'
+              }}
+              className="p-2 rounded-2xl border shadow-sm active:scale-95 transition-all relative flex items-center gap-1"
+              title="Chat with Scorer as Developer"
+            >
+              <MessageSquare className="w-4 h-4 text-[#22C55E]" />
+              <span className="hidden sm:inline text-xs font-bold text-[#22C55E]">Chat</span>
+              {unreadChatCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#22C55E] text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center animate-pulse shadow-sm">
+                  {unreadChatCount}
+                </span>
+              )}
+            </button>
+          )}
           <ThemeToggle />
           <button
             onClick={handleShare}
@@ -596,9 +649,17 @@ export default function Live({
                       ? 'var(--blue)'
                       : b.extraType
                       ? 'var(--orange)'
+                      : b.runs > 0
+                      ? 'var(--ball-run-bg)'
                       : 'var(--card-alt)',
-                    color: b.runs === 0 && !b.extraType && !b.isWicket ? 'var(--muted)' : '#FFFFFF',
-                    borderColor: 'var(--border)'
+                    color: b.runs === 0 && !b.extraType && !b.isWicket
+                      ? 'var(--muted)'
+                      : b.runs > 0 && !b.extraType && !b.isWicket
+                      ? 'var(--ball-run-text)'
+                      : '#FFFFFF',
+                    borderColor: b.runs > 0 && !b.extraType && !b.isWicket
+                      ? 'var(--ball-run-border)'
+                      : 'var(--border)'
                   }}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm"
                 >
@@ -676,6 +737,21 @@ export default function Live({
         onOpenScorecard={onOpenScorecard}
         onOpenSummary={onOpenSummary}
       />
+
+      {/* Developer to Scorer Live Chat Modal while watching */}
+      {isDevChatOpen && (
+        <DeveloperScorerChatModal
+          isOpen={isDevChatOpen}
+          onClose={() => {
+            setIsDevChatOpen(false);
+            setUnreadChatCount(0);
+          }}
+          matchId={matchState.matchId || resolvedMatchId || matchCodeOrId}
+          matchTitle={`${matchState.teams?.[0]?.name || 'Team 1'} vs ${matchState.teams?.[1]?.name || 'Team 2'} (${matchState.code || matchCodeOrId || ''})`}
+          role="developer"
+          senderName="Developer (Maaz)"
+        />
+      )}
 
       {/* Footer Branding */}
       <footer

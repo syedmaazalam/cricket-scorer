@@ -362,7 +362,9 @@ export default function MatchCharts({ matchState }) {
               >
                 <span>Over {activeTooltipOver.overIndex}</span>
                 <span style={{ color: 'var(--muted)' }}>•</span>
-                <span style={{ color: 'var(--blue)' }}>{activeTooltipOver.runs} runs</span>
+                <span style={{ color: activeTooltipOver.runs >= 10 ? 'var(--chart-high, #22C55E)' : 'var(--chart-normal, #3B82F6)' }}>
+                  {activeTooltipOver.runs} runs
+                </span>
                 {activeTooltipOver.wickets > 0 && (
                   <>
                     <span style={{ color: 'var(--muted)' }}>•</span>
@@ -437,14 +439,14 @@ export default function MatchCharts({ matchState }) {
                   const isSelected = selectedOver === ov.overIndex;
 
                   // Color semantics matching user prompt:
-                  // Normal over: --purple in light / --green in dark
-                  // 10+ runs: --blue
-                  // Wicket over: --red
-                  let barBg = 'var(--purple)';
+                  // Normal over (<10 runs): --chart-normal (#2563EB in light / #3B82F6 in dark)
+                  // 10+ runs over: --chart-high (#16A34A in light / #22C55E in dark)
+                  // Wicket over: --chart-wicket (#DC2626 in light / #EF4444 in dark)
+                  let barBg = 'var(--chart-normal, #3B82F6)';
                   if (hasWicket) {
-                    barBg = 'var(--red)';
+                    barBg = 'var(--chart-wicket, #EF4444)';
                   } else if (runs >= 10) {
-                    barBg = 'var(--blue)';
+                    barBg = 'var(--chart-high, #22C55E)';
                   }
 
                   return (
@@ -520,15 +522,15 @@ export default function MatchCharts({ matchState }) {
             className="flex items-center justify-center gap-4 text-xs font-semibold pt-2 border-t"
           >
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--purple)' }} />
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-normal, #3B82F6)' }} />
               <span style={{ color: 'var(--muted)' }} className="text-[11px]">Normal Over</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--blue)' }} />
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-high, #22C55E)' }} />
               <span style={{ color: 'var(--muted)' }} className="text-[11px]">10+ Runs</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--red)' }} />
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-wicket, #EF4444)' }} />
               <span style={{ color: 'var(--muted)' }} className="text-[11px]">Wicket Over</span>
             </div>
           </div>

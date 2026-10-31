@@ -46,6 +46,7 @@ import {
 import { replayEvents } from '../engine/reducer.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
+import DeveloperWatchAndChatModal from '../components/DeveloperWatchAndChatModal.jsx';
 import { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 
 // Check developer authorization
@@ -107,9 +108,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [duplicateConflict, setDuplicateConflict] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Abdullah feature toggle & Scorer Chat
+  // Abdullah feature toggle, Scorer Chat & Watch Studio
   const [isAbdullahEnabled, setIsAbdullahEnabled] = useState(isAbdullahMessagesEnabled);
   const [activeChatMatch, setActiveChatMatch] = useState(null);
+  const [watchAndChatMatch, setWatchAndChatMatch] = useState(null);
 
   const toggleAbdullahMessages = () => {
     const nextVal = !isAbdullahEnabled;
@@ -1175,18 +1177,33 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                         </div>
                       </div>
 
-                      {/* Action Buttons: Open in App, Chat with Scorer & Export JSON */}
+                      {/* Action Buttons: Watch & Chat, Open in App, Chat & Export JSON */}
                       <div className="flex items-center gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                         <button
-                          onClick={() => onOpenMatch?.(code || m.matchId)}
+                          onClick={() => setWatchAndChatMatch(m)}
                           style={{
                             backgroundColor: '#22C55E',
                             color: '#FFFFFF'
                           }}
-                          className="flex-1 py-2 px-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 active:scale-98 transition-all shadow-sm"
+                          className="flex-1 py-2 px-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 active:scale-98 transition-all shadow-sm"
+                          title="Watch match and chat with scorer simultaneously in developer section"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Open</span>
+                          <Radio className="w-3.5 h-3.5" />
+                          <span>Watch & Chat</span>
+                        </button>
+
+                        <button
+                          onClick={() => onOpenMatch?.(code || m.matchId)}
+                          style={{
+                            backgroundColor: 'var(--card-alt)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)'
+                          }}
+                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          title="Open match in scorer mode"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-[#22C55E]" />
+                          <span>Score</span>
                         </button>
 
                         <button
@@ -1196,7 +1213,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Chat with Scorer"
                         >
                           <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
@@ -1210,11 +1227,11 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Export Full Match JSON"
                         >
                           <Download className="w-3.5 h-3.5 text-[#22C55E]" />
-                          <span>Export</span>
+                          <span>JSON</span>
                         </button>
                       </div>
                     </div>
@@ -1405,6 +1422,19 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           matchTitle={`${activeChatMatch.teams?.[0]?.name || 'Team 1'} vs ${activeChatMatch.teams?.[1]?.name || 'Team 2'} (${activeChatMatch.code || ''})`}
           role="developer"
           senderName="Developer (Maaz)"
+        />
+      )}
+
+      {/* Developer Live Watch & Chat Studio Modal (Watch match & chat in same section) */}
+      {watchAndChatMatch && (
+        <DeveloperWatchAndChatModal
+          isOpen={Boolean(watchAndChatMatch)}
+          onClose={() => setWatchAndChatMatch(null)}
+          match={watchAndChatMatch}
+          onOpenScoring={(mId) => {
+            setWatchAndChatMatch(null);
+            onOpenMatch?.(mId);
+          }}
         />
       )}
     </div>
