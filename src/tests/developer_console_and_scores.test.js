@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveMatchDisplayScore } from '../firebase/matches.js';
+import { deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import { replayEvents, createInitialMatchState, applyEvent } from '../engine/reducer.js';
 import { EVENT_TYPES } from '../engine/constants.js';
 import fs from 'fs';
@@ -277,6 +277,67 @@ describe('Developer Console & Score Derivation Tests', () => {
       }
 
       expect(violatingFiles).toEqual([]);
+    });
+  });
+
+  // Test 5: Accurate Match Status Classification (Live vs Innings Break vs Completed)
+  describe('Accurate Match Status Meta Classification', () => {
+    it('Marks ongoing 1st innings match as LIVE and not completed', () => {
+      const liveMatch = {
+        status: 'in_progress',
+        currentInningsIndex: 0,
+        innings: [{ legalBalls: 12, score: 20, wickets: 0, isCompleted: false }],
+        winner: null
+      };
+      const meta = getMatchStatusMeta(liveMatch);
+      expect(meta.isCompleted).toBe(false);
+      expect(meta.isInningsBreak).toBe(false);
+      expect(meta.label).toBe('LIVE');
+    });
+
+    it('Marks innings break match as INNINGS BREAK and not completed', () => {
+      const breakMatch = {
+        status: 'innings_break',
+        currentInningsIndex: 0,
+        innings: [
+          { legalBalls: 12, score: 25, wickets: 2, isCompleted: true },
+          { legalBalls: 0, score: 0, wickets: 0, isCompleted: false }
+        ],
+        target: 26,
+        winner: null
+      };
+      const meta = getMatchStatusMeta(breakMatch);
+      expect(meta.isCompleted).toBe(false);
+      expect(meta.isInningsBreak).toBe(true);
+      expect(meta.label).toBe('INNINGS BREAK');
+    });
+
+    it('Marks un-synced / missing status match as LIVE, never prematurely COMPLETED', () => {
+      const matchWithoutStatus = {
+        status: undefined,
+        currentInningsIndex: 0,
+        innings: [{ legalBalls: 6, score: 10, wickets: 0, isCompleted: false }],
+        winner: null
+      };
+      const meta = getMatchStatusMeta(matchWithoutStatus);
+      expect(meta.isCompleted).toBe(false);
+      expect(meta.label).toBe('LIVE');
+    });
+
+    it('Marks truly concluded match as COMPLETED', () => {
+      const finishedMatch = {
+        status: 'completed',
+        winner: 'Team Bravo',
+        resultSummary: 'Team Bravo won by 4 wickets',
+        innings: [
+          { legalBalls: 12, score: 25, wickets: 2, isCompleted: true },
+          { legalBalls: 10, score: 26, wickets: 1, isCompleted: true }
+        ]
+      };
+      const meta = getMatchStatusMeta(finishedMatch);
+      expect(meta.isCompleted).toBe(true);
+      expect(meta.isInningsBreak).toBe(false);
+      expect(meta.label).toBe('COMPLETED');
     });
   });
 });

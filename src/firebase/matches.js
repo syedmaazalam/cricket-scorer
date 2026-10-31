@@ -102,6 +102,33 @@ export function deriveMatchDisplayScore(match, events = null) {
 }
 
 /**
+ * Determines comprehensive match status, distinguishing truly completed matches
+ * from live in-progress and innings break matches.
+ */
+export function getMatchStatusMeta(m) {
+  if (!m) return { status: 'live', isCompleted: false, isInningsBreak: false, label: 'LIVE' };
+
+  // A match is truly completed ONLY when:
+  // 1. status is explicitly 'completed'
+  // 2. or winner is decided
+  // 3. or resultSummary is present
+  // 4. or 2nd innings isCompleted is true
+  const isCompleted = m.status === 'completed' || Boolean(m.winner) || Boolean(m.resultSummary) || Boolean(m.innings?.[1]?.isCompleted);
+
+  if (isCompleted) {
+    return { status: 'completed', isCompleted: true, isInningsBreak: false, label: 'COMPLETED' };
+  }
+
+  // Innings break: 1st innings is done, 2nd innings not done yet
+  const isInningsBreak = m.status === 'innings_break' || Boolean(m.innings?.[0]?.isCompleted && !m.innings?.[1]?.isCompleted);
+  if (isInningsBreak) {
+    return { status: 'innings_break', isCompleted: false, isInningsBreak: true, label: 'INNINGS BREAK' };
+  }
+
+  return { status: 'live', isCompleted: false, isInningsBreak: false, label: 'LIVE' };
+}
+
+/**
  * Updates match heartbeat (scorer device online pulse).
  */
 export async function updateMatchHeartbeat(matchId) {
@@ -151,18 +178,35 @@ export async function createMatchInCloud(matchId, matchData) {
 }
 
 /**
- * Finds a match by its 6-character code.
+ * Finds a match by its 6-character code or document ID.
  */
 export async function findMatchByCode(code) {
+  if (!code) return null;
   const cleanCode = (code || '').trim().toUpperCase();
-  const q = query(collection(db, 'matches'), where('code', '==', cleanCode));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const matchDoc = snap.docs[0];
-  return {
-    matchId: matchDoc.id,
-    ...matchDoc.data()
-  };
+  try {
+    const q = query(collection(db, 'matches'), where('code', '==', cleanCode));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const matchDoc = snap.docs[0];
+      return {
+        matchId: matchDoc.id,
+        ...matchDoc.data()
+      };
+    }
+
+    // Direct document fetch fallback if code was already a matchId
+    const directDocRef = doc(db, 'matches', cleanCode);
+    const directDoc = await getDoc(directDocRef);
+    if (directDoc.exists()) {
+      return {
+        matchId: directDoc.id,
+        ...directDoc.data()
+      };
+    }
+  } catch (err) {
+    console.warn('findMatchByCode error:', err);
+  }
+  return null;
 }
 
 /**
@@ -171,9 +215,11 @@ export async function findMatchByCode(code) {
 export async function searchMatches(queryText) {
   if (!queryText) return [];
   const clean = queryText.trim().toLowerCase();
+  const cleanUpper = queryText.trim().toUpperCase();
 
+  // Instant code check for 6-character inputs
   if (clean.length === 6) {
-    const direct = await findMatchByCode(clean);
+    const direct = await findMatchByCode(cleanUpper);
     if (direct) return [direct];
   }
 

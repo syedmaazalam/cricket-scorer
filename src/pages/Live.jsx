@@ -35,22 +35,18 @@ export default function Live({
   useEffect(() => {
     async function resolve() {
       if (!matchCodeOrId) return;
-      if (matchCodeOrId.length === 6) {
-        try {
-          const matchData = await findMatchByCode(matchCodeOrId);
-          if (matchData) {
-            setResolvedMatchId(matchData.matchId);
-            onMatchResolved?.(matchData.matchId, matchData.code);
-          } else {
-            setResolvedMatchId(matchCodeOrId);
-            onMatchResolved?.(matchCodeOrId, null);
-          }
-        } catch (e) {
-          setResolvedMatchId(matchCodeOrId);
+      const clean = matchCodeOrId.trim().toUpperCase();
+      try {
+        const matchData = await findMatchByCode(clean);
+        if (matchData) {
+          setResolvedMatchId(matchData.matchId);
+          onMatchResolved?.(matchData.matchId, matchData.code);
+        } else {
+          setResolvedMatchId(clean);
+          onMatchResolved?.(clean, null);
         }
-      } else {
-        setResolvedMatchId(matchCodeOrId);
-        onMatchResolved?.(matchCodeOrId, null);
+      } catch (e) {
+        setResolvedMatchId(clean);
       }
     }
     resolve();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, History, ArrowRight, Play, Search, Loader2, Copy, Check, Lock, LogOut, ShieldCheck, Activity } from 'lucide-react';
 import { getAllLocalMatches } from '../store/localDb.js';
-import { searchMatches, deriveMatchDisplayScore } from '../firebase/matches.js';
+import { searchMatches, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import AuthModal from '../components/AuthModal.jsx';
 
@@ -262,7 +262,10 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   const t2 = m.teams?.[1]?.name || 'Team 2';
                   const code = m.code || '';
                   const scoreDerived = deriveMatchDisplayScore(m);
-                  const isLive = m.status === 'live' || m.status === 'in_progress';
+                  const statusMeta = getMatchStatusMeta(m);
+                  const isCompleted = statusMeta.isCompleted;
+                  const isInningsBreak = statusMeta.isInningsBreak;
+                  const isLive = !isCompleted;
 
                   return (
                     <div
@@ -304,14 +307,30 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                       <div className="flex items-center gap-2">
                         <span
                           style={{
-                            backgroundColor: isLive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                            color: isLive ? '#22C55E' : 'var(--muted)',
-                            borderColor: isLive ? 'rgba(34, 197, 94, 0.3)' : 'var(--border)'
+                            backgroundColor: isCompleted
+                              ? 'rgba(148, 163, 184, 0.15)'
+                              : isInningsBreak
+                              ? 'rgba(234, 179, 8, 0.15)'
+                              : 'rgba(34, 197, 94, 0.15)',
+                            color: isCompleted
+                              ? 'var(--muted)'
+                              : isInningsBreak
+                              ? '#EAB308'
+                              : '#22C55E',
+                            borderColor: isCompleted
+                              ? 'var(--border)'
+                              : isInningsBreak
+                              ? 'rgba(234, 179, 8, 0.3)'
+                              : 'rgba(34, 197, 94, 0.3)'
                           }}
                           className="text-[10px] font-medium px-2 py-0.5 rounded-md border flex items-center gap-1"
                         >
-                          {isLive && <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />}
-                          <span>{isLive ? 'LIVE' : 'COMPLETED'}</span>
+                          {isLive && (
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${isInningsBreak ? 'bg-[#EAB308]' : 'bg-[#22C55E]'} animate-pulse`}
+                            />
+                          )}
+                          <span>{statusMeta.label}</span>
                         </span>
                       </div>
                     </div>
@@ -352,7 +371,10 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                 const teamA = m.teams?.[0]?.name || 'Team 1';
                 const teamB = m.teams?.[1]?.name || 'Team 2';
                 const scoreDerived = deriveMatchDisplayScore(m);
-                const isLive = m.status === 'live' || m.status === 'in_progress' || !m.status;
+                const statusMeta = getMatchStatusMeta(m);
+                const isCompleted = statusMeta.isCompleted;
+                const isInningsBreak = statusMeta.isInningsBreak;
+                const isLive = !isCompleted;
                 const code = m.code || '';
 
                 return (
@@ -408,14 +430,30 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                       {/* Status chip */}
                       <span
                         style={{
-                          backgroundColor: isLive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                          color: isLive ? '#22C55E' : 'var(--muted)',
-                          borderColor: isLive ? 'rgba(34, 197, 94, 0.3)' : 'var(--border)'
+                          backgroundColor: isCompleted
+                            ? 'rgba(148, 163, 184, 0.15)'
+                            : isInningsBreak
+                            ? 'rgba(234, 179, 8, 0.15)'
+                            : 'rgba(34, 197, 94, 0.15)',
+                          color: isCompleted
+                            ? 'var(--muted)'
+                            : isInningsBreak
+                            ? '#EAB308'
+                            : '#22C55E',
+                          borderColor: isCompleted
+                            ? 'var(--border)'
+                            : isInningsBreak
+                            ? 'rgba(234, 179, 8, 0.3)'
+                            : 'rgba(34, 197, 94, 0.3)'
                         }}
                         className="text-[10px] font-medium px-2 py-0.5 rounded-md border flex items-center gap-1"
                       >
-                        {isLive && <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />}
-                        <span>{isLive ? 'LIVE' : 'COMPLETED'}</span>
+                        {isLive && (
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${isInningsBreak ? 'bg-[#EAB308]' : 'bg-[#22C55E]'} animate-pulse`}
+                          />
+                        )}
+                        <span>{statusMeta.label}</span>
                       </span>
 
                       {/* Outlined green "Resume" button with Play icon */}

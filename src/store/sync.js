@@ -1,6 +1,6 @@
 import { doc, writeBatch } from 'firebase/firestore';
 import { db, ensureAnonymousAuth } from '../firebase/config.js';
-import { getUnsyncedEvents, markEventSynced, saveMatchSnapshot } from './localDb.js';
+import { getUnsyncedEvents, markEventSynced, saveMatchSnapshot, getMatchSnapshot } from './localDb.js';
 
 let isSyncing = false;
 const listeners = new Set();
@@ -80,6 +80,28 @@ export async function syncPendingEvents(matchId, currentMatchState) {
 
     notifyListeners({ status: 'syncing', pendingCount: pendingEvents.length });
 
+    // Fallback to local snapshot if state is partially loaded
+    let effectiveState = currentMatchState;
+    if (!effectiveState?.teams || effectiveState.teams.length === 0) {
+      try {
+        const snap = await getMatchSnapshot(matchId);
+        if (snap) effectiveState = { ...snap, ...effectiveState };
+      } catch (e) {}
+    }
+
+    // Attach manager information if available
+    let managerMeta = {};
+    try {
+      const activeManager = JSON.parse(localStorage.getItem('cricket_manager_user') || 'null');
+      if (activeManager && activeManager.uid) {
+        managerMeta = {
+          managerId: activeManager.uid,
+          managerName: activeManager.name || 'Manager',
+          managerEmail: activeManager.email || ''
+        };
+      }
+    } catch (e) {}
+
     // Firestore batch writes (batches of up to 20 for safety)
     const chunkSize = 20;
     for (let i = 0; i < pendingEvents.length; i += chunkSize) {
@@ -99,27 +121,32 @@ export async function syncPendingEvents(matchId, currentMatchState) {
         batch.set(evRef, eventDocData, { merge: true });
       }
 
-      // Update match document summary in same batch
+      // Update match document summary with full metadata in same batch
       const matchRef = doc(db, 'matches', matchId);
-      const curInn = currentMatchState?.innings?.[currentMatchState?.currentInningsIndex || 0];
+      const curInn = effectiveState?.innings?.[effectiveState?.currentInningsIndex || 0];
+      const matchCode = (effectiveState?.code || '').trim().toUpperCase();
 
       const matchDocData = sanitizeForFirestore({
-        code: currentMatchState?.code || '',
-        status: currentMatchState?.status || 'in_progress',
-        overs: currentMatchState?.overs || 20,
-        playersPerTeam: currentMatchState?.playersPerTeam || 11,
-        currentInningsIndex: currentMatchState?.currentInningsIndex || 0,
-        striker: currentMatchState?.striker || null,
-        nonStriker: currentMatchState?.nonStriker || null,
-        currentBowler: currentMatchState?.currentBowler || null,
-        isFreeHit: Boolean(currentMatchState?.isFreeHit),
-        target: currentMatchState?.target != null ? currentMatchState.target : null,
+        code: matchCode,
+        status: effectiveState?.status || 'in_progress',
+        overs: effectiveState?.overs || 20,
+        playersPerTeam: effectiveState?.playersPerTeam || 11,
+        teams: effectiveState?.teams || [],
+        toss: effectiveState?.toss || null,
+        currentInningsIndex: effectiveState?.currentInningsIndex || 0,
+        striker: effectiveState?.striker || null,
+        nonStriker: effectiveState?.nonStriker || null,
+        currentBowler: effectiveState?.currentBowler || null,
+        isFreeHit: Boolean(effectiveState?.isFreeHit),
+        target: effectiveState?.target != null ? effectiveState.target : null,
         summary: {
           score: curInn?.score || 0,
           wickets: curInn?.wickets || 0,
           legalBalls: curInn?.legalBalls || 0,
-          battingTeam: curInn?.battingTeam || ''
+          battingTeam: curInn?.battingTeam || (effectiveState?.teams?.[0]?.name || '')
         },
+        innings: effectiveState?.innings || [],
+        ...managerMeta,
         updatedAt: Date.now()
       });
 
@@ -134,8 +161,8 @@ export async function syncPendingEvents(matchId, currentMatchState) {
     }
 
     // Save snapshot locally
-    if (currentMatchState) {
-      await saveMatchSnapshot(matchId, currentMatchState);
+    if (effectiveState) {
+      await saveMatchSnapshot(matchId, effectiveState);
     }
 
     notifyListeners({ status: 'live', pendingCount: 0 });

@@ -31,6 +31,7 @@ import {
   saveUploadedMatchToCloud,
   deleteMatchFromCloud,
   deriveMatchDisplayScore,
+  getMatchStatusMeta,
   generateMatchCode
 } from '../firebase/matches.js';
 import {
@@ -432,8 +433,9 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
 
   // Filtered lists
   const filteredMatches = matches.filter(m => {
-    if (matchFilter === 'live' && !(m.status === 'live' || m.status === 'in_progress')) return false;
-    if (matchFilter === 'completed' && !(m.status === 'completed' || m.winner)) return false;
+    const meta = getMatchStatusMeta(m);
+    if (matchFilter === 'live' && meta.isCompleted) return false;
+    if (matchFilter === 'completed' && !meta.isCompleted) return false;
     if (managerFilter !== 'all' && m.managerId !== managerFilter) return false;
 
     if (matchSearch.trim()) {
@@ -466,8 +468,8 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
 
   // Calculate stat totals
   const totalMatchesCount = matches.length;
-  const liveMatchesCount = matches.filter(m => m.status === 'live' || m.status === 'in_progress').length;
-  const completedMatchesCount = matches.filter(m => m.status === 'completed' || m.winner).length;
+  const liveMatchesCount = matches.filter(m => !getMatchStatusMeta(m).isCompleted).length;
+  const completedMatchesCount = matches.filter(m => getMatchStatusMeta(m).isCompleted).length;
   const totalManagersCount = managers.length;
 
   // 1. Unauthenticated Developer Screen
@@ -1016,7 +1018,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                   const t1 = m.teams?.[0]?.name || 'Team 1';
                   const t2 = m.teams?.[1]?.name || 'Team 2';
                   const code = m.code || '';
-                  const isLive = m.status === 'live' || m.status === 'in_progress';
+                  const statusMeta = getMatchStatusMeta(m);
+                  const isCompleted = statusMeta.isCompleted;
+                  const isInningsBreak = statusMeta.isInningsBreak;
+                  const isLive = !isCompleted;
                   const scoreDerived = deriveMatchDisplayScore(m);
                   // Requirement: Matches without managerId show "Unknown manager", not a real name
                   const managerDisplayName = m.managerName || (m.managerId ? `Manager (${m.managerId.slice(0, 6)})` : 'Unknown manager');
@@ -1065,14 +1070,30 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
 
                           <span
                             style={{
-                              backgroundColor: isLive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                              color: isLive ? '#22C55E' : 'var(--muted)',
-                              borderColor: isLive ? 'rgba(34, 197, 94, 0.3)' : 'var(--border)'
+                              backgroundColor: isCompleted
+                                ? 'rgba(148, 163, 184, 0.15)'
+                                : isInningsBreak
+                                ? 'rgba(234, 179, 8, 0.15)'
+                                : 'rgba(34, 197, 94, 0.15)',
+                              color: isCompleted
+                                ? 'var(--muted)'
+                                : isInningsBreak
+                                ? '#EAB308'
+                                : '#22C55E',
+                              borderColor: isCompleted
+                                ? 'var(--border)'
+                                : isInningsBreak
+                                ? 'rgba(234, 179, 8, 0.3)'
+                                : 'rgba(34, 197, 94, 0.3)'
                             }}
                             className="text-[10px] font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1"
                           >
-                            {isLive && <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />}
-                            <span>{isLive ? 'LIVE' : 'COMPLETED'}</span>
+                            {isLive && (
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${isInningsBreak ? 'bg-[#EAB308]' : 'bg-[#22C55E]'} animate-pulse`}
+                              />
+                            )}
+                            <span>{statusMeta.label}</span>
                           </span>
                         </div>
                       </div>

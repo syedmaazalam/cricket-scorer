@@ -1,0 +1,26 @@
+# Dependencies & Package Managers
+node_modules/
+.venv/
+venv/
+env/
+*.lock
+
+# Build & Bundlers
+dist/
+build/
+out/
+.next/
+.nuxt/
+.turbo/
+target/
+
+# Caches & Test Coverage
+__pycache__/
+.pytest_cache/
+coverage/
+.nyc_output/
+
+# VCS & Minified
+.git/
+*.min.js
+*.map

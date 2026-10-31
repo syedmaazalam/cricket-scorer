@@ -79,22 +79,24 @@ export default function App() {
     let isCancelled = false;
     async function resolveLiveCode() {
       if (!liveCodeOrId) return;
-      if (liveCodeOrId.length === 6) {
-        try {
-          const matchData = await findMatchByCode(liveCodeOrId);
-          if (matchData?.matchId && !isCancelled) {
-            setActiveMatchId(matchData.matchId);
-            localStorage.setItem('cricket_active_match_id', matchData.matchId);
-          }
-        } catch (e) {
-          console.warn('Could not resolve match code:', e);
+      const cleanCode = liveCodeOrId.trim().toUpperCase();
+      try {
+        const matchData = await findMatchByCode(cleanCode);
+        if (matchData?.matchId && !isCancelled) {
+          setActiveMatchId(matchData.matchId);
+          localStorage.setItem('cricket_active_match_id', matchData.matchId);
+        } else if (!activeMatchId && !isCancelled) {
+          setActiveMatchId(cleanCode);
         }
-      } else if (!activeMatchId) {
-        setActiveMatchId(liveCodeOrId);
+      } catch (e) {
+        console.warn('Could not resolve match code:', e);
+        if (!activeMatchId && !isCancelled) {
+          setActiveMatchId(cleanCode);
+        }
       }
     }
 
-    if (!isManager && liveCodeOrId && (!activeMatchId || activeMatchId.length === 6)) {
+    if (!isManager && liveCodeOrId && (!activeMatchId || activeMatchId.length === 6 || activeMatchId === liveCodeOrId)) {
       resolveLiveCode();
     }
 
