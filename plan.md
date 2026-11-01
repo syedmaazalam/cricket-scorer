@@ -1,28 +1,47 @@
-# Top Bar Responsive Redesign, Blue 10+ Over Bars & Blue Singles/Doubles Balls
+# Wicket Undo Fix, Developer Error Message, Overthrow Runs & Ball Score Editing
 
 ## Overview
-1. Completely responsive top bar in `Scoring.jsx` and `Live.jsx`:
-   - Remove team names pill from the top bar.
-   - Keep a single Live badge on the top (the dynamic sync badge).
-   - Move Share and Light/Dark Theme toggle inside the three-dots dropdown menu.
-2. Update `MatchCharts.jsx` so 10+ runs over bars are colored Blue (`#2563EB` / `#3B82F6`).
-3. In current over deliveries, change background of singles and doubles (1 & 2 runs) to Blue with white text.
+1. **Developer Login Error Message**:
+   - Replaced password suggestions with clean generic error: `"Password or login is incorrect."` with zero disclosure.
+2. **Undo Wicket Fix**:
+   - Added an explicit "Undo Wicket / Cancel" button inside `NewBatterModal` so the user is never trapped.
+   - Updated `undo` in `useMatch.js` so that undoing fall-of-wicket rolls back the wicket ball directly (restoring dismissed batsman to the crease) without dragging the scorer back into `NewBatterModal`.
+3. **Overthrow Runs Management**:
+   - Created `OverthrowModal.jsx` and added an Overthrow (`+OT Overthrow`) action to `RunPad.jsx`.
+   - Supported adding runs ran before throw + overthrow runs (boundaries or singles) across normal and extra deliveries.
+   - Maintained strike rotation and statistical attribution.
+4. **Edit Particular Ball Score**:
+   - Created `EditBallModal.jsx` with full controls (runs, extras, extra runs, wicket status, wicket type, dismissed batter).
+   - Allowed tapping any ball chip in `currentOverBalls` in `Scoring.jsx` or picking any ball in the innings to edit.
+   - Implemented `editBall` in `useMatch.js` with deterministic `replayEvents`, local snapshot update, and cloud sync.
+5. **Verification & Deployment**:
+   - Written automated unit and integration tests.
+   - Verified `npx vitest run` (89/89 tests passing).
+   - Verified `npm run build`, deployed to Firebase hosting (`https://smartcricket-c79b5.web.app`), and updated graphify.
 
 ## Chunks
 
-- [x] **Chunk 1: Top Bar Responsiveness & Decluttering**
-  - Remove team names pill and duplicate static live pill from `Scoring.jsx` top bar (keep only single `SyncBadge`).
-  - Move Share and ThemeToggle buttons inside the three-dots dropdown menu.
-  - Ensure top bar never overflows or clips buttons on any screen size.
-  - Apply matching responsive layout to `Live.jsx`.
+- [x] **Chunk 1: Developer Login Error Message Fix**
+  - Updated `src/pages/DeveloperDashboard.jsx` to replace suggestion message with `"Password or login is incorrect."`.
+  - Ensured zero password hints or leaks.
 
-- [x] **Chunk 2: Blue 10+ Over Bars & Blue Singles/Doubles Balls**
-  - Update `src/index.css` to set `--chart-high` to blue (`#2563EB` / `#3B82F6`) and `--ball-run-bg` to blue.
-  - Update `src/components/MatchCharts.jsx` so 10+ runs overs and legend show Blue.
-  - Update `src/pages/Scoring.jsx` and `src/pages/Live.jsx` current over deliveries to render singles and doubles in blue.
+- [x] **Chunk 2: Undo Wicket Fix (Prevent Dragging to Select Batter)**
+  - Added `onUndoWicket` callback and "Undo Wicket / Cancel" button to `src/components/NewBatterModal.jsx`.
+  - Passed `handleUndo` to `NewBatterModal` in `src/pages/Scoring.jsx`.
+  - In `src/store/useMatch.js`, made `undo()` smartly rollback the wicket ball if `needsNewBatter` is active or if undoing `NEW_BATTER` after a wicket ball.
 
-- [x] **Chunk 3: Verification, Automated Tests, Build & Deploy**
-  - Update tests in `src/tests/developer_console_and_scores.test.js`.
-  - Run `npx vitest run` (all 84 tests passing).
-  - Run `npm run build` and deploy to Firebase Hosting (`npx firebase-tools deploy --only hosting`).
-  - Run `/graphify . --update`.
+- [x] **Chunk 3: Overthrow Runs Management**
+  - Created `src/components/OverthrowModal.jsx`.
+  - Added `+OT Overthrow` button to `src/components/RunPad.jsx`.
+  - Handled overthrow payload in `src/engine/reducer.js` and `src/engine/stats.js`.
+
+- [x] **Chunk 4: Edit a Particular Ball Score**
+  - Created `src/components/EditBallModal.jsx`.
+  - Implemented `editBall(ballIdentifier, updatedPayload)` in `src/store/useMatch.js`.
+  - Made ball chips in `currentOverBalls` clickable in `src/pages/Scoring.jsx` and added "Edit Ball Score" option in menu.
+
+- [x] **Chunk 5: Automated Tests, Verification, Build & Deploy**
+  - Added comprehensive unit tests in `src/tests/developer_console_and_scores.test.js`.
+  - Ran `npx vitest run` (all 89 tests passing).
+  - Ran `npm run build` and deployed to Firebase hosting (`https://smartcricket-c79b5.web.app`).
+  - Ran `/graphify . --update`.

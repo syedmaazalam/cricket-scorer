@@ -20,7 +20,8 @@ import {
   Shield,
   Zap,
   MessageSquare,
-  Copy
+  Copy,
+  Edit3
 } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
@@ -42,6 +43,8 @@ import ActionLogsModal from '../components/ActionLogsModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
 import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
+import OverthrowModal from '../components/OverthrowModal.jsx';
+import EditBallModal from '../components/EditBallModal.jsx';
 import { subscribeMatchMessages } from '../firebase/matches.js';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
@@ -52,6 +55,7 @@ export default function Scoring({
   matchState,
   syncStatus,
   onRecordBall,
+  onEditBall,
   onSwapBatter,
   onChangeBowler,
   onAddNewBatter,
@@ -66,6 +70,9 @@ export default function Scoring({
   onOpenSummary
 }) {
   const [isWicketModalOpen, setIsWicketModalOpen] = useState(false);
+  const [isOverthrowModalOpen, setIsOverthrowModalOpen] = useState(false);
+  const [isEditBallModalOpen, setIsEditBallModalOpen] = useState(false);
+  const [selectedBallForEdit, setSelectedBallForEdit] = useState(null);
   const [isTimeDeclareOpen, setIsTimeDeclareOpen] = useState(false);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [isAddPrevOverBallOpen, setIsAddPrevOverBallOpen] = useState(false);
@@ -441,6 +448,20 @@ export default function Scoring({
                   <span>+ Ball to Previous Over</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  const allBallsList = currentInnings?.balls || [];
+                  setSelectedBallForEdit(allBallsList.length > 0 ? allBallsList[allBallsList.length - 1] : null);
+                  setIsEditBallModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-blue-400 font-bold"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Ball Score</span>
+              </button>
 
               <button
                 onClick={() => {
@@ -914,8 +935,14 @@ export default function Scoring({
                 <span style={{ color: 'var(--muted)' }} className="text-xs py-1">No balls bowled in this over yet</span>
               ) : (
                 currentOverBalls.map((b, i) => (
-                  <div
+                  <button
                     key={i}
+                    type="button"
+                    onClick={() => {
+                      setSelectedBallForEdit(b);
+                      setIsEditBallModalOpen(true);
+                    }}
+                    title={`Click to edit ball ${b.shortLabel || b.runs}`}
                     style={{
                       backgroundColor: b.isWicket
                         ? 'var(--red)'
@@ -937,10 +964,10 @@ export default function Scoring({
                         ? 'var(--ball-run-border)'
                         : 'var(--border)'
                     }}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm transition-transform hover:scale-105"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 border shadow-sm transition-transform hover:scale-115 active:scale-90 cursor-pointer"
                   >
                     {b.shortLabel}
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -974,7 +1001,7 @@ export default function Scoring({
                 style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
                 className="w-full max-w-xs py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
               >
-                <span>▶ Start 2nd Innings</span>
+                <span>Start 2nd Innings</span>
               </button>
             </div>
           )}
@@ -984,6 +1011,7 @@ export default function Scoring({
             <RunPad
               onScoreBall={handleScoreBall}
               onOpenWicket={() => setIsWicketModalOpen(true)}
+              onOpenOverthrow={() => setIsOverthrowModalOpen(true)}
               onSwapBatter={onSwapBatter}
               onUndo={handleUndo}
               isFreeHit={matchState.isFreeHit}
@@ -1103,6 +1131,7 @@ export default function Scoring({
           isOpen={matchState.needsNewBatter}
           battingTeam={currentInnings.battingTeam}
           availableBatters={availableBatters}
+          onUndoWicket={handleUndo}
           onSelectBatter={(batterName) => {
             if (isAbdullahMessagesEnabled() && isAbdullah(batterName)) {
               setAbdullahEvent({ type: 'comes_to_bat' });
@@ -1206,6 +1235,38 @@ export default function Scoring({
           matchTitle={`${matchState.teams?.[0]?.name || 'Team 1'} vs ${matchState.teams?.[1]?.name || 'Team 2'} (${matchState.code || ''})`}
           role="scorer"
           senderName="Match Scorer"
+        />
+      )}
+
+      {/* 15. Overthrow Modal */}
+      {isOverthrowModalOpen && (
+        <OverthrowModal
+          isOpen={isOverthrowModalOpen}
+          onClose={() => setIsOverthrowModalOpen(false)}
+          onScoreBall={handleScoreBall}
+          striker={matchState.striker}
+          nonStriker={matchState.nonStriker}
+          currentBowler={matchState.currentBowler}
+        />
+      )}
+
+      {/* 16. Edit Ball Score Modal */}
+      {isEditBallModalOpen && (
+        <EditBallModal
+          isOpen={isEditBallModalOpen}
+          onClose={() => {
+            setIsEditBallModalOpen(false);
+            setSelectedBallForEdit(null);
+          }}
+          initialBall={selectedBallForEdit}
+          allBalls={currentInnings?.balls || []}
+          onSaveBall={(ballId, updatedPayload) => {
+            if (onEditBall) {
+              onEditBall(ballId, updatedPayload);
+            }
+          }}
+          strikerSquad={battingSquad}
+          bowlingSquad={bowlingSquad}
         />
       )}
 

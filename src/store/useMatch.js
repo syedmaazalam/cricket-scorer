@@ -297,13 +297,29 @@ export function useMatch(matchId, isViewerMode = false) {
     if (currentEvents.length <= 1 || !activeMid) return;
 
     const lastEvent = currentEvents[currentEvents.length - 1];
+    const prevEvent = currentEvents.length >= 2 ? currentEvents[currentEvents.length - 2] : null;
+
     let undoDesc = 'Undid previous action';
     if (lastEvent) {
       if (lastEvent.type === EVENT_TYPES.BALL) {
-        undoDesc = `Undid ball: reverted ${lastEvent.payload?.runs || 0} runs${lastEvent.payload?.extraType ? ` (${lastEvent.payload.extraType})` : ''}`;
+        undoDesc = `Undid ball: reverted ${lastEvent.payload?.runs || 0} runs${lastEvent.payload?.extraType ? ` (${lastEvent.payload.extraType})` : ''}${lastEvent.payload?.isWicket ? ' (Wicket)' : ''}`;
       } else {
         undoDesc = `Undid ${lastEvent.type}`;
       }
+    }
+
+    // If the last event is NEW_BATTER and was preceded by a wicket BALL,
+    // undoing should roll back BOTH the new batter assignment and the wicket delivery
+    // so the dismissed batter is restored to the crease and user isn't dragged into NewBatterModal
+    let dropCount = 1;
+    if (
+      currentEvents.length >= 3 &&
+      lastEvent?.type === EVENT_TYPES.NEW_BATTER &&
+      prevEvent?.type === EVENT_TYPES.BALL &&
+      Boolean(prevEvent?.payload?.isWicket || prevEvent?.payload?.wicket)
+    ) {
+      dropCount = 2;
+      undoDesc = 'Undid wicket & new batter selection: restored dismissed batter to crease';
     }
 
     const logEntry = {
@@ -311,20 +327,105 @@ export function useMatch(matchId, isViewerMode = false) {
       matchId: activeMid,
       timestamp: Date.now(),
       action: 'UNDO_PRESSED',
-      title: '↩️ Undo Action Performed',
+      title: 'Undo Action Performed',
       details: undoDesc
     };
     saveActionLogLocally(activeMid, logEntry);
     saveActionLogToCloud(activeMid, logEntry);
 
-    // Filter out last event and replay
-    const newEvents = currentEvents.slice(0, -1);
+    // Filter out events and replay
+    const newEvents = currentEvents.slice(0, -dropCount);
     const replayed = replayEvents(newEvents);
     stateRef.current = replayed;
     setMatchState(replayed);
 
     await saveMatchSnapshot(activeMid, replayed);
     syncPendingEvents(activeMid, replayed);
+  }, [matchId]);
+
+  const editBall = useCallback(async (ballIdentifier, updatedPayload) => {
+    const currentEvents = stateRef.current.events || [];
+    const activeMid = matchId || stateRef.current.matchId;
+    if (!currentEvents.length || !activeMid) return;
+
+    // Find the event index
+    let eventIdx = -1;
+    if (typeof ballIdentifier === 'number') {
+      eventIdx = currentEvents.findIndex(
+        (e) => e.seq === ballIdentifier && (e.type === EVENT_TYPES.BALL || e.type === EVENT_TYPES.ADD_BALL_TO_PREVIOUS_OVER)
+      );
+    }
+    if (eventIdx === -1) {
+      eventIdx = currentEvents.findIndex(
+        (e) => e.id === ballIdentifier || e.payload?.ballId === ballIdentifier
+      );
+    }
+    if (eventIdx === -1 && typeof ballIdentifier === 'string' && ballIdentifier.startsWith('ball_')) {
+      const ballNum = parseInt(ballIdentifier.replace('ball_', ''), 10);
+      let ballCounter = 0;
+      for (let i = 0; i < currentEvents.length; i++) {
+        if (currentEvents[i].type === EVENT_TYPES.BALL || currentEvents[i].type === EVENT_TYPES.ADD_BALL_TO_PREVIOUS_OVER) {
+          ballCounter++;
+          if (ballCounter === ballNum) {
+            eventIdx = i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (eventIdx === -1) {
+      console.warn('editBall: could not locate target ball event for', ballIdentifier);
+      return;
+    }
+
+    const oldEvent = currentEvents[eventIdx];
+    const newPayload = {
+      ...oldEvent.payload,
+      ...updatedPayload
+    };
+
+    const updatedEvent = {
+      ...oldEvent,
+      payload: newPayload,
+      editedAt: Date.now()
+    };
+
+    let newEvents = [...currentEvents];
+    newEvents[eventIdx] = updatedEvent;
+
+    // If ball was previously a wicket and changed to NOT a wicket:
+    // remove the subsequent NEW_BATTER event if it was triggered by this dismissal
+    if (
+      Boolean(oldEvent.payload?.isWicket || oldEvent.payload?.wicket) &&
+      !newPayload.isWicket &&
+      eventIdx + 1 < newEvents.length &&
+      newEvents[eventIdx + 1].type === EVENT_TYPES.NEW_BATTER
+    ) {
+      newEvents.splice(eventIdx + 1, 1);
+    }
+
+    // Replay deterministically
+    const replayed = replayEvents(newEvents);
+    stateRef.current = replayed;
+    setMatchState(replayed);
+
+    // Persist
+    await saveEventLocally(updatedEvent, false);
+    await saveMatchSnapshot(activeMid, replayed);
+    syncPendingEvents(activeMid, replayed);
+
+    // Action Log
+    const logEntry = {
+      id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      matchId: activeMid,
+      timestamp: Date.now(),
+      action: 'BALL_EDITED',
+      title: 'Ball Score Edited',
+      details: `Ball #${oldEvent.seq || eventIdx + 1} score updated`
+    };
+    saveActionLogLocally(activeMid, logEntry);
+    saveActionLogToCloud(activeMid, logEntry);
   }, [matchId]);
 
   return {
@@ -335,6 +436,7 @@ export function useMatch(matchId, isViewerMode = false) {
     startMatch,
     dispatch,
     recordBall,
+    editBall,
     swapBatter,
     changeBowler,
     addNewBatter,

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { UserPlus, Plus } from 'lucide-react';
+import { UserPlus, Plus, RotateCcw } from 'lucide-react';
 
 export default function NewBatterModal({
   isOpen,
   vacantSlot = 'striker',
   availableBatters = [],
-  onSelectBatter
+  onSelectBatter,
+  onUndoWicket
 }) {
   const [customBatterName, setCustomBatterName] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
@@ -125,6 +126,25 @@ export default function NewBatterModal({
             </form>
           )}
         </div>
+
+        {/* Undo Wicket / Cancel Button */}
+        {onUndoWicket && (
+          <div className="pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button
+              type="button"
+              onClick={onUndoWicket}
+              style={{
+                backgroundColor: 'var(--card-alt)',
+                borderColor: 'var(--red)',
+                color: 'var(--red)'
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-500/10 active:scale-98 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Undo Wicket / Cancel</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

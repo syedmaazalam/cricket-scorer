@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { RotateCcw, ArrowLeftRight, Zap, Clock } from 'lucide-react';
+import { RotateCcw, ArrowLeftRight, Zap, Clock, CornerUpRight } from 'lucide-react';
 import { EXTRA_TYPES } from '../engine/constants.js';
 
 export default function RunPad({
   onScoreBall,
   onOpenWicket,
+  onOpenOverthrow,
   onSwapBatter,
   onUndo,
   isFreeHit,
@@ -33,7 +34,7 @@ export default function RunPad({
       onScoreBall({
         runs: 0,
         extraType: EXTRA_TYPES.WIDE,
-        extraRuns: 1 + runs,
+        extraRuns: runs,
         isWicket: false
       });
     } else if (extraMode === EXTRA_TYPES.NO_BALL) {
@@ -323,9 +324,26 @@ export default function RunPad({
         </button>
       </div>
 
-      {/* Row 3: Swap Batter & Undo (Always available during cooldown so mistakes can be undone immediately) */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Row 3: Overthrow, Swap Batter & Undo (Always available during cooldown so mistakes can be undone immediately) */}
+      <div className="grid grid-cols-3 gap-1.5">
         <button
+          type="button"
+          onClick={onOpenOverthrow}
+          disabled={isScoringDisabled}
+          style={{
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)'
+          }}
+          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-blue-500 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Record Overthrow (Runs ran + Overthrow runs)"
+        >
+          <CornerUpRight className="w-3.5 h-3.5 text-blue-400" />
+          <span>+OT Overthrow</span>
+        </button>
+
+        <button
+          type="button"
           onClick={onSwapBatter}
           disabled={disabled}
           style={{
@@ -333,13 +351,14 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--text)'
           }}
-          className="py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: 'var(--primary)' }} />
           <span>Swap Batter</span>
         </button>
 
         <button
+          type="button"
           onClick={onUndo}
           disabled={disabled}
           style={{
@@ -347,7 +366,7 @@ export default function RunPad({
             borderColor: 'var(--border)',
             color: 'var(--muted)'
           }}
-          className="py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--red)] hover:text-[var(--red)] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--red)] hover:text-[var(--red)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Undo Ball</span>

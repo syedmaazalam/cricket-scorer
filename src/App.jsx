@@ -100,6 +100,7 @@ export default function App() {
     scorerOfflineInfo,
     startMatch,
     recordBall,
+    editBall,
     swapBatter,
     changeBowler,
     addNewBatter,
@@ -242,6 +243,7 @@ export default function App() {
           matchState={matchState}
           syncStatus={syncStatus}
           onRecordBall={recordBall}
+          onEditBall={editBall}
           onSwapBatter={swapBatter}
           onChangeBowler={changeBowler}
           onAddNewBatter={addNewBatter}

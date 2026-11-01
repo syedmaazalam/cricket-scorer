@@ -171,7 +171,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
       const isDev = checkIsDeveloper(cred.user, tokenResult);
       if (!isDev && cleanPass !== 'Silicon123@') {
         setIsDeveloperUser(false);
-        setAuthError('Access denied: Incorrect developer password or unauthorized account.');
+        setAuthError('Password or login is incorrect.');
       } else {
         setIsDeveloperUser(true);
         sessionStorage.setItem('dev_auth', 'true');
@@ -183,7 +183,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
         setAuthError('');
         return;
       }
-      setAuthError('Invalid credentials. Please enter developer password "Silicon123@".');
+      setAuthError('Password or login is incorrect.');
     } finally {
       setAuthLoading(false);
     }

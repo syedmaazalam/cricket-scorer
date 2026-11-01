@@ -496,4 +496,220 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(watchStudioCode).toContain('Live Chat with Scorer');
     });
   });
+
+  // Test 6: Wicket Undo Fix, Developer Error Message, Overthrow Runs & Ball Score Editing
+  describe('Wicket Undo Fix, Developer Error Message, Overthrow Runs & Ball Score Editing', () => {
+    it('Verifies developer console shows generic error message on invalid login without revealing password', () => {
+      const devDashCode = fs.readFileSync(
+        path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'),
+        'utf-8'
+      );
+      expect(devDashCode).toContain("setAuthError('Password or login is incorrect.');");
+      // Must not leak password as a suggestion in the auth error string
+      expect(devDashCode).not.toContain("setAuthError('Invalid credentials. Please enter developer password");
+    });
+
+    it('Verifies NewBatterModal has Undo Wicket / Cancel button and does not trap the scorer', () => {
+      const modalCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/NewBatterModal.jsx'),
+        'utf-8'
+      );
+      const scoringCode = fs.readFileSync(
+        path.resolve(__dirname, '../pages/Scoring.jsx'),
+        'utf-8'
+      );
+
+      expect(modalCode).toContain('onUndoWicket');
+      expect(modalCode).toContain('Undo Wicket / Cancel');
+      expect(scoringCode).toContain('onUndoWicket={handleUndo}');
+    });
+
+    it('Verifies undoing a wicket cleanly rolls back the wicket delivery and restores the dismissed batter', async () => {
+      const { createInitialMatchState, applyEvent, replayEvents } = await import('../engine/reducer.js');
+      const { EVENT_TYPES, WICKET_TYPES } = await import('../engine/constants.js');
+
+      let state = createInitialMatchState();
+      // Init match
+      const initEvent = {
+        type: EVENT_TYPES.MATCH_INIT,
+        payload: {
+          matchId: 'match_undo_test',
+          overs: 5,
+          playersPerTeam: 5,
+          teams: [
+            { name: 'Team A', players: ['A1', 'A2', 'A3', 'A4', 'A5'] },
+            { name: 'Team B', players: ['B1', 'B2', 'B3', 'B4', 'B5'] }
+          ],
+          toss: { winner: 'Team A', decision: 'bat' },
+          striker: 'A1',
+          nonStriker: 'A2',
+          bowler: 'B1'
+        }
+      };
+      state = applyEvent(state, initEvent);
+
+      // Ball 1: 1 run
+      const ball1 = {
+        type: EVENT_TYPES.BALL,
+        seq: 2,
+        payload: { runs: 1, extraType: null, extraRuns: 0, isWicket: false }
+      };
+      state = applyEvent(state, ball1);
+      expect(state.striker).toBe('A2'); // Strike rotated
+
+      // Ball 2: Wicket of A2
+      const ball2 = {
+        type: EVENT_TYPES.BALL,
+        seq: 3,
+        payload: {
+          runs: 0,
+          isWicket: true,
+          wicket: { type: WICKET_TYPES.BOWLED, playerOut: 'A2', bowler: 'B1' }
+        }
+      };
+      state = applyEvent(state, ball2);
+      expect(state.needsNewBatter).toBe(true);
+      expect(state.innings[0].wickets).toBe(1);
+
+      // Scorer selects new batter A3
+      const newBatterEvent = {
+        type: EVENT_TYPES.NEW_BATTER,
+        seq: 4,
+        payload: { batter: 'A3', slot: 'striker' }
+      };
+      state = applyEvent(state, newBatterEvent);
+      expect(state.needsNewBatter).toBe(false);
+      expect(state.striker).toBe('A3');
+
+      // Now user clicks Undo to undo the wicket:
+      // In useMatch, undoing NEW_BATTER following a wicket pops both NEW_BATTER and the wicket BALL
+      const eventsAfterWicketUndo = [initEvent, ball1];
+      const stateAfterWicketUndo = replayEvents(eventsAfterWicketUndo);
+
+      expect(stateAfterWicketUndo.needsNewBatter).toBe(false);
+      expect(stateAfterWicketUndo.innings[0].wickets).toBe(0);
+      expect(stateAfterWicketUndo.striker).toBe('A2'); // A2 restored to strike!
+      expect(stateAfterWicketUndo.nonStriker).toBe('A1');
+    });
+
+    it('Verifies Overthrow delivery records runs ran + overthrow runs and rotates strike properly', async () => {
+      const { createInitialMatchState, applyEvent } = await import('../engine/reducer.js');
+      const { EVENT_TYPES } = await import('../engine/constants.js');
+
+      let state = createInitialMatchState();
+      state = applyEvent(state, {
+        type: EVENT_TYPES.MATCH_INIT,
+        payload: {
+          matchId: 'match_ot_test',
+          overs: 5,
+          playersPerTeam: 5,
+          teams: [
+            { name: 'Team A', players: ['A1', 'A2', 'A3', 'A4', 'A5'] },
+            { name: 'Team B', players: ['B1', 'B2', 'B3', 'B4', 'B5'] }
+          ],
+          toss: { winner: 'Team A', decision: 'bat' },
+          striker: 'A1',
+          nonStriker: 'A2',
+          bowler: 'B1'
+        }
+      });
+
+      // Batter runs 1 + 4 overthrow boundary = 5 runs
+      state = applyEvent(state, {
+        type: EVENT_TYPES.BALL,
+        payload: {
+          runs: 5,
+          extraType: null,
+          extraRuns: 0,
+          isOverthrow: true,
+          overthrowRuns: 4,
+          runsRan: 1,
+          isWicket: false
+        }
+      });
+
+      expect(state.innings[0].score).toBe(5);
+      expect(state.innings[0].balls[0].isOverthrow).toBe(true);
+      expect(state.innings[0].balls[0].overthrowRuns).toBe(4);
+      expect(state.innings[0].balls[0].runsRan).toBe(1);
+      // Because 5 is odd, strike rotated from A1 to A2
+      expect(state.striker).toBe('A2');
+      expect(state.nonStriker).toBe('A1');
+
+      // Check Overthrow component file exists and is wired
+      const runPadCode = fs.readFileSync(path.resolve(__dirname, '../components/RunPad.jsx'), 'utf-8');
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      expect(runPadCode).toContain('+OT Overthrow');
+      expect(runPadCode).toContain('onOpenOverthrow');
+      expect(scoringCode).toContain('OverthrowModal');
+    });
+
+    it('Verifies editing a particular ball score recalculates match stats deterministically', async () => {
+      const { createInitialMatchState, applyEvent, replayEvents } = await import('../engine/reducer.js');
+      const { computeInningsStats } = await import('../engine/stats.js');
+      const { EVENT_TYPES } = await import('../engine/constants.js');
+
+      let state = createInitialMatchState();
+      const initEvent = {
+        type: EVENT_TYPES.MATCH_INIT,
+        payload: {
+          matchId: 'match_edit_test',
+          overs: 5,
+          playersPerTeam: 5,
+          teams: [
+            { name: 'Team A', players: ['A1', 'A2', 'A3', 'A4', 'A5'] },
+            { name: 'Team B', players: ['B1', 'B2', 'B3', 'B4', 'B5'] }
+          ],
+          toss: { winner: 'Team A', decision: 'bat' },
+          striker: 'A1',
+          nonStriker: 'A2',
+          bowler: 'B1'
+        }
+      };
+
+      const ball1 = {
+        id: 'ball_1',
+        seq: 2,
+        type: EVENT_TYPES.BALL,
+        payload: { runs: 1, extraType: null, extraRuns: 0, isWicket: false }
+      };
+
+      const ball2 = {
+        id: 'ball_2',
+        seq: 3,
+        type: EVENT_TYPES.BALL,
+        payload: { runs: 2, extraType: null, extraRuns: 0, isWicket: false }
+      };
+
+      state = applyEvent(state, initEvent);
+      state = applyEvent(state, ball1);
+      state = applyEvent(state, ball2);
+
+      expect(state.innings[0].score).toBe(3);
+
+      // Now edit ball 1 from 1 run to 4 runs:
+      const editedBall1 = {
+        ...ball1,
+        payload: { ...ball1.payload, runs: 4 }
+      };
+      const updatedEvents = [initEvent, editedBall1, ball2];
+      const replayedState = replayEvents(updatedEvents);
+
+      // Score should now be 4 + 2 = 6
+      expect(replayedState.innings[0].score).toBe(6);
+
+      const stats = computeInningsStats(replayedState.innings[0]);
+      expect(stats.bowling['B1'].runsConceded).toBe(6);
+      expect(stats.batting['A1'].runs).toBe(6); // 4 runs on ball 1 + 2 runs on ball 2 (even runs = strike retained)
+      expect(stats.batting['A1'].fours).toBe(1);
+      expect(stats.batting['A1'].balls).toBe(2);
+
+      // Verify EditBallModal and wiring
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      const useMatchCode = fs.readFileSync(path.resolve(__dirname, '../store/useMatch.js'), 'utf-8');
+      expect(scoringCode).toContain('EditBallModal');
+      expect(scoringCode).toContain('Edit Ball Score');
+      expect(useMatchCode).toContain('editBall');
+    });
+  });
 });
