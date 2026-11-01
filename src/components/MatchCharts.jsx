@@ -362,7 +362,7 @@ export default function MatchCharts({ matchState }) {
               >
                 <span>Over {activeTooltipOver.overIndex}</span>
                 <span style={{ color: 'var(--muted)' }}>•</span>
-                <span style={{ color: activeTooltipOver.runs >= 10 ? 'var(--chart-high, #22C55E)' : 'var(--chart-normal, #3B82F6)' }}>
+                <span style={{ color: activeTooltipOver.runs >= 10 ? 'var(--chart-high, #3B82F6)' : 'var(--chart-normal, #22C55E)' }}>
                   {activeTooltipOver.runs} runs
                 </span>
                 {activeTooltipOver.wickets > 0 && (
@@ -439,14 +439,14 @@ export default function MatchCharts({ matchState }) {
                   const isSelected = selectedOver === ov.overIndex;
 
                   // Color semantics matching user prompt:
-                  // Normal over (<10 runs): --chart-normal (#2563EB in light / #3B82F6 in dark)
-                  // 10+ runs over: --chart-high (#16A34A in light / #22C55E in dark)
+                  // Normal over (<10 runs): --chart-normal (#16A34A green in light / #22C55E green in dark)
+                  // 10+ runs over: --chart-high (BLUE: #2563EB in light / #3B82F6 in dark)
                   // Wicket over: --chart-wicket (#DC2626 in light / #EF4444 in dark)
-                  let barBg = 'var(--chart-normal, #3B82F6)';
+                  let barBg = 'var(--chart-normal, #22C55E)';
                   if (hasWicket) {
                     barBg = 'var(--chart-wicket, #EF4444)';
                   } else if (runs >= 10) {
-                    barBg = 'var(--chart-high, #22C55E)';
+                    barBg = 'var(--chart-high, #3B82F6)';
                   }
 
                   return (
@@ -522,11 +522,11 @@ export default function MatchCharts({ matchState }) {
             className="flex items-center justify-center gap-4 text-xs font-semibold pt-2 border-t"
           >
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-normal, #3B82F6)' }} />
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-normal, #22C55E)' }} />
               <span style={{ color: 'var(--muted)' }} className="text-[11px]">Normal Over</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-high, #22C55E)' }} />
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-high, #3B82F6)' }} />
               <span style={{ color: 'var(--muted)' }} className="text-[11px]">10+ Runs</span>
             </div>
             <div className="flex items-center gap-1.5">

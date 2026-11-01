@@ -19,7 +19,8 @@ import {
   User,
   Shield,
   Zap,
-  MessageSquare
+  MessageSquare,
+  Copy
 } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
@@ -325,44 +326,19 @@ export default function Scoring({
             style={{
               backgroundColor: 'var(--card)',
               borderColor: 'var(--border)',
-              color: 'var(--orange)'
+              color: 'var(--primary)'
             }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-sm"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-sm active:scale-95 transition-all"
           >
             <span>{matchState.code || 'MATCH'}</span>
-            {copiedCode ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--muted)' }} />}
+            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
           </button>
         </div>
 
-        {/* Center: Green Pill with Team A vs Team B & LIVE badge */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div
-            style={{
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF'
-            }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black shadow-sm truncate max-w-[130px] sm:max-w-[220px]"
-          >
-            <span className="truncate">
-              {matchState.teams?.[0]?.name || 'Team 1'} vs {matchState.teams?.[1]?.name || 'Team 2'}
-            </span>
-          </div>
+        {/* Center: Flexible spacer to keep header clean and responsive */}
+        <div className="flex-1" />
 
-          <div
-            style={{
-              backgroundColor: 'var(--green-15)',
-              borderColor: 'var(--green-30)',
-              color: 'var(--green)'
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border"
-          >
-            <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
-            <Radio className="w-3 h-3" />
-            <span>Live</span>
-          </div>
-        </div>
-
-        {/* Right: Chat button, ThemeToggle, Sync badge & More Menu Toggle */}
+        {/* Right: Chat button, Single Live badge (SyncBadge) & More Menu Toggle */}
         <div className="flex items-center gap-1.5 shrink-0 relative">
           <button
             onClick={() => {
@@ -385,7 +361,6 @@ export default function Scoring({
               </span>
             )}
           </button>
-          <ThemeToggle />
           <SyncBadge syncStatus={syncStatus} />
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -490,6 +465,17 @@ export default function Scoring({
               </button>
 
               <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleShareLink();
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--card-alt)] transition-colors text-left text-orange-400 font-bold"
+              >
+                <Share2 className="w-4 h-4 text-orange-400" />
+                <span>Share Match Link</span>
+              </button>
 
               <div className="px-3 py-1 flex items-center justify-between text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
                 <span>Theme Mode</span>

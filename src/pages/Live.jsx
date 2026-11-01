@@ -252,35 +252,37 @@ export default function Live({
         style={{ borderColor: 'var(--border)' }}
         className="flex items-center justify-between pb-3 border-b"
       >
-        <button
-          onClick={onBack}
-          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-          className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        {/* Left: Back button & Match Code */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={onBack}
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+            className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
 
-        {/* Center: Green Pill with Team A vs Team B + LIVE badge */}
-        <div className="flex items-center gap-2">
           <div
             style={{
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF'
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--primary)'
             }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black shadow-sm truncate max-w-[130px] sm:max-w-[220px]"
+            className="px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold shadow-sm"
           >
-            <span className="truncate">
-              {matchState.teams?.[0]?.name || 'Team 1'} vs {matchState.teams?.[1]?.name || 'Team 2'}
-            </span>
+            <span>{matchState.code || matchCodeOrId || 'LIVE'}</span>
           </div>
+        </div>
 
+        {/* Center: The Single Live Badge */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <div
             style={{
               backgroundColor: 'var(--green-15)',
               borderColor: 'var(--green-30)',
               color: 'var(--green)'
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border"
           >
             <span style={{ backgroundColor: 'var(--green)' }} className="w-2 h-2 rounded-full animate-ping" />
             <Radio className="w-3.5 h-3.5" style={{ color: 'var(--green)' }} />
@@ -289,7 +291,7 @@ export default function Live({
         </div>
 
         {/* Right: Developer Chat, Theme Toggle & Share */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {isDevAuthed && (
             <button
               onClick={() => {

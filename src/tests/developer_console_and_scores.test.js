@@ -439,29 +439,39 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(appCode).not.toContain("localStorage.getItem('cricket_current_page')");
     });
 
-    it('Verifies score 1 and 2 balls in current over have high-contrast styling', () => {
+    it('Verifies score 1 and 2 balls in current over have blue styling', () => {
       const indexCss = fs.readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8');
       const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
       const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
 
-      expect(indexCss).toContain('--ball-run-bg');
-      expect(indexCss).toContain('--ball-run-text');
+      expect(indexCss).toContain('--ball-run-bg: #2563EB;');
+      expect(indexCss).toContain('--ball-run-bg: #3B82F6;');
+      expect(indexCss).toContain('--ball-run-text: #FFFFFF;');
       expect(scoringCode).toContain('var(--ball-run-bg)');
       expect(scoringCode).toContain('var(--ball-run-text)');
       expect(liveCode).toContain('var(--ball-run-bg)');
       expect(liveCode).toContain('var(--ball-run-text)');
     });
 
-    it('Verifies Normal Over and 10+ Over in graph use distinct colors', () => {
+    it('Verifies Normal Over (green) and 10+ Over (blue) in graph use distinct colors', () => {
       const chartsCode = fs.readFileSync(path.resolve(__dirname, '../components/MatchCharts.jsx'), 'utf-8');
       const indexCss = fs.readFileSync(path.resolve(__dirname, '../index.css'), 'utf-8');
 
       expect(chartsCode).toContain('var(--chart-normal');
       expect(chartsCode).toContain('var(--chart-high');
-      expect(indexCss).toContain('--chart-normal: #2563EB;');
-      expect(indexCss).toContain('--chart-high: #16A34A;');
-      expect(indexCss).toContain('--chart-normal: #3B82F6;');
-      expect(indexCss).toContain('--chart-high: #22C55E;');
+      expect(indexCss).toContain('--chart-normal: #16A34A;');
+      expect(indexCss).toContain('--chart-high: #2563EB;');
+      expect(indexCss).toContain('--chart-normal: #22C55E;');
+      expect(indexCss).toContain('--chart-high: #3B82F6;');
+    });
+
+    it('Verifies responsive top bar layout in Scoring screen', () => {
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      // No duplicate team names or static live pill in the header
+      expect(scoringCode).toContain('<SyncBadge syncStatus={syncStatus} />');
+      // Share Match Link and Theme Mode moved inside dropdown menu
+      expect(scoringCode).toContain('Share Match Link');
+      expect(scoringCode).toContain('Theme Mode');
     });
 
     it('Verifies developer message deletion sets status to inactive without hard deleting', async () => {

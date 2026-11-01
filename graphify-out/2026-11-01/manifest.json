@@ -84,10 +84,10 @@
     "semantic_hash": "d091ebab25652b719e364b87e4488af7"
   },
   "src/components/MatchCharts.jsx": {
-    "mtime": 1793490718.2491064,
-    "seen": 1793491167.6260746,
-    "ast_hash": "4715790cee3aa95bc4bf1b2cb8f65b36",
-    "semantic_hash": "4715790cee3aa95bc4bf1b2cb8f65b36"
+    "mtime": 1793492036.088026,
+    "seen": 1793492216.0771537,
+    "ast_hash": "3c2015ea7f057c280570719c0f359f4c",
+    "semantic_hash": "3c2015ea7f057c280570719c0f359f4c"
   },
   "src/components/NewBatterModal.jsx": {
     "mtime": 1793314766.658905,
@@ -210,10 +210,10 @@
     "semantic_hash": "10d7b72d150039f5a6f4128d3f7f6a37"
   },
   "src/pages/Live.jsx": {
-    "mtime": 1793490900.5035634,
-    "seen": 1793491167.6344388,
-    "ast_hash": "5cd48c89a59857c74b18e215f10f4f9f",
-    "semantic_hash": "5cd48c89a59857c74b18e215f10f4f9f"
+    "mtime": 1793491936.6208384,
+    "seen": 1793492216.0818596,
+    "ast_hash": "86f3b50fbe11430f397516d76e017469",
+    "semantic_hash": "86f3b50fbe11430f397516d76e017469"
   },
   "src/pages/MatchSummary.jsx": {
     "mtime": 1793400186.044313,
@@ -228,10 +228,10 @@
     "semantic_hash": "e9d3f5ab266306da0f962802472cd35b"
   },
   "src/pages/Scoring.jsx": {
-    "mtime": 1793490637.790921,
-    "seen": 1793491167.6357582,
-    "ast_hash": "da8022826e0bac4b328df2427e7faa2a",
-    "semantic_hash": "da8022826e0bac4b328df2427e7faa2a"
+    "mtime": 1793491911.704359,
+    "seen": 1793492216.0823503,
+    "ast_hash": "bd760d4add4b3fe5ab4944136f8eb4ea",
+    "semantic_hash": "bd760d4add4b3fe5ab4944136f8eb4ea"
   },
   "src/pages/Setup.jsx": {
     "mtime": 1793400784.6866689,
@@ -258,10 +258,10 @@
     "semantic_hash": "141c03225eb02f4bdaa5b89cf7c9f90a"
   },
   "src/tests/developer_console_and_scores.test.js": {
-    "mtime": 1793491045.5021372,
-    "seen": 1793491167.6376472,
-    "ast_hash": "c66678b93367141ec6c4220c4d99be5d",
-    "semantic_hash": "c66678b93367141ec6c4220c4d99be5d"
+    "mtime": 1793492109.221223,
+    "seen": 1793492216.0832736,
+    "ast_hash": "02fd7c8f0a59be7b175d885c4d76dab9",
+    "semantic_hash": "02fd7c8f0a59be7b175d885c4d76dab9"
   },
   "src/tests/engine.test.js": {
     "mtime": 1793318684.939501,
