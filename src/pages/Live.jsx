@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap, MessageSquare, MoreVertical } from 'lucide-react';
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode, subscribeMatchMessages } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -35,6 +35,7 @@ export default function Live({
   const [activeTab, setActiveTab] = useState('score');
   const [isDevChatOpen, setIsDevChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const prevBallCountRef = useRef(null);
   const lastSeenDevMsgCountRef = useRef(0);
 
@@ -364,19 +365,47 @@ export default function Live({
               )}
             </button>
           )}
-          <ThemeToggle />
-          <button
-            onClick={handleShare}
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)',
-              color: 'var(--orange)'
-            }}
-            className="p-2 rounded-2xl border shadow-sm active:scale-95 transition-all"
-            title="Share match link"
-          >
-            {copied ? <Check className="w-4 h-4" style={{ color: 'var(--green)' }} /> : <Share2 className="w-4 h-4" />}
-          </button>
+          {/* Three-dots menu for Share & Theme */}
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
+              className="p-2 rounded-2xl border shadow-sm active:scale-95 transition-all"
+              title="More Options"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {isMenuOpen && (
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)'
+                }}
+                className="absolute right-0 top-12 z-50 min-w-[170px] p-2 rounded-2xl border shadow-2xl flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-150"
+              >
+                <button
+                  onClick={() => {
+                    handleShare();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold transition-colors text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Share2 className="w-3.5 h-3.5 text-[#22C55E]" />
+                    <span>Share Match</span>
+                  </span>
+                  {copied && <Check className="w-3.5 h-3.5 text-[#22C55E]" />}
+                </button>
+
+                <div className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold">
+                  <span>Theme</span>
+                  <ThemeToggle />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

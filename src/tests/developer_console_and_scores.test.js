@@ -865,5 +865,33 @@ describe('Developer Console & Score Derivation Tests', () => {
       const restrictedReturnIndex = liveCode.indexOf('matchState?.isViewerRestricted');
       expect(restrictedReturnIndex).toBeGreaterThan(lastEffectIndex);
     });
+
+    it('Verifies DEF-01, DEF-02, OBS-01 and OBS-02 remediation: soft-delete, scorer chat binding, and summary charts', () => {
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      const devCode = fs.readFileSync(path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'), 'utf-8');
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+      const summaryCode = fs.readFileSync(path.resolve(__dirname, '../pages/MatchSummary.jsx'), 'utf-8');
+      const firebaseCode = fs.readFileSync(path.resolve(__dirname, '../firebase/matches.js'), 'utf-8');
+
+      // DEF-02: Scorer header chat uses effectiveMatchId fallback
+      expect(scoringCode).toContain('effectiveMatchId');
+      expect(scoringCode).toContain('matchId={effectiveMatchId}');
+
+      // DEF-01: Developer soft-delete capability
+      expect(devCode).toContain('setMatchInactive');
+      expect(devCode).toContain('handleSoftDelete');
+      expect(devCode).toContain('Soft-Delete Match');
+      expect(firebaseCode).toContain('export async function setMatchInactive');
+      expect(firebaseCode).toContain("status: 'inactive'");
+
+      // OBS-01: Live screen three-dots menu houses Share and Theme
+      expect(liveCode).toContain('MoreVertical');
+      expect(liveCode).toContain('isMenuOpen');
+      expect(liveCode).toContain('Share Match');
+
+      // OBS-02: Summary tab embeds MatchCharts
+      expect(summaryCode).toContain("import MatchCharts from '../components/MatchCharts.jsx'");
+      expect(summaryCode).toContain('<MatchCharts matchState={matchState} />');
+    });
   });
 });

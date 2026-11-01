@@ -84,10 +84,10 @@
     "semantic_hash": "d091ebab25652b719e364b87e4488af7"
   },
   "src/components/MatchCharts.jsx": {
-    "mtime": 1793492036.088026,
-    "seen": 1793492216.0771537,
-    "ast_hash": "3c2015ea7f057c280570719c0f359f4c",
-    "semantic_hash": "3c2015ea7f057c280570719c0f359f4c"
+    "mtime": 1793504505.5933726,
+    "seen": 1793504951.800469,
+    "ast_hash": "9ba0637cbd827e79b6f68d7c7c94ae5d",
+    "semantic_hash": "9ba0637cbd827e79b6f68d7c7c94ae5d"
   },
   "src/components/NewBatterModal.jsx": {
     "mtime": 1793493225.08093,
@@ -186,10 +186,10 @@
     "semantic_hash": "fb22ad0305474d9db51699b02b9f2782"
   },
   "src/firebase/matches.js": {
-    "mtime": 1793490759.2702205,
-    "seen": 1793491167.6333716,
-    "ast_hash": "f25bf43d78cea967bfa3ce5f54a72d08",
-    "semantic_hash": "f25bf43d78cea967bfa3ce5f54a72d08"
+    "mtime": 1793504110.634855,
+    "seen": 1793504951.810658,
+    "ast_hash": "a51f92b79f8fa3d31722eb319d24f73f",
+    "semantic_hash": "a51f92b79f8fa3d31722eb319d24f73f"
   },
   "src/main.jsx": {
     "mtime": 1793377166.778277,
@@ -198,10 +198,10 @@
     "semantic_hash": "ebf750cb11d78c6cac2ecb621228f1cf"
   },
   "src/pages/DeveloperDashboard.jsx": {
-    "mtime": 1793499635.4545333,
-    "seen": 1793499856.0802548,
-    "ast_hash": "f704dd5cde5cf1e9f633f27f068f88e1",
-    "semantic_hash": "f704dd5cde5cf1e9f633f27f068f88e1"
+    "mtime": 1793504255.5931408,
+    "seen": 1793504951.8113086,
+    "ast_hash": "400789915614becbc4a188a3a68f96ce",
+    "semantic_hash": "400789915614becbc4a188a3a68f96ce"
   },
   "src/pages/Home.jsx": {
     "mtime": 1793450187.5221946,
@@ -210,16 +210,16 @@
     "semantic_hash": "10d7b72d150039f5a6f4128d3f7f6a37"
   },
   "src/pages/Live.jsx": {
-    "mtime": 1793500960.7187707,
-    "seen": 1793501184.1030538,
-    "ast_hash": "b1d2578b3354820b21cda0180996f6fa",
-    "semantic_hash": "b1d2578b3354820b21cda0180996f6fa"
+    "mtime": 1793504488.0812328,
+    "seen": 1793504951.812053,
+    "ast_hash": "d16da1244a97cbd916db8d302a5f101f",
+    "semantic_hash": "d16da1244a97cbd916db8d302a5f101f"
   },
   "src/pages/MatchSummary.jsx": {
-    "mtime": 1793400186.044313,
-    "seen": 1793404689.086713,
-    "ast_hash": "3162b8f282ecb510761544cd598073b7",
-    "semantic_hash": "3162b8f282ecb510761544cd598073b7"
+    "mtime": 1793504733.570526,
+    "seen": 1793504951.8120582,
+    "ast_hash": "c28a33aacf3772ae6ae7abf0865a0eda",
+    "semantic_hash": "c28a33aacf3772ae6ae7abf0865a0eda"
   },
   "src/pages/Scorecard.jsx": {
     "mtime": 1793400332.1955984,
@@ -228,10 +228,10 @@
     "semantic_hash": "e9d3f5ab266306da0f962802472cd35b"
   },
   "src/pages/Scoring.jsx": {
-    "mtime": 1793500131.5993617,
-    "seen": 1793500273.9709437,
-    "ast_hash": "0390bc3c4ea59f5124939f42fedce4c5",
-    "semantic_hash": "0390bc3c4ea59f5124939f42fedce4c5"
+    "mtime": 1793503669.3612325,
+    "seen": 1793504951.8127542,
+    "ast_hash": "8061d7fe54f507816b028b23a9ec28b6",
+    "semantic_hash": "8061d7fe54f507816b028b23a9ec28b6"
   },
   "src/pages/Setup.jsx": {
     "mtime": 1793400784.6866689,
@@ -258,10 +258,10 @@
     "semantic_hash": "9d79b2cb9eff3561b678c1ca4a340b96"
   },
   "src/tests/developer_console_and_scores.test.js": {
-    "mtime": 1793501099.1188402,
-    "seen": 1793501184.1085734,
-    "ast_hash": "d33d341b0d88da404887bf0bfab681b5",
-    "semantic_hash": "d33d341b0d88da404887bf0bfab681b5"
+    "mtime": 1793504808.9515555,
+    "seen": 1793504951.8178926,
+    "ast_hash": "4dd802d0ba0bff1ab06ee621f01235ba",
+    "semantic_hash": "4dd802d0ba0bff1ab06ee621f01235ba"
   },
   "src/tests/engine.test.js": {
     "mtime": 1793318684.939501,
@@ -378,10 +378,10 @@
     "semantic_hash": "8ce58189d725e911b20f8eef526990b2"
   },
   "src/components/DeveloperScorerChatModal.jsx": {
-    "mtime": 1793490804.2867787,
-    "seen": 1793491167.6248384,
-    "ast_hash": "817be2873eba6c21c9f27424efd1e4b3",
-    "semantic_hash": "817be2873eba6c21c9f27424efd1e4b3"
+    "mtime": 1793503682.9961991,
+    "seen": 1793504951.7977903,
+    "ast_hash": "adef9a65263bf10c8f202f1e2ef7218a",
+    "semantic_hash": "adef9a65263bf10c8f202f1e2ef7218a"
   },
   "src/components/DeveloperWatchAndChatModal.jsx": {
     "mtime": 1793490936.9809904,

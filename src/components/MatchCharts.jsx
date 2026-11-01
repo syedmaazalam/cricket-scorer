@@ -438,15 +438,15 @@ export default function MatchCharts({ matchState }) {
                   const hasWicket = ov.wickets > 0;
                   const isSelected = selectedOver === ov.overIndex;
 
-                  // Color semantics matching user prompt:
-                  // Normal over (<10 runs): --chart-normal (#16A34A green in light / #22C55E green in dark)
-                  // 10+ runs over: --chart-high (BLUE: #2563EB in light / #3B82F6 in dark)
-                  // Wicket over: --chart-wicket (#DC2626 in light / #EF4444 in dark)
+                  // Color semantics:
+                  // 10+ runs over: --chart-high (BLUE: #2563EB in light / #3B82F6 in dark), even if wicket fell (retaining overhead W badge)
+                  // Wicket over with <10 runs: --chart-wicket (#DC2626 in light / #EF4444 in dark)
+                  // Normal over (<10 runs, no wicket): --chart-normal (#16A34A green in light / #22C55E green in dark)
                   let barBg = 'var(--chart-normal, #22C55E)';
-                  if (hasWicket) {
-                    barBg = 'var(--chart-wicket, #EF4444)';
-                  } else if (runs >= 10) {
+                  if (runs >= 10) {
                     barBg = 'var(--chart-high, #3B82F6)';
+                  } else if (hasWicket) {
+                    barBg = 'var(--chart-wicket, #EF4444)';
                   }
 
                   return (

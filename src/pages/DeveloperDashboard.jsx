@@ -24,6 +24,7 @@ import {
   Sparkles,
   Heart,
   MessageSquare,
+  Trash2,
   X
 } from 'lucide-react';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -32,6 +33,7 @@ import {
   getAllManagersFromCloud,
   saveUploadedMatchToCloud,
   deleteMatchFromCloud,
+  setMatchInactive,
   deriveMatchDisplayScore,
   getMatchStatusMeta,
   generateMatchCode
@@ -112,6 +114,32 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [isAbdullahEnabled, setIsAbdullahEnabled] = useState(isAbdullahMessagesEnabled);
   const [activeChatMatch, setActiveChatMatch] = useState(null);
   const [watchAndChatMatch, setWatchAndChatMatch] = useState(null);
+  const [deletingMatch, setDeletingMatch] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSoftDelete = async (m) => {
+    if (!m) return;
+    const targetId = m.matchId || m.id;
+    if (!targetId) return;
+    try {
+      setIsDeleting(true);
+      await setMatchInactive(targetId);
+      setMatches((prev) =>
+        prev.map((item) =>
+          (item.matchId === targetId || item.id === targetId)
+            ? { ...item, status: 'inactive' }
+            : item
+        )
+      );
+      showToast(`Match "${m.teams?.[0]?.name || 'Team 1'} vs ${m.teams?.[1]?.name || 'Team 2'}" soft-deleted (status: inactive).`);
+      setDeletingMatch(null);
+    } catch (err) {
+      console.warn('Soft-delete failed:', err);
+      showToast('Failed to soft-delete match.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const toggleAbdullahMessages = () => {
     const nextVal = !isAbdullahEnabled;
@@ -1233,6 +1261,21 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                           <Download className="w-3.5 h-3.5 text-[#22C55E]" />
                           <span>JSON</span>
                         </button>
+
+                        <button
+                          onClick={() => setDeletingMatch(m)}
+                          disabled={m.status === 'inactive'}
+                          style={{
+                            backgroundColor: m.status === 'inactive' ? 'var(--card)' : 'rgba(239, 68, 68, 0.1)',
+                            borderColor: m.status === 'inactive' ? 'var(--border)' : 'rgba(239, 68, 68, 0.3)',
+                            color: m.status === 'inactive' ? 'var(--muted)' : '#EF4444'
+                          }}
+                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:bg-red-500/20 active:scale-98 transition-all shadow-sm"
+                          title={m.status === 'inactive' ? 'Match is already inactive (soft-deleted)' : 'Soft-delete match (sets status to inactive)'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>{m.status === 'inactive' ? 'Inactive' : 'Delete'}</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -1436,6 +1479,54 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
             onOpenMatch?.(mId);
           }}
         />
+      )}
+
+      {/* Soft-Delete Match Confirmation Modal */}
+      {deletingMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+            className="w-full max-w-sm rounded-2xl border p-5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0 text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white m-0">Soft-Delete Match?</h3>
+                <span className="text-[11px] text-slate-400">Status will change to inactive</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/30 border border-white/10 text-xs text-slate-300">
+              <div className="font-semibold text-white mb-0.5">
+                {deletingMatch.teams?.[0]?.name || 'T1'} vs {deletingMatch.teams?.[1]?.name || 'T2'} ({deletingMatch.code || ''})
+              </div>
+              <p className="text-[11px] text-slate-400 m-0 leading-relaxed">
+                This will mark the match as <strong>inactive</strong> and hide it from live searches. All match data and audit history are permanently preserved.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeletingMatch(null)}
+                disabled={isDeleting}
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                className="flex-1 py-2 rounded-xl border text-xs font-semibold hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSoftDelete(deletingMatch)}
+                disabled={isDeleting}
+                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{isDeleting ? 'Deleting...' : 'Confirm'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

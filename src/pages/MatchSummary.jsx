@@ -5,6 +5,7 @@ import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
+import MatchCharts from '../components/MatchCharts.jsx';
 
 export default function MatchSummary({ matchState, onBack }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
@@ -609,6 +610,11 @@ export default function MatchSummary({ matchState, onBack }) {
             })}
           </div>
         )}
+      </div>
+
+      {/* Visual Analytics & Progression Charts (Manhattan & Worm) */}
+      <div className="mt-4">
+        <MatchCharts matchState={matchState} />
       </div>
 
       {/* Pointing Criteria Modal */}

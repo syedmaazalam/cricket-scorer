@@ -17,18 +17,19 @@ export default function DeveloperScorerChatModal({
 
   const defaultSenderName = role === 'developer' ? 'Developer (Maaz)' : 'Match Scorer';
   const effectiveSenderName = senderName || defaultSenderName;
+  const effectiveMatchId = matchId || (typeof window !== 'undefined' ? (localStorage.getItem('cricket_active_match_id') || localStorage.getItem('cricket_live_code')) : null);
 
   useEffect(() => {
-    if (!isOpen || !matchId) return;
+    if (!isOpen || !effectiveMatchId) return;
 
-    const unsubscribe = subscribeMatchMessages(matchId, (msgs) => {
+    const unsubscribe = subscribeMatchMessages(effectiveMatchId, (msgs) => {
       setMessages(msgs || []);
     });
 
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
-  }, [isOpen, matchId]);
+  }, [isOpen, effectiveMatchId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,7 +37,7 @@ export default function DeveloperScorerChatModal({
     }
   }, [messages, isOpen]);
 
-  if (!isOpen || !matchId) return null;
+  if (!isOpen || !effectiveMatchId) return null;
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -45,7 +46,7 @@ export default function DeveloperScorerChatModal({
 
     try {
       setIsSending(true);
-      await sendMatchMessage(matchId, {
+      await sendMatchMessage(effectiveMatchId, {
         sender: role,
         senderName: effectiveSenderName,
         text: clean

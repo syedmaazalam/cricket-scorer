@@ -92,10 +92,12 @@ export default function Scoring({
   const lastSeenMsgCountRef = useRef(0);
   const hasGreetedAbdullahRef = useRef(new Set());
 
+  const effectiveMatchId = matchState?.matchId || matchState?.code || matchState?.id || (typeof window !== 'undefined' ? localStorage.getItem('cricket_active_match_id') : null);
+
   // Real-time Developer to Scorer chat subscription
   useEffect(() => {
-    if (!matchState.matchId) return;
-    const unsub = subscribeMatchMessages(matchState.matchId, (msgs) => {
+    if (!effectiveMatchId) return;
+    const unsub = subscribeMatchMessages(effectiveMatchId, (msgs) => {
       if (!Array.isArray(msgs)) return;
       if (lastSeenMsgCountRef.current > 0 && msgs.length > lastSeenMsgCountRef.current) {
         const newest = msgs[msgs.length - 1];
@@ -110,7 +112,7 @@ export default function Scoring({
     return () => {
       if (typeof unsub === 'function') unsub();
     };
-  }, [matchState.matchId, isChatModalOpen]);
+  }, [effectiveMatchId, isChatModalOpen]);
 
   // Greet Abdullah & Hassan when they come to bat (once per innings)
   useEffect(() => {
@@ -1291,7 +1293,7 @@ export default function Scoring({
             setIsChatModalOpen(false);
             setUnreadChatCount(0);
           }}
-          matchId={matchState.matchId}
+          matchId={effectiveMatchId}
           matchTitle={`${matchState.teams?.[0]?.name || 'Team 1'} vs ${matchState.teams?.[1]?.name || 'Team 2'} (${matchState.code || ''})`}
           role="scorer"
           senderName="Match Scorer"

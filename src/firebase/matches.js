@@ -221,7 +221,7 @@ export async function searchMatches(queryText) {
   // Instant code check for 6-character inputs
   if (clean.length === 6) {
     const direct = await findMatchByCode(cleanUpper);
-    if (direct) return [direct];
+    if (direct && direct.status !== 'inactive') return [direct];
   }
 
   try {
@@ -231,6 +231,7 @@ export async function searchMatches(queryText) {
 
     snap.forEach((d) => {
       const m = d.data();
+      if (m.status === 'inactive') return; // Exclude soft-deleted matches
       const t1 = (m.teams?.[0]?.name || '').toLowerCase();
       const t2 = (m.teams?.[1]?.name || '').toLowerCase();
       const code = (m.code || '').toLowerCase();
@@ -475,6 +476,22 @@ export async function sendMatchMessage(matchId, { sender, senderName, text }) {
     return msgData;
   } catch (err) {
     console.warn('sendMatchMessage error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Sets a match status to 'inactive' (soft deletion for developer).
+ * Preserves the document and all events while hiding from active lists.
+ */
+export async function setMatchInactive(matchId) {
+  if (!matchId) return false;
+  try {
+    const matchRef = doc(db, 'matches', matchId);
+    await setDoc(matchRef, { status: 'inactive', updatedAt: Date.now() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn('setMatchInactive error:', err);
     throw err;
   }
 }
