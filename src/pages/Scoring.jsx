@@ -41,7 +41,7 @@ import PlayersHeadToHead from '../components/PlayersHeadToHead.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import ActionLogsModal from '../components/ActionLogsModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
-import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
+import AbdullahMotivationModal, { isAbdullah, isHassan, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
 import OverthrowModal from '../components/OverthrowModal.jsx';
 import EditBallModal from '../components/EditBallModal.jsx';
@@ -112,7 +112,7 @@ export default function Scoring({
     };
   }, [matchState.matchId, isChatModalOpen]);
 
-  // Greet Abdullah when he comes to bat (once per innings)
+  // Greet Abdullah & Hassan when they come to bat (once per innings)
   useEffect(() => {
     if (!isAbdullahMessagesEnabled()) return;
     const currentInningsNum = matchState.currentInnings || 1;
@@ -121,10 +121,16 @@ export default function Scoring({
 
     if (isAbdullah(striker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${striker}`)) {
       hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${striker}`);
-      setAbdullahEvent({ type: 'comes_to_bat' });
+      setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Abdullah' });
+    } else if (isHassan(striker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${striker}`)) {
+      hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${striker}`);
+      setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Hassan' });
     } else if (isAbdullah(nonStriker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${nonStriker}`)) {
       hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${nonStriker}`);
-      setAbdullahEvent({ type: 'comes_to_bat' });
+      setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Abdullah' });
+    } else if (isHassan(nonStriker) && !hasGreetedAbdullahRef.current.has(`inn_${currentInningsNum}_${nonStriker}`)) {
+      hasGreetedAbdullahRef.current.add(`inn_${currentInningsNum}_${nonStriker}`);
+      setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Hassan' });
     }
   }, [matchState.striker, matchState.nonStriker, matchState.currentInnings]);
 
@@ -258,22 +264,32 @@ export default function Scoring({
     const currentStriker = matchState.striker;
     const dismissedPlayer = ballData.dismissedPlayer || currentStriker;
 
-    // 1. Abdullah motivational messages check (unskippable 4-sec modal)
+    // 1. Abdullah & Hassan motivational brother messages check (unskippable 4-sec modal)
     if (isAbdullahMessagesEnabled()) {
       if (isWicket && isAbdullah(currentBowler)) {
         // When he takes a wicket
-        setAbdullahEvent({ type: 'wicket_taken' });
+        setAbdullahEvent({ type: 'wicket_taken', playerName: 'Abdullah' });
+      } else if (isWicket && isHassan(currentBowler)) {
+        setAbdullahEvent({ type: 'wicket_taken', playerName: 'Hassan' });
       } else if (isWicket && (isAbdullah(dismissedPlayer) || isAbdullah(currentStriker))) {
         // When he gets out on some score
         const abdullahBatter = currentInnings?.batters?.find((b) => isAbdullah(b.name));
         const finalScore = abdullahBatter ? (abdullahBatter.runs || 0) : 0;
-        setAbdullahEvent({ type: 'out', score: finalScore });
+        setAbdullahEvent({ type: 'out', score: finalScore, playerName: 'Abdullah' });
+      } else if (isWicket && (isHassan(dismissedPlayer) || isHassan(currentStriker))) {
+        const hassanBatter = currentInnings?.batters?.find((b) => isHassan(b.name));
+        const finalScore = hassanBatter ? (hassanBatter.runs || 0) : 0;
+        setAbdullahEvent({ type: 'out', score: finalScore, playerName: 'Hassan' });
       } else if (runs === 6 && isAbdullah(currentStriker)) {
         // Hits a six
-        setAbdullahEvent({ type: 'six' });
+        setAbdullahEvent({ type: 'six', playerName: 'Abdullah' });
+      } else if (runs === 6 && isHassan(currentStriker)) {
+        setAbdullahEvent({ type: 'six', playerName: 'Hassan' });
       } else if (runs === 4 && isAbdullah(currentStriker)) {
         // Hits a four
-        setAbdullahEvent({ type: 'four' });
+        setAbdullahEvent({ type: 'four', playerName: 'Abdullah' });
+      } else if (runs === 4 && isHassan(currentStriker)) {
+        setAbdullahEvent({ type: 'four', playerName: 'Hassan' });
       }
     }
 
@@ -1133,8 +1149,12 @@ export default function Scoring({
           availableBatters={availableBatters}
           onUndoWicket={handleUndo}
           onSelectBatter={(batterName) => {
-            if (isAbdullahMessagesEnabled() && isAbdullah(batterName)) {
-              setAbdullahEvent({ type: 'comes_to_bat' });
+            if (isAbdullahMessagesEnabled()) {
+              if (isAbdullah(batterName)) {
+                setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Abdullah' });
+              } else if (isHassan(batterName)) {
+                setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Hassan' });
+              }
             }
             onAddNewBatter(batterName);
           }}
@@ -1164,8 +1184,12 @@ export default function Scoring({
               setIsManualBreakOpen(false);
             }}
             onStartSecondInnings={(payload) => {
-              if (isAbdullahMessagesEnabled() && (isAbdullah(payload?.striker) || isAbdullah(payload?.nonStriker))) {
-                setAbdullahEvent({ type: 'comes_to_bat' });
+              if (isAbdullahMessagesEnabled()) {
+                if (isAbdullah(payload?.striker) || isAbdullah(payload?.nonStriker)) {
+                  setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Abdullah' });
+                } else if (isHassan(payload?.striker) || isHassan(payload?.nonStriker)) {
+                  setAbdullahEvent({ type: 'comes_to_bat', playerName: 'Hassan' });
+                }
               }
               onEndInnings?.(payload);
               setIsBreakModalOpen(false);

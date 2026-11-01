@@ -6,6 +6,16 @@ export function isAbdullah(name) {
   return name.trim().toLowerCase().includes('abdullah');
 }
 
+export function isHassan(name) {
+  if (!name || typeof name !== 'string') return false;
+  const clean = name.trim().toLowerCase();
+  return clean.includes('hassan') || clean.includes('hasan');
+}
+
+export function isBrother(name) {
+  return isAbdullah(name) || isHassan(name);
+}
+
 let _abdullahEnabledMemory = true;
 
 export function isAbdullahMessagesEnabled() {
@@ -17,6 +27,9 @@ export function isAbdullahMessagesEnabled() {
   return _abdullahEnabledMemory;
 }
 
+export const isBrotherMessagesEnabled = isAbdullahMessagesEnabled;
+export const isHassanMessagesEnabled = isAbdullahMessagesEnabled;
+
 export function setAbdullahMessagesEnabled(enabled) {
   _abdullahEnabledMemory = Boolean(enabled);
   try {
@@ -26,8 +39,11 @@ export function setAbdullahMessagesEnabled(enabled) {
   } catch (e) {}
 }
 
+export const setBrotherMessagesEnabled = setAbdullahMessagesEnabled;
+export const setHassanMessagesEnabled = setAbdullahMessagesEnabled;
+
 /**
- * Special unskippable 4-second motivational brother message modal for Abdullah from his brother Maaz.
+ * Special unskippable 4-second motivational brother message modal for Abdullah & Hassan from their brother Maaz.
  */
 export default function AbdullahMotivationModal({ eventData, onClose }) {
   const [secondsRemaining, setSecondsRemaining] = useState(4);
@@ -52,49 +68,93 @@ export default function AbdullahMotivationModal({ eventData, onClose }) {
   if (!eventData || !isAbdullahMessagesEnabled()) return null;
 
   const { type, score } = eventData;
+  const targetName = (
+    eventData.playerName ||
+    (eventData.isHassan ? 'Hassan' : (eventData.name && isHassan(eventData.name) ? 'Hassan' : 'Abdullah'))
+  );
+  const displayName = isHassan(targetName) ? 'Hassan' : 'Abdullah';
 
   // Exact customized messages specified by brother Maaz
   let message = '';
   let subHeader = 'Message from Brother Maaz';
   let IconComponent = Heart;
   let accentColor = '#22C55E';
-  let badgeText = 'ABDULLAH SPECIAL';
+  let badgeText = `${displayName.toUpperCase()} SPECIAL`;
 
-  switch (type) {
-    case 'wicket_taken':
-      message = 'You can take another wicket';
-      IconComponent = Trophy;
-      accentColor = '#22C55E';
-      badgeText = 'WICKET FOR ABDULLAH';
-      break;
-    case 'comes_to_bat':
-      message = 'Shabash Abdullah You Can Do It!';
-      IconComponent = Flame;
-      accentColor = '#22C55E';
-      badgeText = 'ABDULLAH AT CREASE';
-      break;
-    case 'six':
-      message = 'Shabash Abdullah You Can Hit Another Six Proud of You! Maaz..';
-      IconComponent = Zap;
-      accentColor = '#22C55E';
-      badgeText = 'MAXIMUM SIX!';
-      break;
-    case 'four':
-      message = 'You Can Do It!';
-      IconComponent = Award;
-      accentColor = '#22C55E';
-      badgeText = 'CRACKING FOUR!';
-      break;
-    case 'out':
-      message = score !== undefined && score !== null
-        ? `Good! Your Brother Maaz is always Proud of You! Love You Abdullah (${score} runs)`
-        : 'Good! Your Brother Maaz is always Proud of You! Love You Abdullah';
-      IconComponent = Heart;
-      accentColor = '#F59E0B';
-      badgeText = 'PROUD OF YOU ALWAYS';
-      break;
-    default:
-      message = 'Shabash Abdullah You Can Do It!';
+  if (displayName === 'Hassan') {
+    switch (type) {
+      case 'wicket_taken':
+        message = 'You can take another wicket';
+        IconComponent = Trophy;
+        accentColor = '#22C55E';
+        badgeText = 'WICKET FOR HASSAN';
+        break;
+      case 'comes_to_bat':
+        message = 'Shabash Hassan You Can Do It!';
+        IconComponent = Flame;
+        accentColor = '#22C55E';
+        badgeText = 'HASSAN AT CREASE';
+        break;
+      case 'six':
+        message = 'Shabash Hassan You Can Hit Another Six Proud of You! Maaz..';
+        IconComponent = Zap;
+        accentColor = '#22C55E';
+        badgeText = 'MAXIMUM SIX!';
+        break;
+      case 'four':
+        message = 'You Can Do It!';
+        IconComponent = Award;
+        accentColor = '#22C55E';
+        badgeText = 'CRACKING FOUR!';
+        break;
+      case 'out':
+        message = score !== undefined && score !== null
+          ? `Good! Your Brother Maaz is always Proud of You! Love You Hassan (${score} runs)`
+          : 'Good! Your Brother Maaz is always Proud of You! Love You Hassan';
+        IconComponent = Heart;
+        accentColor = '#F59E0B';
+        badgeText = 'PROUD OF YOU ALWAYS';
+        break;
+      default:
+        message = 'Shabash Hassan You Can Do It!';
+    }
+  } else {
+    switch (type) {
+      case 'wicket_taken':
+        message = 'You can take another wicket';
+        IconComponent = Trophy;
+        accentColor = '#22C55E';
+        badgeText = 'WICKET FOR ABDULLAH';
+        break;
+      case 'comes_to_bat':
+        message = 'Shabash Abdullah You Can Do It!';
+        IconComponent = Flame;
+        accentColor = '#22C55E';
+        badgeText = 'ABDULLAH AT CREASE';
+        break;
+      case 'six':
+        message = 'Shabash Abdullah You Can Hit Another Six Proud of You! Maaz..';
+        IconComponent = Zap;
+        accentColor = '#22C55E';
+        badgeText = 'MAXIMUM SIX!';
+        break;
+      case 'four':
+        message = 'You Can Do It!';
+        IconComponent = Award;
+        accentColor = '#22C55E';
+        badgeText = 'CRACKING FOUR!';
+        break;
+      case 'out':
+        message = score !== undefined && score !== null
+          ? `Good! Your Brother Maaz is always Proud of You! Love You Abdullah (${score} runs)`
+          : 'Good! Your Brother Maaz is always Proud of You! Love You Abdullah';
+        IconComponent = Heart;
+        accentColor = '#F59E0B';
+        badgeText = 'PROUD OF YOU ALWAYS';
+        break;
+      default:
+        message = 'Shabash Abdullah You Can Do It!';
+    }
   }
 
   const canDismiss = secondsRemaining === 0;

@@ -428,6 +428,47 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(devDashCode).toContain('DeveloperScorerChatModal');
       expect(devDashCode).toContain('Chat with Scorer');
     });
+
+    it('Verifies isHassan helper detects Hassan and Hasan case-insensitively', async () => {
+      const { isHassan } = await import('../components/AbdullahMotivationModal.jsx');
+      expect(isHassan('Hassan')).toBe(true);
+      expect(isHassan('hassan')).toBe(true);
+      expect(isHassan('HASSAN')).toBe(true);
+      expect(isHassan('Hasan')).toBe(true);
+      expect(isHassan('hasan')).toBe(true);
+      expect(isHassan('Syed Hassan')).toBe(true);
+      expect(isHassan('Muhammad Hasan Alam')).toBe(true);
+      expect(isHassan('Maaz')).toBe(false);
+      expect(isHassan('')).toBe(false);
+      expect(isHassan(null)).toBe(false);
+    });
+
+    it('Verifies exact brother motivational messages for Hassan events', async () => {
+      const modalCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/AbdullahMotivationModal.jsx'),
+        'utf-8'
+      );
+      // Wicket taken
+      expect(modalCode).toContain('You can take another wicket');
+      // Comes to bat
+      expect(modalCode).toContain('Shabash Hassan You Can Do It!');
+      // Hits a six
+      expect(modalCode).toContain('Shabash Hassan You Can Hit Another Six Proud of You! Maaz..');
+      // Hits a four
+      expect(modalCode).toContain('You Can Do It!');
+      // Gets out on score
+      expect(modalCode).toContain('Good! Your Brother Maaz is always Proud of You! Love You Hassan');
+    });
+
+    it('Verifies Hassan brother messages are wired in Scoring, Live and Developer Console', () => {
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+      const devDashCode = fs.readFileSync(path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'), 'utf-8');
+
+      expect(scoringCode).toContain('isHassan');
+      expect(liveCode).toContain('isHassan');
+      expect(devDashCode).toContain('Abdullah & Hassan Motivational Brother Messages');
+    });
   });
 
   // Test 5: Watch & Chat, Chart Colors, Ball Contrast, Main Page Route & Message Soft Deletion

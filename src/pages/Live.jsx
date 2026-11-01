@@ -9,7 +9,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import ScoreAnimation from '../components/ScoreAnimation.jsx';
-import AbdullahMotivationModal, { isAbdullah, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
+import AbdullahMotivationModal, { isAbdullah, isHassan, isAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
 import CelebrationModal from '../components/CelebrationModal.jsx';
 import BottomNavBar from '../components/BottomNavBar.jsx';
@@ -188,17 +188,26 @@ export default function Live({
         const runs = Number(latestBall.runs || 0);
         const extraType = latestBall.extraType;
 
-        // 1. Abdullah motivational messages check (4-second unskippable)
+        // 1. Abdullah & Hassan motivational brother messages check (4-second unskippable)
         if (isAbdullahMessagesEnabled()) {
           if (isWicket && isAbdullah(latestBall.bowler || currentInnings.bowler)) {
-            setAbdullahEvent({ type: 'wicket_taken' });
+            setAbdullahEvent({ type: 'wicket_taken', playerName: 'Abdullah' });
+          } else if (isWicket && isHassan(latestBall.bowler || currentInnings.bowler)) {
+            setAbdullahEvent({ type: 'wicket_taken', playerName: 'Hassan' });
           } else if (isWicket && (isAbdullah(latestBall.dismissedPlayer) || isAbdullah(latestBall.striker || currentInnings.striker))) {
             const abdullahBatter = currentInnings?.batters?.find((b) => isAbdullah(b.name));
-            setAbdullahEvent({ type: 'out', score: abdullahBatter?.runs || 0 });
+            setAbdullahEvent({ type: 'out', score: abdullahBatter?.runs || 0, playerName: 'Abdullah' });
+          } else if (isWicket && (isHassan(latestBall.dismissedPlayer) || isHassan(latestBall.striker || currentInnings.striker))) {
+            const hassanBatter = currentInnings?.batters?.find((b) => isHassan(b.name));
+            setAbdullahEvent({ type: 'out', score: hassanBatter?.runs || 0, playerName: 'Hassan' });
           } else if (runs === 6 && isAbdullah(latestBall.striker || currentInnings.striker)) {
-            setAbdullahEvent({ type: 'six' });
+            setAbdullahEvent({ type: 'six', playerName: 'Abdullah' });
+          } else if (runs === 6 && isHassan(latestBall.striker || currentInnings.striker)) {
+            setAbdullahEvent({ type: 'six', playerName: 'Hassan' });
           } else if (runs === 4 && isAbdullah(latestBall.striker || currentInnings.striker)) {
-            setAbdullahEvent({ type: 'four' });
+            setAbdullahEvent({ type: 'four', playerName: 'Abdullah' });
+          } else if (runs === 4 && isHassan(latestBall.striker || currentInnings.striker)) {
+            setAbdullahEvent({ type: 'four', playerName: 'Hassan' });
           }
         }
 

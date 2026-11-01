@@ -117,7 +117,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     const nextVal = !isAbdullahEnabled;
     setIsAbdullahEnabled(nextVal);
     setAbdullahMessagesEnabled(nextVal);
-    showToast(nextVal ? 'Abdullah brother messages enabled.' : 'Abdullah brother messages disabled.');
+    showToast(nextVal ? 'Brother messages enabled (Abdullah & Hassan).' : 'Brother messages disabled.');
   };
 
   // Check auth state
@@ -769,10 +769,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
             </div>
             <div>
               <div className="text-xs font-bold" style={{ color: 'var(--text)' }}>
-                Abdullah Motivational Brother Messages
+                Abdullah & Hassan Motivational Brother Messages
               </div>
               <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
-                Displays customized 4-second unskippable messages for player "Abdullah" (wickets, batting, 4s, 6s, out)
+                Displays customized 4-second unskippable messages for players "Abdullah" & "Hassan" (wickets, batting, 4s, 6s, out)
               </div>
             </div>
           </div>
@@ -785,7 +785,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
               color: isAbdullahEnabled ? '#22C55E' : 'var(--muted)'
             }}
             className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 self-start sm:self-auto transition-all shadow-sm active:scale-95"
-            title="Toggle Abdullah Messages"
+            title="Toggle Brother Messages (Abdullah & Hassan)"
           >
             <span className={`w-2 h-2 rounded-full ${isAbdullahEnabled ? 'bg-[#22C55E]' : 'bg-slate-400'}`} />
             <span>{isAbdullahEnabled ? 'Messages: ON' : 'Messages: OFF'}</span>
