@@ -115,6 +115,24 @@ export default function AbdullahMotivationModal({ eventData, onClose }) {
         accentColor = '#F59E0B';
         badgeText = 'PROUD OF YOU ALWAYS';
         break;
+      case 'fifty':
+        message = '50 Runs! Shabash Hassan! Your Brother Maaz is always Proud of You!';
+        IconComponent = Award;
+        accentColor = '#22C55E';
+        badgeText = '50 RUNS - HALF CENTURY!';
+        break;
+      case 'century':
+        message = 'CENTURY! 100 Runs! Your Brother Maaz is always Proud of You! Love You Hassan';
+        IconComponent = Trophy;
+        accentColor = '#F59E0B';
+        badgeText = '100 RUNS - CENTURY!';
+        break;
+      case 'hat_trick':
+        message = 'HAT-TRICK! Shabash Hassan 3 Wickets in a Row! Your Brother Maaz is always Proud of You!';
+        IconComponent = Flame;
+        accentColor = '#EF4444';
+        badgeText = 'HAT-TRICK HERO!';
+        break;
       default:
         message = 'Shabash Hassan You Can Do It!';
     }
@@ -151,6 +169,24 @@ export default function AbdullahMotivationModal({ eventData, onClose }) {
         IconComponent = Heart;
         accentColor = '#F59E0B';
         badgeText = 'PROUD OF YOU ALWAYS';
+        break;
+      case 'fifty':
+        message = '50 Runs! Shabash Abdullah! Your Brother Maaz is always Proud of You!';
+        IconComponent = Award;
+        accentColor = '#22C55E';
+        badgeText = '50 RUNS - HALF CENTURY!';
+        break;
+      case 'century':
+        message = 'CENTURY! 100 Runs! Your Brother Maaz is always Proud of You! Love You Abdullah';
+        IconComponent = Trophy;
+        accentColor = '#F59E0B';
+        badgeText = '100 RUNS - CENTURY!';
+        break;
+      case 'hat_trick':
+        message = 'HAT-TRICK! Shabash Abdullah 3 Wickets in a Row! Your Brother Maaz is always Proud of You!';
+        IconComponent = Flame;
+        accentColor = '#EF4444';
+        badgeText = 'HAT-TRICK HERO!';
         break;
       default:
         message = 'Shabash Abdullah You Can Do It!';

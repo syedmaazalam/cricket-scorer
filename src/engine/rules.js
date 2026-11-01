@@ -124,3 +124,41 @@ export function calculateRRR(target = 0, currentRuns = 0, legalBalls = 0, maxOve
   const oversRemainingDecimal = ballsRemaining / 6;
   return Number((runsNeeded / oversRemainingDecimal).toFixed(2));
 }
+
+/**
+ * Checks if a batter crossed a milestone (50 or 100 runs) on this delivery.
+ * Returns 'century', 'fifty', or null.
+ */
+export function checkBattingMilestone(prevRuns = 0, runsScored = 0) {
+  const newRuns = prevRuns + runsScored;
+  if (prevRuns < 100 && newRuns >= 100) {
+    return 'century';
+  }
+  if (prevRuns < 50 && newRuns >= 50) {
+    return 'fifty';
+  }
+  return null;
+}
+
+/**
+ * Checks if the bowler just completed a hat-trick (3 wickets in 3 consecutive deliveries by this bowler).
+ * @param {Array} ballsHistory - List of past ball records in the innings
+ * @param {string} currentBowler - Name of current bowler
+ * @param {boolean} isCurrentBallWicket - Whether current delivery is a wicket
+ */
+export function checkBowlerHatTrick(ballsHistory = [], currentBowler = null, isCurrentBallWicket = false) {
+  if (!isCurrentBallWicket || !currentBowler) return false;
+
+  // Filter deliveries bowled by this bowler in this innings (most recent to oldest)
+  const bowlerDeliveries = ballsHistory.filter((b) => b.bowler === currentBowler);
+  if (bowlerDeliveries.length < 2) return false;
+
+  const lastBall = bowlerDeliveries[bowlerDeliveries.length - 1];
+  const secondLastBall = bowlerDeliveries[bowlerDeliveries.length - 2];
+
+  // The previous 2 balls bowled by this bowler must also have been wickets
+  const wasLastWicket = Boolean(lastBall.isWicket || lastBall.wicket);
+  const wasSecondLastWicket = Boolean(secondLastBall.isWicket || secondLastBall.wicket);
+
+  return wasLastWicket && wasSecondLastWicket;
+}

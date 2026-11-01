@@ -753,4 +753,100 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(useMatchCode).toContain('editBall');
     });
   });
+
+  // Test 7: Milestone Messages (50 runs, 100 runs, and Hat-trick)
+  describe('Milestone Messages: 50 Runs, 100 Runs & Hat-Trick', () => {
+    it('Verifies checkBattingMilestone correctly detects crossing 50 and 100 runs', async () => {
+      const { checkBattingMilestone } = await import('../engine/rules.js');
+
+      // Crossing 50
+      expect(checkBattingMilestone(46, 4)).toBe('fifty');
+      expect(checkBattingMilestone(48, 6)).toBe('fifty');
+      expect(checkBattingMilestone(49, 1)).toBe('fifty');
+      expect(checkBattingMilestone(50, 4)).toBe(null); // Already crossed
+
+      // Crossing 100
+      expect(checkBattingMilestone(96, 4)).toBe('century');
+      expect(checkBattingMilestone(98, 6)).toBe('century');
+      expect(checkBattingMilestone(99, 1)).toBe('century');
+      expect(checkBattingMilestone(100, 2)).toBe(null); // Already crossed
+
+      // Below 50
+      expect(checkBattingMilestone(0, 4)).toBe(null);
+      expect(checkBattingMilestone(30, 6)).toBe(null);
+    });
+
+    it('Verifies checkBowlerHatTrick accurately detects 3 wickets in 3 balls by same bowler', async () => {
+      const { checkBowlerHatTrick } = await import('../engine/rules.js');
+
+      const ballsHistory = [
+        { bowler: 'Bowler A', isWicket: true },
+        { bowler: 'Bowler B', isWicket: false },
+        { bowler: 'Bowler A', isWicket: true },
+        { bowler: 'Bowler B', isWicket: false }
+      ];
+
+      // Bowler A bowls 3rd wicket ball
+      expect(checkBowlerHatTrick(ballsHistory, 'Bowler A', true)).toBe(true);
+
+      // Non-wicket ball
+      expect(checkBowlerHatTrick(ballsHistory, 'Bowler A', false)).toBe(false);
+
+      // Bowler B only has 0 wickets
+      expect(checkBowlerHatTrick(ballsHistory, 'Bowler B', true)).toBe(false);
+
+      // Broken streak for Bowler A
+      const brokenHistory = [
+        { bowler: 'Bowler A', isWicket: true },
+        { bowler: 'Bowler A', isWicket: false },
+        { bowler: 'Bowler A', isWicket: true }
+      ];
+      expect(checkBowlerHatTrick(brokenHistory, 'Bowler A', true)).toBe(false);
+    });
+
+    it('Verifies Brother Motivation Modal contains dedicated messages for 50, 100, and Hat-Trick for Abdullah & Hassan', () => {
+      const modalCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/AbdullahMotivationModal.jsx'),
+        'utf-8'
+      );
+
+      // Abdullah milestones
+      expect(modalCode).toContain('50 Runs! Shabash Abdullah! Your Brother Maaz is always Proud of You!');
+      expect(modalCode).toContain('CENTURY! 100 Runs! Your Brother Maaz is always Proud of You! Love You Abdullah');
+      expect(modalCode).toContain('HAT-TRICK! Shabash Abdullah 3 Wickets in a Row! Your Brother Maaz is always Proud of You!');
+
+      // Hassan milestones
+      expect(modalCode).toContain('50 Runs! Shabash Hassan! Your Brother Maaz is always Proud of You!');
+      expect(modalCode).toContain('CENTURY! 100 Runs! Your Brother Maaz is always Proud of You! Love You Hassan');
+      expect(modalCode).toContain('HAT-TRICK! Shabash Hassan 3 Wickets in a Row! Your Brother Maaz is always Proud of You!');
+    });
+
+    it('Verifies ScoreAnimation supports fifty, century, and hat_trick animation types', () => {
+      const animCode = fs.readFileSync(
+        path.resolve(__dirname, '../components/ScoreAnimation.jsx'),
+        'utf-8'
+      );
+
+      expect(animCode).toContain("'fifty'");
+      expect(animCode).toContain("'century'");
+      expect(animCode).toContain("'hat_trick'");
+    });
+
+    it('Verifies 50, 100 and Hat-Trick milestone detection is wired into Scoring and Live screens', () => {
+      const scoringCode = fs.readFileSync(path.resolve(__dirname, '../pages/Scoring.jsx'), 'utf-8');
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+
+      expect(scoringCode).toContain('checkBattingMilestone');
+      expect(scoringCode).toContain('checkBowlerHatTrick');
+      expect(scoringCode).toContain('HAT-TRICK! (3 IN 3)');
+      expect(scoringCode).toContain('HALF CENTURY! (50 RUNS)');
+      expect(scoringCode).toContain('CENTURY! (100 RUNS)');
+
+      expect(liveCode).toContain('checkBattingMilestone');
+      expect(liveCode).toContain('checkBowlerHatTrick');
+      expect(liveCode).toContain('HAT-TRICK! (3 IN 3)');
+      expect(liveCode).toContain('HALF CENTURY! (50 RUNS)');
+      expect(liveCode).toContain('CENTURY! (100 RUNS)');
+    });
+  });
 });

@@ -3,7 +3,7 @@ import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsh
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode, subscribeMatchMessages } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
-import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
+import { formatOvers, calculateCRR, calculateRRR, getMaxWickets, checkBattingMilestone, checkBowlerHatTrick } from '../engine/rules.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
@@ -187,32 +187,72 @@ export default function Live({
         const isWicket = Boolean(latestBall.isWicket);
         const runs = Number(latestBall.runs || 0);
         const extraType = latestBall.extraType;
+        const strikerName = latestBall.striker || currentInnings.striker;
+        const bowlerName = latestBall.bowler || currentInnings.bowler;
+        const dismissedPlayer = latestBall.dismissedPlayer || strikerName;
+
+        const strikerStat = currentInnings?.batters?.find((b) => b.name === strikerName);
+        const currentBatterRuns = strikerStat ? (strikerStat.runs || 0) : 0;
+        const batRuns = (extraType === null || extraType === 'no_ball') ? runs : 0;
+        const prevRuns = Math.max(0, currentBatterRuns - batRuns);
+        const milestone = checkBattingMilestone(prevRuns, batRuns);
+        const isHatTrick = isWicket && checkBowlerHatTrick(balls.slice(0, -1), bowlerName, true);
 
         // 1. Abdullah & Hassan motivational brother messages check (4-second unskippable)
         if (isAbdullahMessagesEnabled()) {
-          if (isWicket && isAbdullah(latestBall.bowler || currentInnings.bowler)) {
+          if (isHatTrick && isAbdullah(bowlerName)) {
+            setAbdullahEvent({ type: 'hat_trick', playerName: 'Abdullah' });
+          } else if (isHatTrick && isHassan(bowlerName)) {
+            setAbdullahEvent({ type: 'hat_trick', playerName: 'Hassan' });
+          } else if (milestone === 'century' && isAbdullah(strikerName)) {
+            setAbdullahEvent({ type: 'century', playerName: 'Abdullah' });
+          } else if (milestone === 'century' && isHassan(strikerName)) {
+            setAbdullahEvent({ type: 'century', playerName: 'Hassan' });
+          } else if (milestone === 'fifty' && isAbdullah(strikerName)) {
+            setAbdullahEvent({ type: 'fifty', playerName: 'Abdullah' });
+          } else if (milestone === 'fifty' && isHassan(strikerName)) {
+            setAbdullahEvent({ type: 'fifty', playerName: 'Hassan' });
+          } else if (isWicket && isAbdullah(bowlerName)) {
             setAbdullahEvent({ type: 'wicket_taken', playerName: 'Abdullah' });
-          } else if (isWicket && isHassan(latestBall.bowler || currentInnings.bowler)) {
+          } else if (isWicket && isHassan(bowlerName)) {
             setAbdullahEvent({ type: 'wicket_taken', playerName: 'Hassan' });
-          } else if (isWicket && (isAbdullah(latestBall.dismissedPlayer) || isAbdullah(latestBall.striker || currentInnings.striker))) {
+          } else if (isWicket && (isAbdullah(dismissedPlayer) || isAbdullah(strikerName))) {
             const abdullahBatter = currentInnings?.batters?.find((b) => isAbdullah(b.name));
             setAbdullahEvent({ type: 'out', score: abdullahBatter?.runs || 0, playerName: 'Abdullah' });
-          } else if (isWicket && (isHassan(latestBall.dismissedPlayer) || isHassan(latestBall.striker || currentInnings.striker))) {
+          } else if (isWicket && (isHassan(dismissedPlayer) || isHassan(strikerName))) {
             const hassanBatter = currentInnings?.batters?.find((b) => isHassan(b.name));
             setAbdullahEvent({ type: 'out', score: hassanBatter?.runs || 0, playerName: 'Hassan' });
-          } else if (runs === 6 && isAbdullah(latestBall.striker || currentInnings.striker)) {
+          } else if (runs === 6 && isAbdullah(strikerName)) {
             setAbdullahEvent({ type: 'six', playerName: 'Abdullah' });
-          } else if (runs === 6 && isHassan(latestBall.striker || currentInnings.striker)) {
+          } else if (runs === 6 && isHassan(strikerName)) {
             setAbdullahEvent({ type: 'six', playerName: 'Hassan' });
-          } else if (runs === 4 && isAbdullah(latestBall.striker || currentInnings.striker)) {
+          } else if (runs === 4 && isAbdullah(strikerName)) {
             setAbdullahEvent({ type: 'four', playerName: 'Abdullah' });
-          } else if (runs === 4 && isHassan(latestBall.striker || currentInnings.striker)) {
+          } else if (runs === 4 && isHassan(strikerName)) {
             setAbdullahEvent({ type: 'four', playerName: 'Hassan' });
           }
         }
 
-        // 2. Standard 2-second event popups (wide, no ball, four, six, wicket, extra)
-        if (isWicket) {
+        // 2. Standard 2-second event popups (hat-trick, 50, 100, wide, no ball, four, six, wicket, extra)
+        if (isHatTrick) {
+          setActiveAnimation({
+            type: 'hat_trick',
+            text: 'HAT-TRICK! (3 IN 3)',
+            subtext: `${bowlerName || 'Bowler'} TAKES 3 WICKETS IN 3 BALLS!`
+          });
+        } else if (milestone === 'century') {
+          setActiveAnimation({
+            type: 'century',
+            text: 'CENTURY! (100 RUNS)',
+            subtext: `${strikerName || 'Batter'} SCORES A MAGNIFICENT 100!`
+          });
+        } else if (milestone === 'fifty') {
+          setActiveAnimation({
+            type: 'fifty',
+            text: 'HALF CENTURY! (50 RUNS)',
+            subtext: `${strikerName || 'Batter'} REACHES 50 RUNS!`
+          });
+        } else if (isWicket) {
           setActiveAnimation({ type: 'wicket', text: 'WICKET!', subtext: 'BATTER OUT!' });
         } else if (runs === 6) {
           setActiveAnimation({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });

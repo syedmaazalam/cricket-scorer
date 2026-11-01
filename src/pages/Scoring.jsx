@@ -49,7 +49,7 @@ import { subscribeMatchMessages } from '../firebase/matches.js';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
-import { formatOvers, calculateCRR, calculateRRR, getMaxWickets } from '../engine/rules.js';
+import { formatOvers, calculateCRR, calculateRRR, getMaxWickets, checkBattingMilestone, checkBowlerHatTrick } from '../engine/rules.js';
 
 export default function Scoring({
   matchState,
@@ -264,9 +264,27 @@ export default function Scoring({
     const currentStriker = matchState.striker;
     const dismissedPlayer = ballData.dismissedPlayer || currentStriker;
 
-    // 1. Abdullah & Hassan motivational brother messages check (unskippable 4-sec modal)
+    // 1. Abdullah & Hassan motivational brother messages check & milestones
+    const strikerStat = currentInnings?.batters?.find((b) => b.name === currentStriker);
+    const prevRuns = strikerStat ? (strikerStat.runs || 0) : 0;
+    const batRuns = (extraType === null || extraType === 'no_ball') ? runs : 0;
+    const milestone = checkBattingMilestone(prevRuns, batRuns);
+    const isHatTrick = isWicket && checkBowlerHatTrick(currentInnings?.balls || [], currentBowler, true);
+
     if (isAbdullahMessagesEnabled()) {
-      if (isWicket && isAbdullah(currentBowler)) {
+      if (isHatTrick && isAbdullah(currentBowler)) {
+        setAbdullahEvent({ type: 'hat_trick', playerName: 'Abdullah' });
+      } else if (isHatTrick && isHassan(currentBowler)) {
+        setAbdullahEvent({ type: 'hat_trick', playerName: 'Hassan' });
+      } else if (milestone === 'century' && isAbdullah(currentStriker)) {
+        setAbdullahEvent({ type: 'century', playerName: 'Abdullah' });
+      } else if (milestone === 'century' && isHassan(currentStriker)) {
+        setAbdullahEvent({ type: 'century', playerName: 'Hassan' });
+      } else if (milestone === 'fifty' && isAbdullah(currentStriker)) {
+        setAbdullahEvent({ type: 'fifty', playerName: 'Abdullah' });
+      } else if (milestone === 'fifty' && isHassan(currentStriker)) {
+        setAbdullahEvent({ type: 'fifty', playerName: 'Hassan' });
+      } else if (isWicket && isAbdullah(currentBowler)) {
         // When he takes a wicket
         setAbdullahEvent({ type: 'wicket_taken', playerName: 'Abdullah' });
       } else if (isWicket && isHassan(currentBowler)) {
@@ -293,8 +311,26 @@ export default function Scoring({
       }
     }
 
-    // 2. Standard 2-second event pop-up messages (wide, no ball, 4, 6, wicket)
-    if (isWicket) {
+    // 2. Standard 2-second event pop-up messages (hat-trick, 50, 100, wide, no ball, 4, 6, wicket)
+    if (isHatTrick) {
+      setScoreAnimationData({
+        type: 'hat_trick',
+        text: 'HAT-TRICK! (3 IN 3)',
+        subtext: `${currentBowler || 'Bowler'} TAKES 3 WICKETS IN 3 BALLS!`
+      });
+    } else if (milestone === 'century') {
+      setScoreAnimationData({
+        type: 'century',
+        text: 'CENTURY! (100 RUNS)',
+        subtext: `${currentStriker || 'Batter'} SCORES A MAGNIFICENT 100!`
+      });
+    } else if (milestone === 'fifty') {
+      setScoreAnimationData({
+        type: 'fifty',
+        text: 'HALF CENTURY! (50 RUNS)',
+        subtext: `${currentStriker || 'Batter'} REACHES 50 RUNS!`
+      });
+    } else if (isWicket) {
       setScoreAnimationData({ type: 'wicket', text: 'WICKET!', subtext: 'BATTER OUT!' });
     } else if (runs === 6) {
       setScoreAnimationData({ type: 'six', text: '+6 MAXIMUM!', subtext: 'HUGE SIX!' });

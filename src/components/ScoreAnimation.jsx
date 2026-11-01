@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity, AlertCircle, Info } from 'lucide-react';
+import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity, AlertCircle, Info, Trophy } from 'lucide-react';
 
 export default function ScoreAnimation({ animationData }) {
   const [visible, setVisible] = useState(false);
@@ -22,7 +22,19 @@ export default function ScoreAnimation({ animationData }) {
   let borderGlow = 'var(--primary)';
   let IconComponent = Zap;
 
-  if (type === 'six') {
+  if (type === 'fifty' || type === 'half_century') {
+    bgGradient = 'rgba(217, 119, 6, 0.95)';
+    borderGlow = '#F59E0B';
+    IconComponent = Award;
+  } else if (type === 'century' || type === 'hundred') {
+    bgGradient = 'rgba(126, 34, 206, 0.95)';
+    borderGlow = '#A855F7';
+    IconComponent = Trophy;
+  } else if (type === 'hat_trick' || type === 'hattrick') {
+    bgGradient = 'rgba(220, 38, 38, 0.95)';
+    borderGlow = '#EF4444';
+    IconComponent = Flame;
+  } else if (type === 'six') {
     bgGradient = 'rgba(22, 163, 74, 0.95)';
     borderGlow = 'var(--primary)';
     IconComponent = Flame;

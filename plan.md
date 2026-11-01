@@ -1,26 +1,33 @@
-# Brother Motivation & Success Messages for Hassan & Abdullah
+# Milestone Messages: 50 & 100 Runs and Hat-Trick
 
 ## Overview
-Add identical 4-second unskippable brother motivation messages for player "Hassan" (or "hasan") from his brother Maaz, exactly as done for Abdullah:
-- Takes a wicket: `"You can take another wicket"`
-- Comes to bat: `"Shabash Hassan You Can Do It!"`
-- Hits a six: `"Shabash Hassan You Can Hit Another Six Proud of You! Maaz.."`
-- Hits a four: `"You Can Do It!"`
-- Gets out: `"Good! Your Brother Maaz is always Proud of You! Love You Hassan"` (with score)
-- 4-second countdown lock before dismissal
-- Active across Scoring screen, Live spectator screen, and toggleable in Developer Console.
+Add celebratory and motivational messages when a player completes 50 runs (half-century), 100 runs (century), or when a bowler takes a hat-trick (3 wickets in 3 balls):
+- **50 Runs (Half-Century)**:
+  - Any player: Floating milestone animation badge `"HALF CENTURY! (50 RUNS) - {batterName} reaches 50!"`.
+  - Abdullah/Hassan: Personalized brother message: `"50 Runs! Shabash {Name}! Your Brother Maaz is always Proud of You!"`.
+- **100 Runs (Century)**:
+  - Any player: Floating milestone animation badge `"CENTURY! (100 RUNS) - {batterName} scores a century!"`.
+  - Abdullah/Hassan: Personalized brother message: `"CENTURY! 100 Runs! Your Brother Maaz is always Proud of You! Love You {Name}"`.
+- **Hat-Trick (3 Wickets in 3 Deliveries by Same Bowler)**:
+  - Any bowler: Floating hat-trick animation badge `"HAT-TRICK! - {bowlerName} takes 3 wickets in 3 balls!"`.
+  - Abdullah/Hassan: Personalized brother message: `"HAT-TRICK! Shabash {Name} 3 Wickets in a Row! Your Brother Maaz is always Proud of You!"`.
+- Active on both Scorer side (`Scoring.jsx`) and Live spectator screen (`Live.jsx`).
 
 ## Chunks
 
-- [x] **Chunk 1: Core Helper & Modal Support for Hassan**
-  - Added `isHassan(name)` helper in `src/components/AbdullahMotivationModal.jsx` (supporting both "hassan" and "hasan" case-insensitively).
-  - Enhanced message and badge resolution to display personalized brother messages for Hassan.
+- [x] **Chunk 1: Milestone Detection Engine & Brother Modal Support**
+  - Added milestone helpers in `src/engine/rules.js` (detecting crossing 50, crossing 100, and bowler hat-trick).
+  - Updated `src/components/AbdullahMotivationModal.jsx` with customized brother messages for `fifty`, `century`, and `hat_trick`.
 
-- [x] **Chunk 2: Scoring, Live & Developer Dashboard Integration**
-  - Integrated Hassan detection in `src/pages/Scoring.jsx` for batting entry, wickets taken, boundaries, and fall of wicket.
-  - Integrated Hassan detection in `src/pages/Live.jsx` for real-time live spectator viewing.
-  - Updated `src/pages/DeveloperDashboard.jsx` toggle label and description.
+- [x] **Chunk 2: Visual Animation & Banner Updates**
+  - Updated `src/components/ScoreAnimation.jsx` with distinct gradient and icon themes for `fifty`, `century`, and `hat_trick`.
 
-- [x] **Chunk 3: Automated Tests, Verification, Build & Deploy**
-  - Added unit tests for `isHassan` and all Hassan brother events in `src/tests/developer_console_and_scores.test.js`.
-  - Verified all 92 vitest tests pass, ran `npm run build`, deployed to Firebase hosting, and updated graphify.
+- [x] **Chunk 3: Scoring & Live Screen Integration**
+  - Wired milestone detection into `src/pages/Scoring.jsx` in `handleScoreBall`.
+  - Wired milestone detection into `src/pages/Live.jsx` for live spectators.
+
+- [x] **Chunk 4: Automated Tests, Verification, Build & Deploy**
+  - Added comprehensive unit tests in `src/tests/developer_console_and_scores.test.js`.
+  - Ran `npx vitest run` (all 97 tests passing).
+  - Ran `npm run build` and deployed to Firebase hosting (`https://smartcricket-c79b5.web.app`).
+  - Ran `/graphify . --update`.
