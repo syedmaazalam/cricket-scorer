@@ -110,23 +110,26 @@
       "src_firebase_matches_updatematchsettings"
     ],
     "3": [
-      "ref_lucide_react",
-      "ref_react",
-      "src_components_batterdetailsmodal",
-      "src_components_bottomnavbar",
-      "src_components_bowlermodal",
-      "src_components_inningsbreakmodal",
-      "src_components_newbattermodal",
-      "src_components_pointingcriteriamodal",
-      "src_components_scoreanimation",
-      "src_components_scoreanimation_scoreanimation",
-      "src_components_squadmodal",
-      "src_components_syncbadge",
-      "src_components_themetoggle",
-      "src_components_timedeclaremodal",
-      "src_components_wicketmodal",
+      "src_app_app",
+      "src_app_app_resolvelivecode",
+      "src_components_batterdetailsmodal_batterdetailsmodal",
+      "src_components_bottomnavbar_bottomnavbar",
+      "src_components_bowlermodal_bowlermodal",
+      "src_components_inningsbreakmodal_inningsbreakmodal",
+      "src_components_matchcharts_matchcharts",
+      "src_components_newbattermodal_newbattermodal",
+      "src_components_pointingcriteriamodal_pointingcriteriamodal",
+      "src_components_squadmodal_squadmodal",
+      "src_components_syncbadge_syncbadge",
+      "src_components_themetoggle_themetoggle",
+      "src_components_timedeclaremodal_timedeclaremodal",
+      "src_engine_stats_getscoreatlegalballs",
+      "src_firebase_matches_findmatchbycode",
+      "src_pages_live_live",
+      "src_pages_live_live_resolve",
       "src_pages_scorecard",
-      "src_pages_scoring"
+      "src_pages_scorecard_scorecard",
+      "src_pages_scoring_scoring"
     ],
     "4": [
       "src_firebase_config_ensureanonymousauth",
@@ -148,28 +151,27 @@
       "src_store_usematch_usematch_loadmatch"
     ],
     "5": [
-      "src_components_abdullahmotivationmodal",
-      "src_components_abdullahmotivationmodal_abdullahmotivationmodal",
-      "src_components_abdullahmotivationmodal_isabdullah",
-      "src_components_abdullahmotivationmodal_isabdullahmessagesenabled",
-      "src_components_abdullahmotivationmodal_isbrother",
-      "src_components_abdullahmotivationmodal_isbrothermessagesenabled",
-      "src_components_abdullahmotivationmodal_ishassan",
-      "src_components_abdullahmotivationmodal_ishassanmessagesenabled",
-      "src_components_abdullahmotivationmodal_setbrothermessagesenabled",
-      "src_components_abdullahmotivationmodal_sethassanmessagesenabled",
-      "src_components_bowlermodal_bowlermodal",
-      "src_components_inningsbreakmodal_inningsbreakmodal",
-      "src_components_newbattermodal_newbattermodal",
-      "src_components_syncbadge_syncbadge",
-      "src_components_timedeclaremodal_timedeclaremodal",
-      "src_pages_scoring_scoring"
+      "ref_lucide_react",
+      "ref_react",
+      "src_components_batterdetailsmodal",
+      "src_components_bottomnavbar",
+      "src_components_bowlermodal",
+      "src_components_inningsbreakmodal",
+      "src_components_newbattermodal",
+      "src_components_pointingcriteriamodal",
+      "src_components_scoreanimation",
+      "src_components_scoreanimation_scoreanimation",
+      "src_components_squadmodal",
+      "src_components_syncbadge",
+      "src_components_themetoggle",
+      "src_components_timedeclaremodal",
+      "src_components_wicketmodal",
+      "src_pages_scoring"
     ],
     "6": [
       "src_components_celebrationmodal",
       "src_components_celebrationmodal_celebrationmodal",
       "src_components_matchcharts",
-      "src_components_matchcharts_matchcharts",
       "src_components_playersheadtohead",
       "src_components_playersheadtohead_playersheadtohead",
       "src_engine_rules",
@@ -179,7 +181,6 @@
       "src_engine_rules_checkbowlerhattrick",
       "src_engine_rules_formatovers",
       "src_engine_rules_overstoballs",
-      "src_engine_stats_getscoreatlegalballs",
       "src_pages_live"
     ],
     "7": [
@@ -222,7 +223,18 @@
       "src_store_localdb_savemanagerlocally"
     ],
     "10": [
-      "src_components_pointingcriteriamodal_pointingcriteriamodal",
+      "src_components_abdullahmotivationmodal",
+      "src_components_abdullahmotivationmodal_abdullahmotivationmodal",
+      "src_components_abdullahmotivationmodal_isabdullah",
+      "src_components_abdullahmotivationmodal_isabdullahmessagesenabled",
+      "src_components_abdullahmotivationmodal_isbrother",
+      "src_components_abdullahmotivationmodal_isbrothermessagesenabled",
+      "src_components_abdullahmotivationmodal_ishassan",
+      "src_components_abdullahmotivationmodal_ishassanmessagesenabled",
+      "src_components_abdullahmotivationmodal_setbrothermessagesenabled",
+      "src_components_abdullahmotivationmodal_sethassanmessagesenabled"
+    ],
+    "11": [
       "src_engine_rules_doesbatterearnruns",
       "src_engine_rules_isbowlerwicket",
       "src_engine_stats",
@@ -233,18 +245,6 @@
       "src_engine_stats_createbowlingstat",
       "src_pages_matchsummary",
       "src_pages_matchsummary_matchsummary"
-    ],
-    "11": [
-      "src_app_app",
-      "src_app_app_resolvelivecode",
-      "src_components_batterdetailsmodal_batterdetailsmodal",
-      "src_components_bottomnavbar_bottomnavbar",
-      "src_components_squadmodal_squadmodal",
-      "src_components_themetoggle_themetoggle",
-      "src_firebase_matches_findmatchbycode",
-      "src_pages_live_live",
-      "src_pages_live_live_resolve",
-      "src_pages_scorecard_scorecard"
     ],
     "12": [
       "src_firebase_matches_saveactionlogtocloud",
@@ -312,15 +312,15 @@
     "0": 0.1396854764107308,
     "1": 0.05714285714285714,
     "2": 0.21578947368421053,
-    "3": 0.34558823529411764,
+    "3": 0.21578947368421053,
     "4": 0.2647058823529412,
-    "5": 0.18333333333333332,
-    "6": 0.3047619047619048,
+    "5": 0.3333333333333333,
+    "6": 0.358974358974359,
     "7": 0.2,
     "8": 0.32727272727272727,
     "9": 0.32727272727272727,
-    "10": 0.4727272727272727,
-    "11": 0.35555555555555557,
+    "10": 0.28888888888888886,
+    "11": 0.5333333333333333,
     "12": 0.4,
     "13": 0.2857142857142857,
     "14": 0.3333333333333333,
@@ -368,13 +368,13 @@
       "degree": 23
     },
     {
-      "id": "src_pages_developerdashboard_developerdashboard",
-      "label": "DeveloperDashboard()",
+      "id": "src_store_usematch_usematch",
+      "label": "useMatch()",
       "degree": 22
     },
     {
-      "id": "src_store_usematch_usematch",
-      "label": "useMatch()",
+      "id": "src_pages_developerdashboard_developerdashboard",
+      "label": "DeveloperDashboard()",
       "degree": 22
     },
     {
@@ -404,7 +404,7 @@
       ],
       "confidence": "INFERRED",
       "relation": "references",
-      "why": "inferred connection - not explicitly stated in source; crosses file types (doc \u2194 code); connects across different repos/directories"
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories"
     },
     {
       "source": "Bug Table & Root Cause Fixes",
@@ -415,18 +415,7 @@
       ],
       "confidence": "INFERRED",
       "relation": "references",
-      "why": "inferred connection - not explicitly stated in source; crosses file types (doc \u2194 code); connects across different repos/directories"
-    },
-    {
-      "source": "DeveloperDashboard()",
-      "target": "isAbdullahMessagesEnabled()",
-      "source_files": [
-        "src/pages/DeveloperDashboard.jsx",
-        "src/components/AbdullahMotivationModal.jsx"
-      ],
-      "confidence": "INFERRED",
-      "relation": "indirect_call",
-      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code \u2194 doc); connects across different repos/directories"
     },
     {
       "source": "Scoring()",
@@ -438,6 +427,17 @@
       "confidence": "EXTRACTED",
       "relation": "calls",
       "why": "bridges separate communities; peripheral node `AddPreviousOverBallModal()` unexpectedly reaches hub `Scoring()`"
+    },
+    {
+      "source": "Scoring()",
+      "target": "EditBallModal()",
+      "source_files": [
+        "src/pages/Scoring.jsx",
+        "src/components/EditBallModal.jsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "bridges separate communities; peripheral node `EditBallModal()` unexpectedly reaches hub `Scoring()`"
     }
   ],
   "tokens": {

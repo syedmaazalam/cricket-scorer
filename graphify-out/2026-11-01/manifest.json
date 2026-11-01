@@ -210,10 +210,10 @@
     "semantic_hash": "10d7b72d150039f5a6f4128d3f7f6a37"
   },
   "src/pages/Live.jsx": {
-    "mtime": 1793500169.6553085,
-    "seen": 1793500273.9704838,
-    "ast_hash": "928a69b34d5dbf8b02d5fa1628bd5ece",
-    "semantic_hash": "928a69b34d5dbf8b02d5fa1628bd5ece"
+    "mtime": 1793500960.7187707,
+    "seen": 1793501184.1030538,
+    "ast_hash": "b1d2578b3354820b21cda0180996f6fa",
+    "semantic_hash": "b1d2578b3354820b21cda0180996f6fa"
   },
   "src/pages/MatchSummary.jsx": {
     "mtime": 1793400186.044313,
@@ -258,10 +258,10 @@
     "semantic_hash": "9d79b2cb9eff3561b678c1ca4a340b96"
   },
   "src/tests/developer_console_and_scores.test.js": {
-    "mtime": 1793500193.3997035,
-    "seen": 1793500273.9718847,
-    "ast_hash": "b9e6e2292d916c0d8b22b67321518b54",
-    "semantic_hash": "b9e6e2292d916c0d8b22b67321518b54"
+    "mtime": 1793501099.1188402,
+    "seen": 1793501184.1085734,
+    "ast_hash": "d33d341b0d88da404887bf0bfab681b5",
+    "semantic_hash": "d33d341b0d88da404887bf0bfab681b5"
   },
   "src/tests/engine.test.js": {
     "mtime": 1793318684.939501,

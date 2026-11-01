@@ -4,12 +4,12 @@
 - cluster-only mode — file stats not available
 
 ## Summary
-- 265 nodes · 910 edges · 21 communities (18 shown, 3 thin omitted)
+- 265 nodes · 908 edges · 21 communities (18 shown, 3 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 4 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `88062ef0`
+- Built from commit: `da767619`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -76,20 +76,20 @@ Cohesion: 0.22
 Nodes (14): firebase, DeveloperScorerChatModal(), DeveloperWatchAndChatModal(), auth, firebaseConfig, createMatchInCloud(), deleteAllMatchesFromCloud(), deleteMatchFromCloud() (+6 more)
 
 ### Community 3 - "package.json"
-Cohesion: 0.35
-Nodes (3): lucide-react, react, ScoreAnimation()
+Cohesion: 0.22
+Nodes (19): App(), resolveLiveCode(), BatterDetailsModal(), BottomNavBar(), BowlerModal(), InningsBreakModal(), MatchCharts(), NewBatterModal() (+11 more)
 
 ### Community 4 - "useMatch.js"
 Cohesion: 0.26
 Nodes (15): ensureAnonymousAuth(), deleteAllMatchesLocally(), deleteMatchLocally(), getAllLocalManagers(), getEventsForMatch(), getMatchSnapshot(), getUnsyncedEvents(), markEventSynced() (+7 more)
 
 ### Community 5 - "ErrorBoundary"
-Cohesion: 0.18
-Nodes (15): AbdullahMotivationModal(), isAbdullah(), isAbdullahMessagesEnabled(), isBrother(), isBrotherMessagesEnabled, isHassan(), isHassanMessagesEnabled, setBrotherMessagesEnabled (+7 more)
+Cohesion: 0.33
+Nodes (3): lucide-react, react, ScoreAnimation()
 
 ### Community 6 - "QA Engineering & Cricket Rules Audit Report"
-Cohesion: 0.30
-Nodes (9): CelebrationModal(), MatchCharts(), PlayersHeadToHead(), calculateCRR(), calculateRRR(), checkBattingMilestone(), checkBowlerHatTrick(), formatOvers() (+1 more)
+Cohesion: 0.36
+Nodes (7): CelebrationModal(), PlayersHeadToHead(), calculateCRR(), calculateRRR(), checkBattingMilestone(), checkBowlerHatTrick(), formatOvers()
 
 ### Community 8 - "FIX REPORT: Cricket Scorer Scoring Screen, Rules & Layout Fixes"
 Cohesion: 0.33
@@ -100,12 +100,12 @@ Cohesion: 0.33
 Nodes (9): AuthModal(), deriveMatchDisplayScore(), getMatchStatusMeta(), saveManagerProfileToCloud(), searchMatches(), Home(), loadMatches(), getAllLocalMatches() (+1 more)
 
 ### Community 10 - "React + Vite"
-Cohesion: 0.47
-Nodes (9): PointingCriteriaModal(), doesBatterEarnRuns(), isBowlerWicket(), computeBatterDetails(), computeBowlerDetails(), computeInningsStats(), createBattingStat(), createBowlingStat() (+1 more)
+Cohesion: 0.29
+Nodes (9): AbdullahMotivationModal(), isAbdullah(), isAbdullahMessagesEnabled(), isBrother(), isBrotherMessagesEnabled, isHassan(), isHassanMessagesEnabled, setBrotherMessagesEnabled (+1 more)
 
 ### Community 11 - "tailwind.config.js"
-Cohesion: 0.36
-Nodes (10): App(), resolveLiveCode(), BatterDetailsModal(), BottomNavBar(), SquadModal(), ThemeToggle(), findMatchByCode(), Live() (+2 more)
+Cohesion: 0.53
+Nodes (8): doesBatterEarnRuns(), isBowlerWicket(), computeBatterDetails(), computeBowlerDetails(), computeInningsStats(), createBattingStat(), createBowlingStat(), MatchSummary()
 
 ### Community 12 - "postcss.config.js"
 Cohesion: 0.40
@@ -143,15 +143,15 @@ Nodes (3): Expanding the Oxlint configuration, React Compiler, React + Vite
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `package.json` to `Scoring.jsx`, `reducer.js`, `package.json`, `ErrorBoundary`, `QA Engineering & Cricket Rules Audit Report`, `.oxlintrc.json`, `FIX REPORT: Cricket Scorer Scoring Screen, Rules & Layout Fixes`, `.oxlintrc.json`, `React + Vite`, `postcss.config.js`, `ActionLogsModal.jsx`?**
+- **Why does `react` connect `ErrorBoundary` to `Scoring.jsx`, `reducer.js`, `package.json`, `package.json`, `QA Engineering & Cricket Rules Audit Report`, `.oxlintrc.json`, `FIX REPORT: Cricket Scorer Scoring Screen, Rules & Layout Fixes`, `.oxlintrc.json`, `React + Vite`, `tailwind.config.js`, `postcss.config.js`, `ActionLogsModal.jsx`?**
   _High betweenness centrality (0.134) - this node is a cross-community bridge._
 - **What connects `autoprefixer`, `oxlint`, `postcss` to the rest of the system?**
   _6 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Scoring.jsx` be split into smaller, more focused modules?**
   _Cohesion score 0.1396854764107308 - nodes in this community are weakly interconnected._
-- **Why does `lucide-react` connect `package.json` to `Scoring.jsx`, `reducer.js`, `package.json`, `ErrorBoundary`, `QA Engineering & Cricket Rules Audit Report`, `.oxlintrc.json`, `FIX REPORT: Cricket Scorer Scoring Screen, Rules & Layout Fixes`, `.oxlintrc.json`, `React + Vite`, `ActionLogsModal.jsx`?**
+- **Why does `lucide-react` connect `ErrorBoundary` to `Scoring.jsx`, `reducer.js`, `package.json`, `package.json`, `QA Engineering & Cricket Rules Audit Report`, `.oxlintrc.json`, `FIX REPORT: Cricket Scorer Scoring Screen, Rules & Layout Fixes`, `.oxlintrc.json`, `React + Vite`, `tailwind.config.js`, `ActionLogsModal.jsx`?**
   _High betweenness centrality (0.091) - this node is a cross-community bridge._
 - **Should `reducer.js` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
-- **Why does `Scoring()` connect `ErrorBoundary` to `Scoring.jsx`, `package.json`, `package.json`, `QA Engineering & Cricket Rules Audit Report`, `React + Vite`, `tailwind.config.js`, `ActionLogsModal.jsx`?**
-  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+- **Why does `Scoring()` connect `package.json` to `Scoring.jsx`, `package.json`, `ErrorBoundary`, `QA Engineering & Cricket Rules Audit Report`, `React + Vite`, `tailwind.config.js`, `ActionLogsModal.jsx`?**
+  _High betweenness centrality (0.062) - this node is a cross-community bridge._
