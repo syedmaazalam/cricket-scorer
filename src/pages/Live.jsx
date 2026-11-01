@@ -38,6 +38,16 @@ export default function Live({
   const prevBallCountRef = useRef(null);
   const lastSeenDevMsgCountRef = useRef(0);
 
+  // Fallback internal listener if parent did not stream matchState
+  const { matchState: fallbackState, scorerOfflineInfo: fallbackOffline } = useMatch(
+    propMatchState?.teams?.length > 0 ? null : resolvedMatchId,
+    true
+  );
+
+  const matchState = (propMatchState && (propMatchState.teams?.length > 0 || propMatchState.code))
+    ? propMatchState
+    : fallbackState;
+
   const isDevAuthed = typeof window !== 'undefined' && (
     sessionStorage.getItem('dev_auth') === 'true' ||
     localStorage.getItem('cricket_is_developer') === 'true'
@@ -45,7 +55,7 @@ export default function Live({
 
   // Subscribe to chat if developer is watching
   useEffect(() => {
-    const effectiveMatchId = matchState.matchId || resolvedMatchId;
+    const effectiveMatchId = matchState?.matchId || resolvedMatchId;
     if (!isDevAuthed || !effectiveMatchId) return;
 
     const unsub = subscribeMatchMessages(effectiveMatchId, (msgs) => {
@@ -62,7 +72,7 @@ export default function Live({
     return () => {
       if (typeof unsub === 'function') unsub();
     };
-  }, [matchState.matchId, resolvedMatchId, isDevAuthed, isDevChatOpen]);
+  }, [matchState?.matchId, resolvedMatchId, isDevAuthed, isDevChatOpen]);
 
   useEffect(() => {
     async function resolve() {
@@ -84,52 +94,10 @@ export default function Live({
     resolve();
   }, [matchCodeOrId]);
 
-  // Fallback internal listener if parent did not stream matchState
-  const { matchState: fallbackState, scorerOfflineInfo: fallbackOffline } = useMatch(
-    propMatchState?.teams?.length > 0 ? null : resolvedMatchId,
-    true
-  );
-
-  const matchState = (propMatchState && (propMatchState.teams?.length > 0 || propMatchState.code))
-    ? propMatchState
-    : fallbackState;
-
-  // Check if developer has restricted viewers for this match
-  if (matchState?.isViewerRestricted || matchState?.maxViewers === 0) {
-    return (
-      <div
-        style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-        className="min-h-screen flex flex-col items-center justify-center p-4 text-center select-none"
-      >
-        <div
-          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
-          className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl">
-            <Lock className="w-7 h-7 text-emerald-500" />
-          </div>
-          <h2 className="text-lg font-black" style={{ color: 'var(--text)' }}>
-            Viewing Restricted
-          </h2>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Live viewer access for this match has been restricted by the match administrator.
-          </p>
-          <button
-            onClick={onBack}
-            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-            className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider mt-2 active:scale-95 transition-all shadow-md"
-          >
-            Return to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const scorerOfflineInfo = propOfflineInfo || fallbackOffline;
 
-  const curInnIndex = matchState.currentInningsIndex || 0;
-  const currentInnings = matchState.innings?.[curInnIndex] || {
+  const curInnIndex = matchState?.currentInningsIndex || 0;
+  const currentInnings = matchState?.innings?.[curInnIndex] || {
     score: 0,
     wickets: 0,
     legalBalls: 0,
@@ -290,6 +258,38 @@ export default function Live({
     }
     prevBallCountRef.current = balls.length;
   }, [currentInnings.balls?.length]);
+
+  // Check if developer has restricted viewers for this match
+  if (matchState?.isViewerRestricted || matchState?.maxViewers === 0) {
+    return (
+      <div
+        style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+        className="min-h-screen flex flex-col items-center justify-center p-4 text-center select-none"
+      >
+        <div
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+          className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl flex flex-col items-center gap-3 animate-in zoom-in-95 duration-200"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl">
+            <Lock className="w-7 h-7 text-emerald-500" />
+          </div>
+          <h2 className="text-lg font-black" style={{ color: 'var(--text)' }}>
+            Viewing Restricted
+          </h2>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+            Live viewer access for this match has been restricted by the match administrator.
+          </p>
+          <button
+            onClick={onBack}
+            style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
+            className="w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider mt-2 active:scale-95 transition-all shadow-md"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

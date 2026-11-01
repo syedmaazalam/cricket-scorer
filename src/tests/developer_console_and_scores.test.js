@@ -848,5 +848,22 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(liveCode).toContain('HALF CENTURY! (50 RUNS)');
       expect(liveCode).toContain('CENTURY! (100 RUNS)');
     });
+
+    it('Verifies Live component declares matchState before hooks and avoids early returns before hooks', () => {
+      const liveCode = fs.readFileSync(path.resolve(__dirname, '../pages/Live.jsx'), 'utf-8');
+      
+      const matchStateIndex = liveCode.indexOf('const matchState =');
+      const devChatEffectIndex = liveCode.indexOf('subscribeMatchMessages(effectiveMatchId');
+      
+      // matchState must be declared BEFORE any effect that uses it
+      expect(matchStateIndex).toBeGreaterThan(0);
+      expect(devChatEffectIndex).toBeGreaterThan(0);
+      expect(matchStateIndex).toBeLessThan(devChatEffectIndex);
+
+      // Early returns like isViewerRestricted must come after all useEffect hooks
+      const lastEffectIndex = liveCode.lastIndexOf('useEffect(');
+      const restrictedReturnIndex = liveCode.indexOf('matchState?.isViewerRestricted');
+      expect(restrictedReturnIndex).toBeGreaterThan(lastEffectIndex);
+    });
   });
 });
