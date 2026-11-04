@@ -1,14 +1,37 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash, BarChart2, Shield, Activity } from 'lucide-react';
+import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash, BarChart2, Shield, Activity, User, Target, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
-import { formatOvers } from '../engine/rules.js';
+import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { getTopPlayers } from '../engine/potm.js';
+import { getShareUrl } from '../engine/constants.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
+import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
+import { exportAndSaveImage } from '../engine/nativeExport.js';
+
+// Team crest shield component matching redesign prototype
+function TeamCrest({ name, color }) {
+  const initials = (name || 'SC')
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'SC';
+
+  return (
+    <svg width="50" height="58" viewBox="0 0 54 62" role="img" aria-label={`${name} crest`} style={{ flex: 'none' }}>
+      <path d="M27 2 50 10v22c0 14-10 24-23 28C14 56 4 46 4 32V10Z" fill={color} stroke="rgba(255,255,255,.65)" strokeWidth="2" />
+      <path d="M19 9l4 5 4-6 4 6 4-5-1 8H20Z" fill="#FFC83D" />
+      <text x="27" y="41" textAnchor="middle" fontSize="16" fontWeight="800" fill="#fff">
+        {initials}
+      </text>
+    </svg>
+  );
+}
 
 export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
@@ -17,6 +40,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const scorecardRef = useRef(null);
 
   const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
@@ -24,28 +48,22 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   if (isLoading) {
     return (
       <div
-        style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-        className="min-h-screen flex flex-col p-4 max-w-lg mx-auto select-none transition-colors"
+        style={{ color: 'var(--t1)' }}
+        className="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 select-none"
       >
-        <div style={{ borderColor: 'var(--border)' }} className="flex items-center justify-between pb-3 border-b">
-          <button
-            onClick={onBack}
-            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5" />
+        <header className="top flex items-center justify-between pb-3">
+          <button onClick={onBack} className="ib" aria-label="Back">
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="text-center">
-            <h2 style={{ color: 'var(--text)' }} className="text-base font-black m-0">Full Scorecard</h2>
-          </div>
+          <h2 className="h2">Full Scorecard</h2>
           <ThemeToggle />
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center gap-3">
+        </header>
+        <div className="flex flex-col items-center justify-center p-12 text-center gap-3">
           <div
             className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }}
+            style={{ borderColor: 'var(--pri)', borderTopColor: 'transparent' }}
           />
-          <span style={{ color: 'var(--muted)' }} className="text-xs font-semibold">Loading live scorecard...</span>
+          <span className="mu" style={{ fontSize: '13px', fontWeight: 600 }}>Loading live scorecard...</span>
         </div>
       </div>
     );
@@ -75,11 +93,14 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const stats1 = computeInningsStats(inn1);
   const stats2 = computeInningsStats(inn2);
 
+  const currentInn = activeTab === 0 ? inn1 : inn2;
+  const currentStats = activeTab === 0 ? stats1 : stats2;
+  const opponentInn = activeTab === 0 ? inn2 : inn1;
+
   // Top 3 Players of the Match computation
   const aggregatedPlayerStats = {};
   const aggregatedFieldingStats = {};
 
-  // Find player's actual assigned team from squads
   const getPlayerTeam = (playerName) => {
     if (matchState?.teams && Array.isArray(matchState.teams)) {
       for (const t of matchState.teams) {
@@ -141,15 +162,17 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   accumulateStats(stats2, inn2.battingTeam, inn2.bowlingTeam);
 
   const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3);
+  const topPerformer = topPlayers?.[0];
 
-  // Match Date string
+  const timeFormat = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_time_format') || '12h') : '12h';
+  const matchTimeStr = matchState?.createdAt
+    ? new Date(matchState.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: timeFormat !== '24h' })
+    : '';
   const matchDate = matchState?.createdAt
-    ? new Date(matchState.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? `${new Date(matchState.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}${matchTimeStr ? ` · ${matchTimeStr}` : ''}`
     : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  // Share URL
-  const shareUrl = `${window.location.origin}/?watch=${matchState?.code || ''}`;
-  const summaryUrl = `${window.location.origin}/?summary=${matchState?.code || ''}`;
+  const shareUrl = getShareUrl('watch', matchState?.code || '');
 
   const handleShare = () => {
     const title = `Scorecard: ${teamAName} vs ${teamBName}`;
@@ -164,24 +187,21 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     }
   };
 
-  // Export Scorecard as PNG image
   const handleExportPNG = async () => {
     if (!scorecardRef.current || isExporting) return;
     try {
       setIsExporting(true);
 
-      // Wait for all custom fonts to finish loading
       if (document.fonts && document.fonts.ready) {
         await document.fonts.ready;
       }
-      // Small pause to guarantee styles and layouts are stabilized
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       const element = scorecardRef.current;
 
       const canvas = await html2canvas(element, {
-        backgroundColor: isDark ? '#1B232C' : '#E0E1EE',
+        backgroundColor: isDark ? '#021024' : '#F0F7FF',
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -191,14 +211,11 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         windowWidth: element.scrollWidth,
         windowHeight: element.scrollHeight,
         onclone: (clonedDoc) => {
-          // Remove overflow restrictions on root container
           const el = clonedDoc.querySelector('[ref="scorecardRef"]') || clonedDoc.body;
           if (el) {
             el.style.overflow = 'visible';
             el.style.maxHeight = 'none';
           }
-
-          // Strip backdrop-filter, background-clip: text and gradient text
           const allElements = clonedDoc.querySelectorAll('*');
           allElements.forEach((node) => {
             node.style.backdropFilter = 'none';
@@ -207,10 +224,9 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             if (node.style.backgroundClip === 'text' || node.style.webkitBackgroundClip === 'text') {
               node.style.backgroundClip = 'unset';
               node.style.webkitBackgroundClip = 'unset';
-              node.style.color = isDark ? '#FFFFFF' : '#1A1A1A';
+              node.style.color = isDark ? '#C1E8FF' : '#0B1F3B';
             }
 
-            // Remove vertical overflow clipping on text parents & enforce line-height 1.4
             if (node.children.length === 0 && node.textContent && node.textContent.trim().length > 0) {
               node.style.lineHeight = '1.4';
               if (node.parentElement) {
@@ -224,28 +240,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       const cleanTeams = `${teamAName.replace(/\s+/g, '_')}-vs-${teamBName.replace(/\s+/g, '_')}`;
       const fileName = `Scorecard_${cleanTeams}_${matchState?.code || 'live'}.png`;
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          // Fallback to dataURL
-          const dataUrl = canvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.download = fileName;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          return;
-        }
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = fileName;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-      }, 'image/png');
+      await exportAndSaveImage(canvas, fileName, `Scorecard: ${teamAName} vs ${teamBName}`);
     } catch (err) {
       console.error('PNG export failed:', err);
       alert('Could not export image directly. Please try again.');
@@ -254,79 +249,91 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     }
   };
 
+  const crrNum = calculateCRR(currentInn.score || 0, currentInn.legalBalls || 0);
+
   // Helper renderer for a Batting table
   const renderBattingTable = (innings, stats) => {
     const battingEntries = Object.values(stats.batting);
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr
-              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="border-b pb-1 text-[10px] uppercase font-bold"
-            >
-              <th className="py-1">BATTER</th>
-              <th className="py-1 text-right">R</th>
-              <th className="py-1 text-right">B</th>
-              <th className="py-1 text-right">4S</th>
-              <th className="py-1 text-right">6S</th>
-              <th className="py-1 text-right min-w-[36px] pl-2">SR</th>
-            </tr>
-          </thead>
-          <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
-            {battingEntries.length === 0 ? (
+      <div className="card glass-card rounded-2xl overflow-hidden mb-6 p-0 border border-[var(--bd)] shadow-sm bg-[var(--card)]">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead className="bg-[var(--well)] text-xs font-bold text-[var(--t2)] uppercase tracking-wider">
               <tr>
-                <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-3 text-center text-[11px]">
-                  Yet to bat
-                </td>
+                <th className="text-left px-4 py-3 font-semibold">BATTER</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">R</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">B</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">4S</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">6S</th>
+                <th className="text-right pr-4 pl-2 py-3 w-16 font-semibold">SR</th>
               </tr>
-            ) : (
-              battingEntries.map((b) => (
-                <tr
-                  key={b.name}
-                  onClick={() => setSelectedBatterDetails({ name: b.name, innings })}
-                  className="py-1.5 cursor-pointer hover:opacity-80 transition-opacity"
-                  title="Click to view detailed head-to-head match-up & timeline"
-                >
-                  <td className="py-1.5 font-semibold" style={{ color: 'var(--text)' }}>
-                    <div className="flex items-center gap-1">
-                      <span className="font-bold">{b.name}</span>
-                      <BarChart2 className="w-3 h-3 text-emerald-500 inline" />
-                    </div>
-                    <div style={{ color: 'var(--muted)' }} className="text-[10px] font-normal">
-                      {b.isOut ? (b.dismissal || 'out') : 'not out'}
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-[var(--bd)]">
+              {battingEntries.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-6 text-xs text-[var(--t3)] font-medium">
+                    Yet to bat
                   </td>
-                  <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-black">{b.runs}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.balls}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.fours}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{b.sixes}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right font-mono min-w-[36px] pl-2">{Math.round(b.strikeRate || 0)}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                battingEntries.map((b) => (
+                  <tr
+                    key={b.name}
+                    onClick={() => setSelectedBatterDetails({ name: b.name, innings })}
+                    className="hover:bg-[var(--well)]/50 transition-colors cursor-pointer"
+                    title="Click for player timeline"
+                  >
+                    <td className="text-left px-4 py-3">
+                      <div className="font-bold text-sm text-[var(--t1)] truncate">
+                        {b.name}
+                      </div>
+                      <div className="text-[11px] text-[var(--t3)] truncate font-normal mt-0.5">
+                        {b.isOut ? (b.dismissal || 'out') : (
+                          <span className="text-[var(--ok)] font-medium">not out</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-bold font-mono text-sm text-[var(--t1)]">
+                      {b.runs}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm text-[var(--t2)]">
+                      {b.balls}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm text-[var(--t2)]">
+                      {b.fours}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm text-[var(--t2)]">
+                      {b.sixes}
+                    </td>
+                    <td className="text-right pr-4 pl-2 py-3 w-16 font-mono text-sm text-[var(--t2)]">
+                      {Math.round(b.strikeRate || 0)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Extras row */}
-        <div
-          style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          className="flex items-center justify-between text-xs pt-2.5 pb-1 border-t mt-2 font-medium min-h-[30px] leading-normal"
-        >
-          <span className="leading-normal">Extras</span>
-          <span style={{ color: 'var(--text)' }} className="font-bold text-[11px] leading-normal">
-            {stats.extras.total} (wd {stats.extras.wides}, nb {stats.extras.noBalls}, b {stats.extras.byes}, lb {stats.extras.legByes})
+        <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--well)]/40 border-t border-[var(--bd)] text-xs">
+          <span className="text-[var(--t2)] font-medium">Extras</span>
+          <span className="font-bold text-[var(--t1)]">
+            {stats.extras.total}{' '}
+            <span className="font-normal text-[var(--t3)] text-[11px]">
+              (wd {stats.extras.wides}, nb {stats.extras.noBalls}, b {stats.extras.byes}, lb {stats.extras.legByes})
+            </span>
           </span>
         </div>
 
         {/* Total row */}
-        <div
-          style={{ borderColor: 'var(--border)' }}
-          className="flex items-center justify-between min-h-[36px] text-sm font-black pt-2 pb-1 border-t mt-1.5 leading-normal"
-        >
-          <span style={{ color: 'var(--text)' }} className="leading-normal">Total</span>
-          <span style={{ color: 'var(--orange)' }} className="leading-normal font-mono">
-            {innings.score}/{innings.wickets} <span className="font-normal font-sans text-xs">({formatOvers(innings.legalBalls)} ov)</span>
+        <div className="flex items-center justify-between px-4 py-3 bg-[var(--well)] border-t border-[var(--bd)]">
+          <span className="font-black text-sm text-[var(--t1)] uppercase tracking-wide">Total</span>
+          <span className="font-mono font-black text-lg sm:text-xl text-[var(--ok)]">
+            {innings.score}/{innings.wickets}{' '}
+            <span className="font-sans font-medium text-xs text-[var(--t2)]">
+              ({formatOvers(innings.legalBalls)} ov)
+            </span>
           </span>
         </div>
       </div>
@@ -337,452 +344,359 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const renderBowlingTable = (innings, stats) => {
     const bowlingEntries = Object.values(stats.bowling);
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr
-              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="border-b pb-1 text-[10px] uppercase font-bold"
-            >
-              <th className="py-1">BOWLER</th>
-              <th className="py-1 text-right">O</th>
-              <th className="py-1 text-right">M</th>
-              <th className="py-1 text-right">R</th>
-              <th className="py-1 text-right">W</th>
-              <th className="py-1 text-right">ECON</th>
-            </tr>
-          </thead>
-          <tbody style={{ borderColor: 'var(--border)' }} className="divide-y">
-            {bowlingEntries.length === 0 ? (
+      <div className="card glass-card rounded-2xl overflow-hidden mb-6 p-0 border border-[var(--bd)] shadow-sm bg-[var(--card)]">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead className="bg-[var(--well)] text-xs font-semibold text-[var(--t2)] uppercase tracking-wider">
               <tr>
-                <td colSpan="6" style={{ color: 'var(--muted)' }} className="py-3 text-center text-[11px]">
-                  Yet to bowl
-                </td>
+                <th className="text-left px-4 py-3 font-semibold">BOWLER</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">O</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">M</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">R</th>
+                <th className="text-right px-2 py-3 w-12 font-semibold">W</th>
+                <th className="text-right pr-4 pl-2 py-3 w-16 font-semibold">ECON</th>
               </tr>
-            ) : (
-              bowlingEntries.map((bw) => (
-                <tr key={bw.name} className="py-1.5">
-                  <td style={{ color: 'var(--blue)' }} className="py-1.5 font-semibold">{bw.name}</td>
-                  <td style={{ color: 'var(--text)' }} className="py-1.5 text-right font-mono">{bw.overs}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.maidens}</td>
-                  <td style={{ color: 'var(--text)' }} className="py-1.5 text-right">{bw.runsConceded}</td>
-                  <td style={{ color: 'var(--red)' }} className="py-1.5 text-right font-black">{bw.wickets}</td>
-                  <td style={{ color: 'var(--muted)' }} className="py-1.5 text-right">{bw.economy}</td>
+            </thead>
+            <tbody className="divide-y divide-[var(--bd)]">
+              {bowlingEntries.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-6 text-xs text-[var(--t3)] font-medium">
+                    Yet to bowl
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                bowlingEntries.map((bw) => (
+                  <tr
+                    key={bw.name}
+                    className="hover:bg-[var(--well)]/50 transition-colors"
+                  >
+                    <td className="text-left px-4 py-3">
+                      <div className="font-bold text-sm text-[var(--t1)] truncate">
+                        {bw.name}
+                      </div>
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm text-[var(--t2)]">
+                      {bw.overs}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm text-[var(--t2)]">
+                      {bw.maidens}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm font-bold text-[var(--t1)]">
+                      {bw.runsConceded}
+                    </td>
+                    <td className="text-right px-2 py-3 w-12 font-mono text-sm font-black text-[var(--bad)]">
+                      {bw.wickets}
+                    </td>
+                    <td className="text-right pr-4 pl-2 py-3 w-16 font-mono text-sm text-[var(--t2)]">
+                      {bw.economy}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+    );
+  };
+
+  const MEDALS = ['#FFD21F', '#C9CED6', '#CD7F32'];
+
+  const renderTopPlayersSection = () => {
+    if (!topPlayers || topPlayers.length === 0) return null;
+    return (
+      <section className="card glass-card rounded-2xl shadow-sm border border-[var(--bd)] p-4 bg-[var(--card)] backdrop-blur-md w-full">
+        <div className="row bt">
+          <div className="row">
+            <span className="ok"><Trophy className="w-5 h-5 text-[var(--ok)]" /></span>
+            <h3 className="h2 font-extrabold text-[var(--t1)] text-base">Top 3 players of the match</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPointingCriteriaOpen(true)}
+            className="btn s"
+            style={{ color: 'var(--ok)', height: '32px' }}
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>Criteria</span>
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2.5 mt-3">
+          {topPlayers.map((p, idx) => (
+            <div
+              key={p.playerId}
+              className="rounded-2xl p-3 flex flex-col gap-1.5 transition-all"
+              style={{
+                background: 'var(--well)',
+                border: '1px solid var(--bd)'
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="w-1.5 h-7 rounded-full shrink-0"
+                    style={{ backgroundColor: MEDALS[idx] || '#FFD21F' }}
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2">
+                      <b className="text-sm font-bold text-[var(--t1)] truncate">{p.name}</b>
+                      <span className="chip ok" style={{ padding: '1px 7px', fontSize: '11px' }}>
+                        {p.totalPoints} pts
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[var(--t2)] truncate mt-0.5">{p.team}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Breakdown Chips */}
+              <div className="flex flex-wrap gap-1.5 mt-1 pl-4">
+                <span className="chip text-[11px]">Runs +{p.breakdown.runs || 0}</span>
+                <span className="chip text-[11px]">Boundaries +{p.breakdown.boundaries || 0}</span>
+                {p.breakdown.wickets > 0 && (
+                  <span className="chip text-[11px]">Wickets +{p.breakdown.wickets}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     );
   };
 
   return (
     <div
-      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen flex flex-col p-2 sm:p-4 max-w-6xl mx-auto select-none transition-colors"
+      style={{ color: 'var(--t1)' }}
+      className="w-full max-w-5xl mx-auto px-0 sm:px-2 md:px-4 pt-2 pb-24 select-none"
     >
-      {/* Top Action Bar (Navigation & Export Controls) */}
-      <div
-        style={{ borderColor: 'var(--border)' }}
-        className="flex items-center justify-between pb-3 border-b"
-      >
-        <button
-          onClick={onBack}
-          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-          className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
-          title="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      {/* Action Row: unified single-line controls matching media_1793796232507_883085a1.jpg */}
+      <div className="flex items-center justify-between w-full p-1.5 rounded-full bg-[rgba(10,21,56,0.65)] border border-[rgba(77,163,255,0.22)] backdrop-blur-md mb-5 shadow-sm">
+        {onOpenSummary ? (
+          <button
+            onClick={() => onOpenSummary(matchState)}
+            className="flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold text-slate-200 hover:text-white transition-colors mx-auto"
+            title="Open Complete Match Summary"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">Full Summary</span>
+          </button>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        <div className="flex items-center gap-2">
-          {/* Summary Route Button */}
-          {onOpenSummary && (
-            <button
-              onClick={() => onOpenSummary(matchState)}
-              style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--primary)' }}
-              className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border shadow-sm active:scale-95 transition-all"
-              title="Open Complete Match Summary"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>Full Summary</span>
-            </button>
-          )}
-
-          {/* Squads Button */}
+        <div className="flex items-center gap-1.5 shrink-0 pr-1">
           <button
             onClick={() => setIsSquadModalOpen(true)}
-            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1 border shadow-sm active:scale-95 transition-all"
+            className="ib shrink-0"
             title="Squads & Player List"
+            aria-label="Squads"
           >
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Squads</span>
           </button>
 
-          {/* Theme Toggle */}
-          <ThemeToggle />
-
-          {/* Share Button */}
           <button
             onClick={handleShare}
             title="Share Scorecard Link"
-            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-            className="p-2 rounded-2xl border transition-all active:scale-95 shadow-sm"
+            className="ib shrink-0"
+            aria-label="Share"
           >
-            {copied ? <Check className="w-5 h-5" style={{ color: 'var(--green)' }} /> : <Share2 className="w-5 h-5" style={{ color: 'var(--muted)' }} />}
+            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" /> : <Share2 className="w-4 h-4" />}
           </button>
 
-          {/* Export PNG Button */}
           <button
-            onClick={handleExportPNG}
-            disabled={isExporting}
-            style={{
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF'
-            }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl font-bold text-xs shadow-md active:scale-95 transition-all"
+            onClick={() => setIsExportModalOpen(true)}
+            className="btn p s shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-xl m-0"
+            title="Export Match Summary Image"
           >
-            {isExporting ? (
-              <span>Exporting...</span>
-            ) : (
-              <>
-                <ImageIcon className="w-4 h-4" />
-                <span>Export PNG</span>
-              </>
-            )}
+            <ImageIcon className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-bold">Export</span>
           </button>
         </div>
       </div>
 
-      {/* ============================================================ */}
-      {/* EXPORTABLE / DISPLAY SCORECARD CANVAS (MATCHING IMAGE 3) */}
-      {/* ============================================================ */}
-      <div ref={scorecardRef} className="flex flex-col gap-4 mt-3 p-2 sm:p-3 rounded-[24px]">
-        {/* 1. Header Card (Matching Image 3 Top Bar) */}
-        <div
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--border)'
-          }}
-          className="app-card p-3 sm:p-4 flex items-center justify-between shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            {/* Bat Icon in rounded square */}
-            <div
-              style={{
-                backgroundColor: 'var(--green-15)',
-                borderColor: 'var(--border)',
-                color: 'var(--primary)'
-              }}
-              className="w-10 h-10 rounded-xl border flex items-center justify-center text-xl shadow-inner shrink-0"
-            >
-              <Activity className="w-5 h-5 text-emerald-500" />
-            </div>
+      {/* Exportable Scorecard Container */}
+      <div ref={scorecardRef} className="flex flex-col gap-4 w-full">
+        {/* Responsive Desktop 2-Column Split / Mobile Single Column */}
+        <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-6 items-start w-full">
+          {/* Column 1 (On mobile: order-2, on desktop: order-1): Innings Tabs, Batting & Bowling Cards */}
+          <div className="flex flex-col w-full min-w-0 order-2 lg:order-1">
+            {/* Top Performer Feature Card */}
+            {topPerformer && topPerformer.totalPoints > 0 && (
+              <div
+                className="card glass-card rounded-2xl p-4 mb-4 border shadow-xs transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%)',
+                  borderColor: 'rgba(245, 158, 11, 0.35)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                      style={{ backgroundColor: '#F59E0B', color: '#FFFFFF' }}
+                    >
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                          Top Performer · MVP
+                        </span>
+                        <span className="chip ok" style={{ padding: '1px 7px', fontSize: '10px' }}>
+                          {topPerformer.totalPoints} pts
+                        </span>
+                      </div>
+                      <span className="text-base font-extrabold text-[var(--t1)] truncate">
+                        {topPerformer.name}
+                        <span className="text-xs font-normal text-[var(--t2)] ml-1.5">
+                          ({topPerformer.team})
+                        </span>
+                      </span>
+                    </div>
+                  </div>
 
-            <div className="flex flex-col">
-              <h1 className="text-base sm:text-lg font-black tracking-tight" style={{ color: 'var(--text)' }}>
-                {teamAName} <span style={{ color: 'var(--muted)' }} className="font-normal text-xs sm:text-sm">vs</span> {teamBName}
-              </h1>
+                  <button
+                    type="button"
+                    onClick={() => setIsPointingCriteriaOpen(true)}
+                    className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline shrink-0"
+                  >
+                    Criteria →
+                  </button>
+                </div>
 
-              {/* Subtitle chips: #CODE & Date */}
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span
-                  style={{
-                    backgroundColor: 'var(--orange)',
-                    color: '#FFFFFF'
-                  }}
-                  className="min-h-[24px] px-2.5 py-1 rounded-md font-mono text-[11px] font-bold shadow-sm inline-flex items-center leading-normal"
-                >
-                  #{matchState?.code || 'MATCH'}
-                </span>
-
-                <span
-                  style={{
-                    backgroundColor: 'var(--card-alt)',
-                    color: 'var(--muted)',
-                    borderColor: 'var(--border)'
-                  }}
-                  className="min-h-[24px] px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-flex items-center gap-1 leading-normal"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{matchDate}</span>
-                </span>
+                <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-amber-300/30 text-xs text-[var(--t2)]">
+                  {topPerformer.batting?.runs > 0 && (
+                    <span className="chip text-[11px]">
+                      Batting: <strong className="text-[var(--t1)]">{topPerformer.batting.runs}</strong> runs ({topPerformer.batting.balls}b, {topPerformer.batting.fours}x4, {topPerformer.batting.sixes}x6)
+                    </span>
+                  )}
+                  {topPerformer.bowling?.legalBalls > 0 && (
+                    <span className="chip text-[11px]">
+                      Bowling: <strong className="text-[var(--t1)]">{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded} ({formatOvers(topPerformer.bowling.legalBalls)} ov)
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Live Status Pill */}
-          <div
-            style={{
-              backgroundColor: 'var(--green-15)',
-              color: 'var(--green)',
-              borderColor: 'var(--green-30)'
-            }}
-            className="min-h-[28px] px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 leading-normal shrink-0"
-          >
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--green)' }} />
-            <span>Live</span>
-          </div>
-        </div>
-
-        {/* 2. Embedded Over Comparison Chart (Bar / Worm) */}
-        <MatchCharts matchState={matchState} />
-
-        {/* 3. Innings Pill Switcher (Matching Image 3) */}
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => setActiveTab(0)}
-            style={{
-              backgroundColor: activeTab === 0 ? 'var(--primary)' : 'var(--card)',
-              color: activeTab === 0 ? '#FFFFFF' : 'var(--text)',
-              borderColor: 'var(--border)'
-            }}
-            className="min-h-[44px] py-2 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm flex items-center justify-center text-center leading-normal"
-          >
-            {teamAName} ({inn1.score}/{inn1.wickets})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab(1)}
-            style={{
-              backgroundColor: activeTab === 1 ? 'var(--primary)' : 'var(--card)',
-              color: activeTab === 1 ? '#FFFFFF' : 'var(--text)',
-              borderColor: 'var(--border)'
-            }}
-            className="min-h-[44px] py-2 px-3 rounded-2xl font-black text-xs sm:text-sm transition-all border shadow-sm flex items-center justify-center text-center leading-normal"
-          >
-            {teamBName} ({inn2.score}/{inn2.wickets})
-          </button>
-        </div>
-
-        {/* 4. SIDE-BY-SIDE DUAL-TEAM BATTING AND BOWLING CARDS (MATCHING IMAGE 3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          {/* ======================================================== */}
-          {/* LEFT CARD: TEAM ALPHA (BATTING) + TEAM BRAVO (BOWLING) */}
-          {/* ======================================================== */}
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4 flex flex-col gap-3 shadow-md rounded-[20px]"
-          >
-            {/* Card Header: Pencil/Bat Icon, Team Name, Score */}
-            <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-500" />
-                <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
-                  {teamAName}
-                </span>
-              </div>
-              <div className="font-black text-sm" style={{ color: 'var(--orange)' }}>
-                {inn1.score}/{inn1.wickets} <span className="text-xs font-mono font-medium" style={{ color: 'var(--muted)' }}>({formatOvers(inn1.legalBalls)} ov)</span>
-              </div>
-            </div>
-
-            {/* Subheader: BATTING • TEAM ALPHA */}
-            <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
-              BATTING • {teamAName}
-            </div>
-
-            {/* Batting Table for Team Alpha */}
-            {renderBattingTable(inn1, stats1)}
-
-            {/* Divider */}
-            <div className="my-1 border-t" style={{ borderColor: 'var(--border)' }} />
-
-            {/* Subheader: BOWLING • TEAM BRAVO */}
-            <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--blue)' }}>
-              BOWLING • {teamBName}
-            </div>
-
-            {/* Bowling Table for Team Bravo */}
-            {renderBowlingTable(inn1, stats1)}
-          </div>
-
-          {/* ======================================================== */}
-          {/* RIGHT CARD: TEAM BRAVO (BATTING) + TEAM ALPHA (BOWLING) */}
-          {/* ======================================================== */}
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4 flex flex-col gap-3 shadow-md rounded-[20px]"
-          >
-            {/* Card Header: Shield/Ball Icon, Team Name, Score */}
-            <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-emerald-500" />
-                <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
-                  {teamBName}
-                </span>
-              </div>
-              <div className="font-black text-sm" style={{ color: 'var(--orange)' }}>
-                {inn2.score}/{inn2.wickets} <span className="text-xs font-mono font-medium" style={{ color: 'var(--muted)' }}>({formatOvers(inn2.legalBalls)} ov)</span>
-              </div>
-            </div>
-
-            {/* Subheader: BATTING • TEAM BRAVO */}
-            <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
-              BATTING • {teamBName}
-            </div>
-
-            {/* Batting Table for Team Bravo */}
-            {renderBattingTable(inn2, stats2)}
-
-            {/* Divider */}
-            <div className="my-1 border-t" style={{ borderColor: 'var(--border)' }} />
-
-            {/* Subheader: BOWLING • TEAM ALPHA */}
-            <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--blue)' }}>
-              BOWLING • {teamAName}
-            </div>
-
-            {/* Bowling Table for Team Alpha */}
-            {renderBowlingTable(inn2, stats2)}
-          </div>
-        </div>
-
-        {/* 5. TOP 3 PLAYERS OF THE MATCH (MATCHING IMAGE 3 PODIUM) */}
-        {topPlayers.length > 0 && (
-          <div
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--border)'
-            }}
-            className="app-card p-4 flex flex-col gap-3 shadow-md rounded-[20px]"
-          >
-            <div className="flex items-center justify-between min-h-[32px]">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-emerald-500" />
-                <h3 style={{ color: 'var(--text)' }} className="text-xs sm:text-sm font-semibold uppercase tracking-wider m-0 leading-normal">
-                  TOP 3 PLAYERS OF THE MATCH
-                </h3>
-              </div>
+            {/* Team / Innings Tabs */}
+            <div className="seg mb-4 w-full" role="group">
               <button
                 type="button"
-                onClick={() => setIsPointingCriteriaOpen(true)}
-                style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--primary)' }}
-                className="min-h-[28px] flex items-center gap-1 px-3 py-1 rounded-xl border text-[11px] font-bold hover:opacity-80 transition-all shadow-sm leading-normal"
+                onClick={() => setActiveTab(0)}
+                className={`flex-1 ${activeTab === 0 ? 'on' : ''}`}
+                aria-pressed={activeTab === 0}
               >
-                <span>ℹ️ Criteria</span>
+                {teamAName} ({inn1.score}/{inn1.wickets})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab(1)}
+                className={`flex-1 ${activeTab === 1 ? 'on' : ''}`}
+                aria-pressed={activeTab === 1}
+              >
+                {teamBName} ({inn2.score}/{inn2.wickets})
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {topPlayers.map((p, idx) => {
-                const medalColors = [
-                  { bg: '#FFD700', text: '#805B00', border: 'rgba(255, 215, 0, 0.4)' }, // Gold
-                  { bg: '#C0C0C0', text: '#4A4A4A', border: 'rgba(192, 192, 192, 0.4)' }, // Silver
-                  { bg: '#CD7F32', text: '#5A320A', border: 'rgba(205, 127, 50, 0.4)' }  // Bronze
-                ];
-                const medal = medalColors[idx] || medalColors[0];
+            {/* Innings Header Pill */}
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="ac"><Activity className="w-4 h-4 text-[var(--pri)]" /></span>
+                <h3 className="text-sm font-extrabold text-[var(--t1)]">{currentInn.battingTeam}</h3>
+              </div>
+              <span className="font-mono font-black text-base sm:text-lg text-[var(--ok)]">
+                {currentInn.score}/{currentInn.wickets}{' '}
+                <span className="text-xs text-[var(--t2)] font-sans font-medium">({formatOvers(currentInn.legalBalls)} ov)</span>
+              </span>
+            </div>
 
-                return (
-                  <div
-                    key={p.playerId}
-                    style={{
-                      backgroundColor: 'var(--card-alt)',
-                      borderColor: 'var(--border)'
-                    }}
-                    className="p-3.5 rounded-2xl border flex flex-col justify-between gap-2.5 shadow-sm min-h-[110px]"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        {/* Circular Medal Number */}
-                        <div
-                          style={{
-                            backgroundColor: medal.bg,
-                            color: medal.text,
-                            boxShadow: `0 0 10px ${medal.border}`
-                          }}
-                          className="w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0"
-                        >
-                          {idx + 1}
-                        </div>
-                        <div>
-                          <div
-                            style={{ color: 'var(--text)', lineHeight: '1.4' }}
-                            className="font-black text-xs sm:text-sm truncate py-0.5"
-                          >
-                            {p.name}
-                          </div>
-                          <div
-                            style={{ color: 'var(--muted)', lineHeight: '1.3' }}
-                            className="text-[11px] font-semibold truncate"
-                          >
-                            {p.team}
-                          </div>
-                        </div>
-                      </div>
+            {/* Batting Section Card */}
+            <div className="mb-2 px-1">
+              <h4 className="text-xs font-black uppercase tracking-wider text-[var(--t2)]">
+                Batting · {currentInn.battingTeam}
+              </h4>
+            </div>
+            {renderBattingTable(currentInn, currentStats)}
 
-                      <div className="text-right shrink-0">
-                        <div style={{ color: 'var(--orange)' }} className="text-sm font-black leading-normal">
-                          {p.totalPoints} pts
-                        </div>
-                        <div style={{ color: 'var(--muted)' }} className="text-[9px] uppercase font-bold leading-normal">
-                          Total Points
-                        </div>
-                      </div>
-                    </div>
+            {/* Bowling Section Card */}
+            <div className="mb-2 px-1">
+              <h4 className="text-xs font-black uppercase tracking-wider text-[var(--t2)]">
+                Bowling · {opponentInn.battingTeam}
+              </h4>
+            </div>
+            {renderBowlingTable(currentInn, currentStats)}
 
-                    {/* Breakdown Badges (Runs, Boundaries, Wickets) */}
-                    <div className="flex items-center gap-1.5 pt-1.5 border-t flex-wrap" style={{ borderColor: 'var(--border)' }}>
-                      <span
-                        style={{
-                          backgroundColor: 'var(--green)',
-                          color: '#FFFFFF'
-                        }}
-                        className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
-                      >
-                        Runs +{p.breakdown.runs || 0}
-                      </span>
-                      <span
-                        style={{
-                          backgroundColor: 'var(--blue)',
-                          color: '#FFFFFF'
-                        }}
-                        className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
-                      >
-                        Boundaries +{p.breakdown.boundaries || 0}
-                      </span>
-                      {p.breakdown.wickets > 0 && (
-                        <span
-                          style={{
-                            backgroundColor: 'var(--red)',
-                            color: '#FFFFFF'
-                          }}
-                          className="min-h-[20px] px-2.5 py-0.5 rounded-md text-[9px] font-black leading-normal inline-flex items-center"
-                        >
-                          Wickets +{p.breakdown.wickets}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Top 3 Players of the Match (Desktop Only: directly under Batting & Bowling cards) */}
+            <div className="hidden lg:block mt-6 w-full">
+              {renderTopPlayersSection()}
             </div>
           </div>
-        )}
 
-        {/* 6. Footer Attribution (Image 3) */}
-        <footer
-          style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          className="pt-4 pb-2 text-center text-xs font-semibold leading-normal"
-        >
-          {"© 2026 SmartCricket · Developed by "}
-          <span style={{ color: 'var(--text)' }} className="font-bold">
-            Syed Maaz Alam
-          </span>
-        </footer>
+          {/* Column 2 (On mobile: order-1, on desktop: order-2): Match Overview Card, Over Charts & Top 3 Players */}
+          <div className="flex flex-col gap-5 w-full min-w-0 order-1 lg:order-2">
+            {/* Match Overview Card with Team Crest Shields */}
+            <section className="card glass-card rounded-2xl p-4 sm:p-5 border border-[var(--bd)] shadow-sm bg-[var(--card)]">
+              <div className="flex items-center justify-between gap-2">
+                <TeamCrest name={teamAName} color="#0B2F6B" />
+
+                <div className="text-center flex-1 min-w-0 px-2">
+                  <h2 className="text-base sm:text-lg font-black text-[var(--t1)] truncate font-serif">
+                    {teamAName} <span className="text-xs font-semibold text-[var(--t3)]">vs</span> {teamBName}
+                  </h2>
+                  <p className="text-xs text-[var(--t2)] mt-0.5">
+                    {matchDate} · Match 1
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <span className="pill mono ac">#{matchState?.code || 'MATCH'}</span>
+                    <span className="pill live"><i></i>LIVE</span>
+                  </div>
+                </div>
+
+                <TeamCrest name={teamBName} color="#2F7DF0" />
+              </div>
+
+              {/* Three-Column Score | Overs | RR Divider Strip */}
+              <div className="grid grid-cols-3 divide-x divide-[var(--bd)] mt-4 pt-3.5 border-t border-[var(--bd)] text-center">
+                <div className="px-1">
+                  <div className="text-2xl sm:text-4xl font-serif font-black text-[var(--t1)] tracking-tight">
+                    {currentInn.score}/{currentInn.wickets}
+                  </div>
+                  <div className="text-[11px] font-bold text-[var(--t2)] uppercase tracking-wider mt-0.5">Score</div>
+                </div>
+                <div className="px-1">
+                  <div className="text-2xl sm:text-3xl font-serif font-black text-[var(--t1)] tracking-tight">
+                    {formatOvers(currentInn.legalBalls)} <span className="text-xs sm:text-sm font-normal text-[var(--t3)]">ov</span>
+                  </div>
+                  <div className="text-[11px] font-bold text-[var(--t2)] uppercase tracking-wider mt-0.5">Overs</div>
+                </div>
+                <div className="px-1">
+                  <div className="text-2xl sm:text-3xl font-serif font-black text-[var(--t1)] tracking-tight">
+                    {crrNum.toFixed(1)}
+                  </div>
+                  <div className="text-[11px] font-bold text-[var(--t2)] uppercase tracking-wider mt-0.5">Run Rate</div>
+                </div>
+              </div>
+            </section>
+
+            {/* Embedded Over Comparison Chart */}
+            <MatchCharts matchState={matchState} />
+
+            {/* Top 3 Players of the Match (Mobile Only: placed in Column 2) */}
+            <div className="block lg:hidden w-full">
+              {renderTopPlayersSection()}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Attribution */}
+        <p className="foot">
+          © 2026 SmartCricket · Developed by <b>Syed Maaz Alam</b>
+        </p>
       </div>
 
       {/* Modals */}
-      {/* 1. Batter Career & Detailed Breakdown Modal */}
       {selectedBatterDetails && (
         <BatterDetailsModal
           batterName={selectedBatterDetails.name}
@@ -791,7 +705,6 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         />
       )}
 
-      {/* 2. Squad Modal */}
       <SquadModal
         isOpen={isSquadModalOpen}
         onClose={() => setIsSquadModalOpen(false)}
@@ -803,10 +716,17 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         }}
       />
 
-      {/* 3. Pointing Criteria Modal */}
       <PointingCriteriaModal
         isOpen={isPointingCriteriaOpen}
         onClose={() => setIsPointingCriteriaOpen(false)}
+      />
+
+      <MatchSummaryImageGenerator
+        matchState={matchState}
+        topPerformer={topPerformer}
+        topPlayers={topPlayers}
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
       />
     </div>
   );

@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, History, ArrowRight, Play, Search, Loader2, Copy, Check, Lock, LogOut, ShieldCheck, Activity } from 'lucide-react';
+import {
+  Plus,
+  History,
+  ArrowRight,
+  Play,
+  Search,
+  Loader2,
+  Copy,
+  Check,
+  Lock,
+  LogOut,
+  ShieldCheck,
+  Activity,
+  Radio,
+  Trophy,
+  ChevronRight,
+  ArrowLeft,
+  Sparkles,
+  Tv
+} from 'lucide-react';
 import { getAllLocalMatches } from '../store/localDb.js';
 import { searchMatches, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -21,6 +40,25 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
       return null;
     }
   });
+
+  // Active portal mode: 'choose' | 'create' | 'stream'
+  const [activePortal, setActivePortal] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cricket_manager_user');
+      return saved ? 'create' : 'choose';
+    } catch {
+      return 'choose';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cricket_manager_user');
+      if (saved && !managerUser) {
+        setManagerUser(JSON.parse(saved));
+      }
+    } catch (_) {}
+  }, [managerUser]);
 
   useEffect(() => {
     async function loadMatches() {
@@ -78,23 +116,44 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
     return () => clearTimeout(delayTimer);
   }, [searchInput, localMatches]);
 
-  const handleCreateMatchClick = () => {
+  // Handle clicking "Create a Match"
+  const handleSelectCreateMatch = () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine && !managerUser) {
+      const offlineMgr = {
+        uid: 'offline_' + Math.random().toString(36).substring(2, 9),
+        name: 'Offline Manager',
+        email: 'offline@scorer.local',
+        isOffline: true
+      };
+      setManagerUser(offlineMgr);
+      localStorage.setItem('cricket_manager_user', JSON.stringify(offlineMgr));
+      localStorage.setItem('cricket_is_manager', 'true');
+      setActivePortal('create');
+      return;
+    }
+
     if (!managerUser) {
       setIsAuthModalOpen(true);
     } else {
-      onNavigate('setup');
+      setActivePortal('create');
     }
+  };
+
+  // Handle clicking "Stream a Match" (zero login asked)
+  const handleSelectStreamMatch = () => {
+    setActivePortal('stream');
   };
 
   const handleAuthSuccess = (userData) => {
     setManagerUser(userData);
-    onNavigate('setup');
+    setActivePortal('create');
   };
 
   const handleLogoutManager = () => {
     localStorage.removeItem('cricket_manager_user');
     localStorage.setItem('cricket_is_manager', 'false');
     setManagerUser(null);
+    setActivePortal('choose');
   };
 
   const handleCopyCode = (e, code) => {
@@ -107,188 +166,368 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
     }, 2000);
   };
 
+  // Filter local matches for the create section based on search
+  const filteredLocalMatches = localMatches.filter(m => {
+    if (!searchInput.trim()) return true;
+    const clean = searchInput.trim().toLowerCase();
+    const t1 = (m.teams?.[0]?.name || '').toLowerCase();
+    const t2 = (m.teams?.[1]?.name || '').toLowerCase();
+    const c = (m.code || '').toLowerCase();
+    return t1.includes(clean) || t2.includes(clean) || c.includes(clean);
+  });
+
   return (
     <div
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen flex flex-col p-4 max-w-xl mx-auto select-none transition-colors"
+      className="min-h-screen flex flex-col px-1.5 sm:px-5 md:px-8 py-4 w-full max-w-4xl lg:max-w-5xl mx-auto select-none transition-colors"
     >
-      {/* 1. Top Bar */}
-      <div className="flex items-center justify-between pt-1 pb-4">
-        {managerUser ? (
-          <div className="flex items-center gap-2">
+      {/* 1. Formal Top Navigation Bar */}
+      <header className="flex items-center justify-between pt-1 pb-4 border-b border-[var(--bd)] mb-4">
+        <div className="flex items-center gap-2">
+          {activePortal !== 'choose' && (
+            <button
+              onClick={() => setActivePortal('choose')}
+              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              className="p-2 rounded-xl border hover:text-[var(--text)] transition-colors flex items-center gap-1 text-xs"
+              title="Back to portal selection"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline font-medium">Portals</span>
+            </button>
+          )}
+
+          {/* Portal Switcher when not on choice screen */}
+          {activePortal !== 'choose' && (
+            <div className="seg" role="group">
+              <button
+                type="button"
+                onClick={handleSelectCreateMatch}
+                className={activePortal === 'create' ? 'on' : ''}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Create</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectStreamMatch}
+                className={activePortal === 'stream' ? 'on' : ''}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Stream</span>
+              </button>
+            </div>
+          )}
+
+          {/* Manager logged in status badge */}
+          {managerUser && (
             <div
               style={{
                 backgroundColor: 'var(--green-15)',
                 color: 'var(--primary)',
                 borderColor: 'var(--border)'
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="truncate max-w-[140px]">{managerUser.name || 'Manager'}</span>
+              <span className="truncate max-w-[130px]">{managerUser.name || 'Manager'}</span>
             </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {managerUser ? (
             <button
               onClick={handleLogoutManager}
               title="Sign Out Manager"
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="p-2 rounded-lg border hover:text-[var(--red)] transition-all"
+              className="p-2 rounded-xl border hover:text-[var(--red)] transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            style={{
-              backgroundColor: 'transparent',
-              borderColor: 'var(--border)',
-              color: 'var(--text)'
-            }}
-            className="px-3 py-2 rounded-lg text-xs font-medium border hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
-          >
-            Manager Sign In
-          </button>
-        )}
+          ) : (
+            activePortal === 'choose' && (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                style={{
+                  backgroundColor: 'transparent',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)'
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
+              >
+                Manager Sign In
+              </button>
+            )
+          )}
+          <ThemeToggle />
+        </div>
+      </header>
 
-        <ThemeToggle />
-      </div>
-
-      {/* 2. Header with Faint Radial Green Glow */}
-      <div className="relative py-6 flex flex-col items-center text-center">
-        {/* Faint radial green glow behind the logo */}
+      {/* 2. Brand Identity Header */}
+      <div className="relative py-4 sm:py-6 flex flex-col items-center text-center">
+        {/* Faint green glow */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full pointer-events-none"
           style={{
-            background: 'radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0) 70%)'
+            background: 'radial-gradient(circle, rgba(34, 197, 94, 0.14) 0%, rgba(34, 197, 94, 0) 70%)'
           }}
         />
 
-        {/* 64px rounded-square logo tile with bat icon and glowing green border */}
         <div
           style={{
             backgroundColor: 'var(--card)',
             borderColor: '#22C55E',
-            boxShadow: '0 0 20px rgba(34, 197, 94, 0.25), inset 0 0 12px rgba(34, 197, 94, 0.15)'
+            boxShadow: '0 0 24px rgba(34, 197, 94, 0.28), inset 0 0 12px rgba(34, 197, 94, 0.15)'
           }}
-          className="relative z-10 w-16 h-16 rounded-xl border-2 flex items-center justify-center mb-3 transition-transform hover:scale-105"
+          className="relative z-10 w-16 h-16 rounded-2xl border-2 flex items-center justify-center mb-3 transition-transform hover:scale-105 shadow-lg"
         >
-          {/* Custom vector cricket bat icon */}
-          <svg className="w-8 h-8 text-[#22C55E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-8 h-8 text-[#22C55E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14.5 2.5 19 7l-9.5 9.5-3.5.5.5-3.5Z" />
             <path d="m14 8 2 2" />
             <circle cx="5" cy="19" r="2" />
           </svg>
         </div>
 
-        <h1 className="relative z-10 text-3xl font-bold tracking-tight m-0" style={{ color: 'var(--text)' }}>
+        <h1 className="relative z-10 text-3xl sm:text-4xl font-extrabold tracking-tight m-0" style={{ color: 'var(--text)' }}>
           SmartCricket
         </h1>
-        <p className="relative z-10 text-xs mt-1.5 max-w-[320px] font-normal leading-relaxed text-[#CBD5E1]">
-          Offline-first, event-sourced live cricket scoring with zero-delay viewer sync.
+        <p className="relative z-10 text-xs sm:text-sm mt-1.5 max-w-md font-medium leading-relaxed" style={{ color: 'var(--muted)' }}>
+          Offline-first, event-sourced live cricket scoring and real-time match streaming.
         </p>
       </div>
 
-      {/* Main Actions Container */}
-      <div className="flex flex-col gap-5 mt-2">
-        {/* 3. CTA "New Match (Manager)" */}
-        <button
-          onClick={handleCreateMatchClick}
-          style={{
-            background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-            color: '#FFFFFF',
-            boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)'
-          }}
-          className="w-full p-4 rounded-xl font-semibold text-base flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              <Plus className="w-5 h-5 text-white" />
+      {/* ========================================================================= */}
+      {/* SCREEN A: CLASSY & FORMAL FIRST SCREEN SELECTION                          */}
+      {/* ========================================================================= */}
+      {activePortal === 'choose' && (
+        <div className="flex flex-col gap-4 max-w-xl mx-auto w-full my-auto py-2 animate-in fade-in duration-200">
+          <div className="text-center mb-1">
+            <h2 className="text-base sm:text-lg font-bold" style={{ color: 'var(--t1)' }}>
+              Choose your experience
+            </h2>
+            <p className="text-xs text-[var(--muted)] mt-0.5">
+              Select whether you want to organize a match or stream live cricket
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* Option 1: Create a Match */}
+            <div
+              onClick={handleSelectCreateMatch}
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)'
+              }}
+              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#22C55E] hover:shadow-xl hover:-translate-y-0.5 transition-all group"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Trophy className="w-6 h-6 text-[#22C55E]" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 text-[#22C55E] border border-emerald-500/30">
+                      Manager Portal
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-bold mt-1 group-hover:text-[#22C55E] transition-colors" style={{ color: 'var(--text)' }}>
+                      Do you want to create a match?
+                    </h3>
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-[var(--well)] border border-[var(--bd)] flex items-center justify-center text-[var(--muted)] group-hover:bg-[#22C55E] group-hover:text-white transition-all shrink-0">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+                Set up participating squads, customize match overs, and score live ball-by-ball with automated statistics and offline support. Requires manager login.
+              </p>
+
+              <div className="pt-2 border-t border-[var(--bd)] flex items-center justify-between text-xs">
+                <span className="text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
+                  {managerUser ? `Logged in as ${managerUser.name}` : 'Login required (kept logged in forever)'}
+                </span>
+                <span className="font-bold text-[#22C55E] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>Enter Scorer Portal</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
-            <div className="text-left">
-              <div className="font-semibold text-base leading-tight">New Match (Manager)</div>
-              <div className="text-xs font-normal opacity-90 leading-tight mt-0.5">
-                {managerUser ? `Logged in as ${managerUser.name}` : 'Registration required to manage'}
+
+            {/* Option 2: Stream a Match */}
+            <div
+              onClick={handleSelectStreamMatch}
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--border)'
+              }}
+              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#3B82F6] hover:shadow-xl hover:-translate-y-0.5 transition-all group"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Radio className="w-6 h-6 text-[#3B82F6]" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/15 text-[#3B82F6] border border-blue-500/30">
+                      Instant Access
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-bold mt-1 group-hover:text-[#3B82F6] transition-colors" style={{ color: 'var(--text)' }}>
+                      Do you want to stream a match?
+                    </h3>
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-[var(--well)] border border-[var(--bd)] flex items-center justify-center text-[var(--muted)] group-hover:bg-[#3B82F6] group-hover:text-white transition-all shrink-0">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+                Watch live scoreboards, ball-by-ball commentary, and interactive over comparison charts with zero-delay viewer sync. No sign in or registration required.
+              </p>
+
+              <div className="pt-2 border-t border-[var(--bd)] flex items-center justify-between text-xs">
+                <span className="text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
+                  Search any live match or enter 6-character match code
+                </span>
+                <span className="font-bold text-[#3B82F6] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>Enter Live Stream</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </span>
               </div>
             </div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-            <ArrowRight className="w-4 h-4 text-white" />
-          </div>
-        </button>
+        </div>
+      )}
 
-        {/* 4. Search Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--border)'
-          }}
-          className="app-card p-4 flex flex-col gap-2.5 shadow-sm"
-        >
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-              REAL-TIME MATCH SEARCH
-            </span>
-          </div>
+      {/* ========================================================================= */}
+      {/* SCREEN B: MANAGER CREATE & RESUME PORTAL                                   */}
+      {/* ========================================================================= */}
+      {activePortal === 'create' && (
+        <div className="flex flex-col gap-5 mt-1 animate-in fade-in duration-200">
+          {/* Prominent CTA "New Match" */}
+          <button
+            onClick={() => onNavigate('setup')}
+            style={{
+              background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 14px rgba(34, 197, 94, 0.35)'
+            }}
+            className="w-full p-4 sm:p-5 rounded-2xl font-bold text-base flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] shadow-lg"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                <Plus className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-base sm:text-lg leading-tight">Create New Match</div>
+                <div className="text-xs font-normal opacity-90 leading-tight mt-0.5">
+                  Configure teams, toss & match format
+                </div>
+              </div>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <ArrowRight className="w-4 h-4 text-white" />
+            </div>
+          </button>
 
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-3" style={{ color: 'var(--muted)' }} />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search team, player, or 6-char code..."
-              style={{
-                backgroundColor: 'var(--card-alt)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)'
-              }}
-              className="w-full pl-10 pr-10 py-2.5 rounded-lg border text-xs font-normal focus:outline-none focus:border-[#22C55E] focus:ring-1 focus:ring-[#22C55E] transition-all"
-            />
-            {isSearching && (
-              <Loader2 className="w-4 h-4 animate-spin absolute right-3.5 top-3 text-[#22C55E]" />
-            )}
-          </div>
-
-          {/* Search Results */}
-          {searchResults.length > 0 && (
-            <div className="mt-1 flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-[10px] font-medium uppercase" style={{ color: 'var(--muted)' }}>
-                Found Matches ({searchResults.length}):
+          {/* Search Previous Matches Bar */}
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card w-full p-4 sm:p-5 flex flex-col gap-2.5 shadow-sm rounded-2xl border"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+                  SEARCH PREVIOUS MATCHES
+                </span>
+              </div>
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                {localMatches.length} on device
               </span>
-              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
-                {searchResults.map((m) => {
-                  const t1 = m.teams?.[0]?.name || 'Team 1';
-                  const t2 = m.teams?.[1]?.name || 'Team 2';
-                  const code = m.code || '';
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-[var(--muted)]" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search team, player, or 6-char code..."
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)'
+                }}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#22C55E] transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Previous Matches on This Device List */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-[#22C55E]" />
+                <span>PREVIOUS MATCHES ON THIS DEVICE</span>
+              </div>
+              <span>{filteredLocalMatches.length} found</span>
+            </div>
+
+            {filteredLocalMatches.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--muted)'
+                }}
+                className="app-card p-8 text-center text-xs rounded-2xl border"
+              >
+                {searchInput.trim()
+                  ? `No matches found matching "${searchInput}".`
+                  : 'No previous matches found on this device. Tap "Create New Match" to get started!'}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1">
+                {filteredLocalMatches.map((m) => {
+                  const teamA = m.teams?.[0]?.name || 'Team 1';
+                  const teamB = m.teams?.[1]?.name || 'Team 2';
                   const scoreDerived = deriveMatchDisplayScore(m);
                   const statusMeta = getMatchStatusMeta(m);
                   const isCompleted = statusMeta.isCompleted;
                   const isInningsBreak = statusMeta.isInningsBreak;
                   const isLive = !isCompleted;
+                  const code = m.code || '';
 
                   return (
                     <div
-                      key={m.matchId || m.code}
-                      onClick={() => onWatchLive(code || m.matchId)}
+                      key={m.matchId}
+                      onClick={() => onResumeMatch(m.matchId)}
                       style={{
-                        backgroundColor: 'var(--card-alt)',
+                        backgroundColor: 'var(--card)',
                         borderColor: 'var(--border)'
                       }}
-                      className="p-3 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[#22C55E] transition-all"
+                      className="app-card w-full p-4 rounded-2xl border flex items-center justify-between cursor-pointer hover:border-[#22C55E] active:scale-[0.99] transition-all shadow-sm"
                     >
-                      <div className="flex flex-col">
-                        <div className="font-semibold text-xs flex items-center gap-2" style={{ color: 'var(--text)' }}>
-                          <span>{t1} vs {t2}</span>
+                      <div className="flex flex-col gap-1 pr-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--text)' }}>
+                            {teamA} vs {teamB}
+                          </span>
                           {code && (
                             <button
                               onClick={(e) => handleCopyCode(e, code)}
+                              title="Copy match code"
                               style={{
-                                backgroundColor: 'var(--card)',
+                                backgroundColor: 'var(--card-alt)',
                                 borderColor: 'var(--border)',
                                 color: 'var(--muted)'
                               }}
-                              className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-md border flex items-center gap-1 hover:text-[var(--text)] transition-colors"
+                              className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-md border flex items-center gap-1 hover:text-[var(--text)] transition-colors shrink-0"
                             >
                               <span>{code}</span>
                               {copiedCode === code ? (
@@ -299,12 +538,19 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                             </button>
                           )}
                         </div>
-                        <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                          {scoreDerived.inn1Text} {scoreDerived.inn2Text ? `• ${scoreDerived.inn2Text}` : ''}
+
+                        <div className="text-xs truncate font-mono" style={{ color: 'var(--muted)' }}>
+                          {scoreDerived.isStarted ? (
+                            <span>
+                              {scoreDerived.inn1Text} {scoreDerived.inn2Text ? `• ${scoreDerived.inn2Text}` : ''}
+                            </span>
+                          ) : (
+                            <span>Not started</span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5 shrink-0">
                         <span
                           style={{
                             backgroundColor: isCompleted
@@ -323,7 +569,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                               ? 'rgba(234, 179, 8, 0.3)'
                               : 'rgba(34, 197, 94, 0.3)'
                           }}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded-md border flex items-center gap-1"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1"
                         >
                           {isLive && (
                             <span
@@ -332,154 +578,234 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                           )}
                           <span>{statusMeta.label}</span>
                         </span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResumeMatch(m.matchId);
+                          }}
+                          style={{
+                            backgroundColor: '#22C55E',
+                            color: '#FFFFFF'
+                          }}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:bg-emerald-600 active:scale-95 transition-all shadow-sm"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Resume</span>
+                        </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {searchInput.trim() && searchResults.length === 0 && !isSearching && (
-            <div className="text-center py-3 text-xs" style={{ color: 'var(--muted)' }}>
-              No live matches matching "{searchInput}".
-            </div>
-          )}
+            )}
+          </div>
         </div>
+      )}
 
-        {/* 5. Section Label & 6. Match Cards */}
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider px-1" style={{ color: 'var(--muted)' }}>
-            <History className="w-4 h-4 text-[#22C55E]" />
-            <span>RECENT MATCHES ON THIS DEVICE</span>
+      {/* ========================================================================= */}
+      {/* SCREEN C: VIEWER LIVE STREAM PORTAL (NO LOGIN REQUIRED)                    */}
+      {/* ========================================================================= */}
+      {activePortal === 'stream' && (
+        <div className="flex flex-col gap-5 mt-1 animate-in fade-in duration-200">
+          {/* Real-Time Live Match Search Card */}
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)'
+            }}
+            className="app-card w-full p-4 sm:p-5 flex flex-col gap-2.5 shadow-sm rounded-2xl border"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#3B82F6]">
+                  LIVE MATCH STREAM &amp; SEARCH
+                </span>
+              </div>
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                Zero sign in required
+              </span>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-[var(--muted)]" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search team name, player, or 6-char match code..."
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)'
+                }}
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#3B82F6] transition-all"
+                autoFocus
+              />
+              {isSearching && (
+                <Loader2 className="w-4 h-4 animate-spin absolute right-3.5 top-3 text-[#3B82F6]" />
+              )}
+            </div>
+
+            {/* Found Live Stream Matches */}
+            {searchResults.length > 0 && (
+              <div className="mt-1 flex flex-col gap-2 pt-2 border-t border-[var(--bd)]">
+                <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+                  Search Results ({searchResults.length}):
+                </span>
+                <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+                  {searchResults.map((m) => {
+                    const t1 = m.teams?.[0]?.name || 'Team 1';
+                    const t2 = m.teams?.[1]?.name || 'Team 2';
+                    const code = m.code || '';
+                    const scoreDerived = deriveMatchDisplayScore(m);
+                    const statusMeta = getMatchStatusMeta(m);
+
+                    return (
+                      <div
+                        key={m.matchId || m.code}
+                        onClick={() => onWatchLive(code || m.matchId)}
+                        style={{
+                          backgroundColor: 'var(--card-alt)',
+                          borderColor: 'var(--border)'
+                        }}
+                        className="w-full p-3.5 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[#3B82F6] transition-all"
+                      >
+                        <div className="flex flex-col">
+                          <div className="font-bold text-xs flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                            <span>{t1} vs {t2}</span>
+                            {code && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[#3B82F6]">
+                                #{code}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] mt-0.5 font-mono" style={{ color: 'var(--muted)' }}>
+                            {scoreDerived.inn1Text} {scoreDerived.inn2Text ? `• ${scoreDerived.inn2Text}` : ''}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => onWatchLive(code || m.matchId)}
+                          style={{
+                            backgroundColor: '#3B82F6',
+                            color: '#FFFFFF'
+                          }}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:bg-blue-600 transition-all shadow-sm"
+                        >
+                          <Radio className="w-3.5 h-3.5" />
+                          <span>Watch</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {localMatches.length === 0 ? (
-            <div
-              style={{
-                backgroundColor: 'var(--card)',
-                borderColor: 'var(--border)',
-                color: 'var(--muted)'
-              }}
-              className="app-card p-6 text-center text-xs"
-            >
-              No local matches recorded yet. Tap "New Match" to start scoring!
+          {/* Directory of Matches Available to Stream */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider px-1 text-[#3B82F6]">
+              <Tv className="w-4 h-4" />
+              <span>MATCHES AVAILABLE TO STREAM</span>
             </div>
-          ) : (
-            <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto pr-1">
-              {localMatches.map((m) => {
-                const teamA = m.teams?.[0]?.name || 'Team 1';
-                const teamB = m.teams?.[1]?.name || 'Team 2';
-                const scoreDerived = deriveMatchDisplayScore(m);
-                const statusMeta = getMatchStatusMeta(m);
-                const isCompleted = statusMeta.isCompleted;
-                const isInningsBreak = statusMeta.isInningsBreak;
-                const isLive = !isCompleted;
-                const code = m.code || '';
 
-                return (
-                  <div
-                    key={m.matchId}
-                    onClick={() => onResumeMatch(m.matchId)}
-                    style={{
-                      backgroundColor: 'var(--card)',
-                      borderColor: 'var(--border)'
-                    }}
-                    className="app-card p-3.5 flex items-center justify-between cursor-pointer hover:border-[#22C55E] active:scale-[0.99] transition-all shadow-sm"
-                  >
-                    <div className="flex flex-col gap-1 pr-2 min-w-0">
-                      {/* Stacked team names (600) */}
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>
-                          {teamA} vs {teamB}
-                        </span>
-                        {code && (
-                          <button
-                            onClick={(e) => handleCopyCode(e, code)}
-                            title="Copy match code"
-                            style={{
-                              backgroundColor: 'var(--card-alt)',
-                              borderColor: 'var(--border)',
-                              color: 'var(--muted)'
-                            }}
-                            className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-md border flex items-center gap-1 hover:text-[var(--text)] transition-colors shrink-0"
-                          >
-                            <span>{code}</span>
-                            {copiedCode === code ? (
-                              <span className="text-[9px] text-[#22C55E]">Copied</span>
-                            ) : (
-                              <Copy className="w-2.5 h-2.5" />
-                            )}
-                          </button>
-                        )}
-                      </div>
+            {localMatches.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--muted)'
+                }}
+                className="app-card p-8 text-center text-xs rounded-2xl border"
+              >
+                No active matches found. Enter a 6-character match code above to watch live!
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1">
+                {localMatches.map((m) => {
+                  const teamA = m.teams?.[0]?.name || 'Team 1';
+                  const teamB = m.teams?.[1]?.name || 'Team 2';
+                  const scoreDerived = deriveMatchDisplayScore(m);
+                  const statusMeta = getMatchStatusMeta(m);
+                  const code = m.code || '';
 
-                      {/* Muted score line */}
-                      <div className="text-xs truncate" style={{ color: 'var(--muted)' }}>
-                        {scoreDerived.isStarted ? (
-                          <span>
-                            {scoreDerived.inn1Text} {scoreDerived.inn2Text ? `• ${scoreDerived.inn2Text}` : ''}
+                  return (
+                    <div
+                      key={m.matchId}
+                      onClick={() => onWatchLive(code || m.matchId)}
+                      style={{
+                        backgroundColor: 'var(--card)',
+                        borderColor: 'var(--border)'
+                      }}
+                      className="app-card w-full p-4 rounded-2xl border flex items-center justify-between cursor-pointer hover:border-[#3B82F6] transition-all shadow-sm"
+                    >
+                      <div className="flex flex-col gap-1 pr-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--text)' }}>
+                            {teamA} vs {teamB}
                           </span>
-                        ) : (
-                          <span>Not started</span>
-                        )}
+                          {code && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--well)] border border-[var(--border)] text-[#3B82F6]">
+                              #{code}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-xs truncate font-mono" style={{ color: 'var(--muted)' }}>
+                          {scoreDerived.isStarted ? (
+                            <span>
+                              {scoreDerived.inn1Text} {scoreDerived.inn2Text ? `• ${scoreDerived.inn2Text}` : ''}
+                            </span>
+                          ) : (
+                            <span>Not started</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          style={{
+                            backgroundColor: statusMeta.isCompleted
+                              ? 'rgba(148, 163, 184, 0.15)'
+                              : 'rgba(59, 130, 246, 0.15)',
+                            color: statusMeta.isCompleted ? 'var(--muted)' : '#3B82F6',
+                            borderColor: statusMeta.isCompleted ? 'var(--border)' : 'rgba(59, 130, 246, 0.3)'
+                          }}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1"
+                        >
+                          {!statusMeta.isCompleted && <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] animate-pulse" />}
+                          <span>{statusMeta.label}</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onWatchLive(code || m.matchId);
+                          }}
+                          style={{
+                            backgroundColor: '#3B82F6',
+                            color: '#FFFFFF'
+                          }}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:bg-blue-600 transition-all shadow-sm"
+                        >
+                          <Radio className="w-3.5 h-3.5" />
+                          <span>Watch Stream</span>
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      {/* Status chip */}
-                      <span
-                        style={{
-                          backgroundColor: isCompleted
-                            ? 'rgba(148, 163, 184, 0.15)'
-                            : isInningsBreak
-                            ? 'rgba(234, 179, 8, 0.15)'
-                            : 'rgba(34, 197, 94, 0.15)',
-                          color: isCompleted
-                            ? 'var(--muted)'
-                            : isInningsBreak
-                            ? '#EAB308'
-                            : '#22C55E',
-                          borderColor: isCompleted
-                            ? 'var(--border)'
-                            : isInningsBreak
-                            ? 'rgba(234, 179, 8, 0.3)'
-                            : 'rgba(34, 197, 94, 0.3)'
-                        }}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-md border flex items-center gap-1"
-                      >
-                        {isLive && (
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${isInningsBreak ? 'bg-[#EAB308]' : 'bg-[#22C55E]'} animate-pulse`}
-                          />
-                        )}
-                        <span>{statusMeta.label}</span>
-                      </span>
-
-                      {/* Outlined green "Resume" button with Play icon */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onResumeMatch(m.matchId);
-                        }}
-                        style={{
-                          borderColor: '#22C55E',
-                          color: '#22C55E',
-                          backgroundColor: 'transparent'
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 hover:bg-[#22C55E]/10 transition-colors"
-                      >
-                        <Play className="w-3 h-3 fill-[#22C55E]" />
-                        <span>Resume</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Auth Modal for Manager Registration */}
       <AuthModal
@@ -488,14 +814,14 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
         onSuccess={handleAuthSuccess}
       />
 
-      {/* 7. Footer */}
+      {/* Footer Attribution & Developer Console Link */}
       <footer
         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
         className="mt-auto pt-6 pb-2 text-xs border-t flex flex-col sm:flex-row items-center justify-between gap-2"
       >
         <span>
           {"© 2026 SmartCricket · Developed by "}
-          <span className="text-[#F8FAFC] font-semibold">
+          <span className="font-semibold" style={{ color: 'var(--text)' }}>
             Syed Maaz Alam
           </span>
         </span>

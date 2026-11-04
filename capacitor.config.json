@@ -1,0 +1,8 @@
+{
+  "appId": "com.smartcricket.app",
+  "appName": "Cricket Scorer",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

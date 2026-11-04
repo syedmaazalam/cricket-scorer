@@ -25,7 +25,13 @@ import {
   Heart,
   MessageSquare,
   Trash2,
-  X
+  X,
+  Eye,
+  EyeOff,
+  Key,
+  Edit2,
+  Save,
+  UserCheck
 } from 'lucide-react';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import {
@@ -36,14 +42,18 @@ import {
   setMatchInactive,
   deriveMatchDisplayScore,
   getMatchStatusMeta,
-  generateMatchCode
+  generateMatchCode,
+  updateManagerCredentialsInCloud,
+  saveDeveloperCredentialsInCloud,
+  getDeveloperCredentialsFromCloud
 } from '../firebase/matches.js';
 import {
   getAllLocalMatches,
   getAllLocalManagers,
   saveMatchSnapshot,
   saveEventLocally,
-  getEventsForMatch
+  getEventsForMatch,
+  updateManagerLocally
 } from '../store/localDb.js';
 import { replayEvents } from '../engine/reducer.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -55,7 +65,17 @@ import { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } from '../compon
 function checkIsDeveloper(user, idTokenResult) {
   if (!user) return false;
   if (idTokenResult?.claims?.developer === true) return true;
-  if (user.email && (user.email === 'syedmaazalam@gmail.com' || user.email.endsWith('@smartcricket.app'))) {
+  let devEmail = 'syedmaazalam2007@gmail.com';
+  try {
+    const stored = JSON.parse(localStorage.getItem('cricket_dev_creds') || '{}');
+    if (stored.email) devEmail = stored.email;
+  } catch {}
+  if (user.email && (
+    user.email.toLowerCase() === devEmail.toLowerCase() ||
+    user.email === 'syedmaazalam2007@gmail.com' ||
+    user.email === 'syedmaazalam@gmail.com' ||
+    user.email.endsWith('@smartcricket.app')
+  )) {
     return true;
   }
   const allowlistedUids = (import.meta.env.VITE_DEVELOPER_UIDS || '').split(',').map(u => u.trim());
@@ -85,6 +105,38 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
 
   // Tabs: 'managers' | 'matches' | 'import'
   const [activeTab, setActiveTab] = useState('matches');
+
+  // Developer Credentials Management
+  const [devCreds, setDevCreds] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cricket_dev_creds');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { email: 'syedmaazalam2007@gmail.com', password: 'Silicon123@' };
+  });
+  const [isEditingDevCreds, setIsEditingDevCreds] = useState(false);
+  const [devEmailInput, setDevEmailInput] = useState('');
+  const [devPasswordInput, setDevPasswordInput] = useState('');
+  const [showDevPassword, setShowDevPassword] = useState(false);
+  const [isSavingDevCreds, setIsSavingDevCreds] = useState(false);
+
+  // Manager Credentials & Match Selection State
+  const [editingManager, setEditingManager] = useState(null);
+  const [managerEditEmail, setManagerEditEmail] = useState('');
+  const [managerEditPassword, setManagerEditPassword] = useState('');
+  const [isSavingManagerCreds, setIsSavingManagerCreds] = useState(false);
+  const [revealedPasswords, setRevealedPasswords] = useState({});
+  const [selectedManagerMatch, setSelectedManagerMatch] = useState({});
+
+  // Sync developer credentials from cloud on mount
+  useEffect(() => {
+    getDeveloperCredentialsFromCloud().then((remoteCreds) => {
+      if (remoteCreds?.email && remoteCreds?.password) {
+        setDevCreds(remoteCreds);
+        localStorage.setItem('cricket_dev_creds', JSON.stringify(remoteCreds));
+      }
+    }).catch(() => {});
+  }, []);
 
   // Data state
   const [matches, setMatches] = useState([]);
@@ -148,6 +200,81 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     showToast(nextVal ? 'Brother messages enabled (Abdullah & Hassan).' : 'Brother messages disabled.');
   };
 
+  // Toggle reveal password for a specific manager
+  const togglePasswordVisibility = (uid) => {
+    setRevealedPasswords(prev => ({
+      ...prev,
+      [uid]: !prev[uid]
+    }));
+  };
+
+  // Save Developer Credentials
+  const handleSaveDevCredentials = async (e) => {
+    e?.preventDefault?.();
+    const cleanEmail = devEmailInput.trim();
+    const cleanPass = devPasswordInput.trim();
+    if (!cleanEmail || !cleanPass) {
+      showToast('Developer email and password cannot be empty.');
+      return;
+    }
+    setIsSavingDevCreds(true);
+    const updated = { email: cleanEmail, password: cleanPass };
+    try {
+      await saveDeveloperCredentialsInCloud(updated);
+      localStorage.setItem('cricket_dev_creds', JSON.stringify(updated));
+      setDevCreds(updated);
+      setIsEditingDevCreds(false);
+      showToast('Developer username & password updated successfully!');
+    } catch (err) {
+      console.warn('Cloud save failed for dev creds, saving locally:', err);
+      localStorage.setItem('cricket_dev_creds', JSON.stringify(updated));
+      setDevCreds(updated);
+      setIsEditingDevCreds(false);
+      showToast('Developer credentials updated locally.');
+    } finally {
+      setIsSavingDevCreds(false);
+    }
+  };
+
+  // Save Manager Credentials
+  const handleSaveManagerCredentials = async (mgr) => {
+    if (!mgr?.uid) return;
+    const cleanEmail = managerEditEmail.trim();
+    const cleanPass = managerEditPassword.trim();
+    if (!cleanEmail || !cleanPass) {
+      showToast('Manager email and password cannot be empty.');
+      return;
+    }
+    setIsSavingManagerCreds(true);
+    const updates = {
+      email: cleanEmail,
+      username: cleanEmail,
+      password: cleanPass,
+      updatedAt: Date.now()
+    };
+    try {
+      await Promise.all([
+        updateManagerCredentialsInCloud(mgr.uid, updates),
+        updateManagerLocally(mgr.uid, updates)
+      ]);
+      setManagers((prev) =>
+        prev.map((m) => (m.uid === mgr.uid ? { ...m, ...updates } : m))
+      );
+      setEditingManager(null);
+      showToast(`Credentials updated for ${mgr.name || cleanEmail}!`);
+    } catch (err) {
+      console.warn('Error saving manager credentials in cloud:', err);
+      await updateManagerLocally(mgr.uid, updates);
+      setManagers((prev) =>
+        prev.map((m) => (m.uid === mgr.uid ? { ...m, ...updates } : m))
+      );
+      setEditingManager(null);
+      showToast(`Credentials updated locally for ${mgr.name || cleanEmail}!`);
+    } finally {
+      setIsSavingManagerCreds(false);
+    }
+  };
+
   // Check auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -183,8 +310,15 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     const cleanPass = passwordInput.trim();
     const cleanEmail = emailInput.trim().toLowerCase();
 
-    // Direct password check: Silicon123@
-    if (cleanPass === 'Silicon123@') {
+    // Check dev credentials
+    const targetEmail = (devCreds.email || 'syedmaazalam2007@gmail.com').toLowerCase();
+    const targetPass = devCreds.password || 'Silicon123@';
+
+    const matchesEmail = !cleanEmail || cleanEmail === targetEmail || cleanEmail === 'syedmaazalam2007@gmail.com' || cleanEmail === 'syedmaazalam@gmail.com';
+    const matchesPass = cleanPass === targetPass || cleanPass === 'Silicon123@';
+
+    // Direct credentials check
+    if (matchesEmail && matchesPass) {
       setIsDeveloperUser(true);
       sessionStorage.setItem('dev_auth', 'true');
       localStorage.setItem('cricket_is_developer', 'true');
@@ -194,10 +328,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     }
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, emailInput.trim() || 'developer@smartcricket.app', cleanPass);
+      const cred = await signInWithEmailAndPassword(auth, emailInput.trim() || targetEmail, cleanPass);
       const tokenResult = await cred.user.getIdTokenResult();
       const isDev = checkIsDeveloper(cred.user, tokenResult);
-      if (!isDev && cleanPass !== 'Silicon123@') {
+      if (!isDev && !matchesPass) {
         setIsDeveloperUser(false);
         setAuthError('Password or login is incorrect.');
       } else {
@@ -205,7 +339,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
         sessionStorage.setItem('dev_auth', 'true');
       }
     } catch (err) {
-      if (cleanPass === 'Silicon123@' || cleanEmail === 'syedmaazalam@gmail.com' || cleanEmail.endsWith('@smartcricket.app')) {
+      if (matchesEmail && matchesPass) {
         setIsDeveloperUser(true);
         sessionStorage.setItem('dev_auth', 'true');
         setAuthError('');
@@ -574,33 +708,20 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           </div>
 
           {authError && (
-            <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{authError}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sessionStorage.setItem('dev_auth', 'true');
-                  setIsDeveloperUser(true);
-                  setAuthError('');
-                }}
-                className="py-1.5 px-3 rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/30 self-start transition-all"
-              >
-                Continue in Developer Console Mode
-              </button>
+            <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{authError}</span>
             </div>
           )}
 
           <form onSubmit={handleDeveloperLogin} className="space-y-3">
             <div>
               <label className="block text-[11px] font-medium uppercase mb-1" style={{ color: 'var(--muted)' }}>
-                Developer Email (Optional)
+                Developer Username / Email
               </label>
               <input
-                type="email"
-                placeholder="developer@smartcricket.app"
+                type="text"
+                placeholder="syedmaazalam2007@gmail.com"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 style={{
@@ -820,6 +941,121 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
           </button>
         </div>
 
+        {/* Developer Account & Credentials Security Card */}
+        <div
+          style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+          className="p-3.5 rounded-xl border flex flex-col gap-3 shadow-sm"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                  <span>Developer Portal Credentials</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold">
+                    SuperAdmin
+                  </span>
+                </div>
+                <div className="text-[11px] flex flex-wrap items-center gap-x-4 gap-y-1 mt-0.5" style={{ color: 'var(--muted)' }}>
+                  <span>
+                    Username: <strong style={{ color: 'var(--text)' }}>{devCreds.email}</strong>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    Password:{' '}
+                    <strong style={{ color: 'var(--text)' }}>
+                      {showDevPassword ? devCreds.password : '••••••••'}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => setShowDevPassword(!showDevPassword)}
+                      className="text-[var(--muted)] hover:text-emerald-400 p-0.5"
+                      title={showDevPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showDevPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (!isEditingDevCreds) {
+                  setDevEmailInput(devCreds.email);
+                  setDevPasswordInput(devCreds.password);
+                }
+                setIsEditingDevCreds(!isEditingDevCreds);
+              }}
+              style={{
+                backgroundColor: isEditingDevCreds ? 'var(--card-alt)' : 'rgba(34, 197, 94, 0.1)',
+                borderColor: '#22C55E',
+                color: '#22C55E'
+              }}
+              className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 self-start sm:self-auto hover:bg-[#22C55E] hover:text-white transition-all shadow-sm"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{isEditingDevCreds ? 'Cancel' : 'Change My Credentials'}</span>
+            </button>
+          </div>
+
+          {/* Expandable Developer Credentials Edit Form */}
+          {isEditingDevCreds && (
+            <form
+              onSubmit={handleSaveDevCredentials}
+              style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
+              className="p-3 rounded-lg border flex flex-col sm:flex-row gap-2.5 items-end mt-1 animate-in fade-in"
+            >
+              <div className="flex-1 w-full">
+                <label className="block text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+                  Developer Username / Email
+                </label>
+                <input
+                  type="text"
+                  value={devEmailInput}
+                  onChange={(e) => setDevEmailInput(e.target.value)}
+                  placeholder="syedmaazalam2007@gmail.com"
+                  style={{
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)'
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                  required
+                />
+              </div>
+              <div className="flex-1 w-full">
+                <label className="block text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+                  New Developer Password
+                </label>
+                <input
+                  type="text"
+                  value={devPasswordInput}
+                  onChange={(e) => setDevPasswordInput(e.target.value)}
+                  placeholder="Silicon123@"
+                  style={{
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)'
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSavingDevCreds}
+                style={{ backgroundColor: '#22C55E', color: '#FFFFFF' }}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-xs shadow hover:bg-emerald-600 transition-all flex items-center justify-center gap-1.5 shrink-0"
+              >
+                {isSavingDevCreds ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>Save Credentials</span>
+              </button>
+            </form>
+          )}
+        </div>
+
         {/* Tab Navigation */}
         <div
           style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
@@ -926,6 +1162,11 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                 {filteredManagers.map((mgr) => {
                   const mgrMatches = matches.filter(m => m.managerId === mgr.uid);
                   const isExpanded = expandedManagerId === mgr.uid;
+                  const isEditingThisMgr = editingManager?.uid === mgr.uid;
+                  const selectedMatchId = selectedManagerMatch[mgr.uid];
+                  const selectedMatchObj = selectedMatchId
+                    ? mgrMatches.find(m => (m.matchId === selectedMatchId || m.id === selectedMatchId))
+                    : null;
                   const initials = (mgr.name || 'Manager')
                     .split(' ')
                     .map(w => w[0])
@@ -942,7 +1183,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                       }}
                       className="app-card p-4 rounded-xl border flex flex-col gap-3 shadow-sm hover:border-[#22C55E] transition-all"
                     >
-                      {/* Top Row: Avatar Initials, Name, Email */}
+                      {/* Top Row: Avatar Initials, Name, Match Count Badge */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
@@ -953,7 +1194,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                               {mgr.name || 'Manager'}
                             </div>
                             <div className="text-[11px]" style={{ color: 'var(--muted)' }}>
-                              {mgr.email || mgr.uid}
+                              UID: {mgr.uid?.slice(0, 10)}...
                             </div>
                           </div>
                         </div>
@@ -963,6 +1204,282 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             {mgrMatches.length} {mgrMatches.length === 1 ? 'match' : 'matches'}
                           </span>
                         </div>
+                      </div>
+
+                      {/* Credentials Display & Edit Row */}
+                      <div
+                        style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
+                        className="p-2.5 rounded-lg border flex flex-col gap-1.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold text-[#22C55E]">Manager Credentials</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isEditingThisMgr) {
+                                setEditingManager(null);
+                              } else {
+                                setEditingManager(mgr);
+                                setManagerEditEmail(mgr.email || mgr.username || '');
+                                setManagerEditPassword(mgr.password || '');
+                              }
+                            }}
+                            className="text-[11px] font-semibold text-[#22C55E] hover:underline flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>{isEditingThisMgr ? 'Cancel' : 'Edit Credentials'}</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-1 text-[11px]">
+                          <div className="flex items-center justify-between">
+                            <span style={{ color: 'var(--muted)' }}>Username / Email:</span>
+                            <span className="font-medium" style={{ color: 'var(--text)' }}>
+                              {mgr.email || mgr.username || mgr.name || 'Not set'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span style={{ color: 'var(--muted)' }}>Password:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono" style={{ color: 'var(--text)' }}>
+                                {revealedPasswords[mgr.uid] ? (mgr.password || '(No password set)') : '••••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => togglePasswordVisibility(mgr.uid)}
+                                className="text-[var(--muted)] hover:text-[#22C55E] p-0.5"
+                                title={revealedPasswords[mgr.uid] ? 'Hide password' : 'Show password'}
+                              >
+                                {revealedPasswords[mgr.uid] ? (
+                                  <EyeOff className="w-3 h-3" />
+                                ) : (
+                                  <Eye className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inline Manager Credentials Edit Form */}
+                      {isEditingThisMgr && (
+                        <div
+                          style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
+                          className="p-3 rounded-lg border flex flex-col gap-2 animate-in fade-in"
+                        >
+                          <div className="text-[11px] font-bold text-[#22C55E] flex items-center gap-1">
+                            <Key className="w-3.5 h-3.5" />
+                            <span>Change Manager Username & Password</span>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-medium uppercase mb-0.5" style={{ color: 'var(--muted)' }}>
+                                Username / Email
+                              </label>
+                              <input
+                                type="text"
+                                value={managerEditEmail}
+                                onChange={(e) => setManagerEditEmail(e.target.value)}
+                                placeholder="manager@example.com"
+                                style={{
+                                  backgroundColor: 'var(--card)',
+                                  borderColor: 'var(--border)',
+                                  color: 'var(--text)'
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-medium uppercase mb-0.5" style={{ color: 'var(--muted)' }}>
+                                New Password
+                              </label>
+                              <input
+                                type="text"
+                                value={managerEditPassword}
+                                onChange={(e) => setManagerEditPassword(e.target.value)}
+                                placeholder="NewPassword123"
+                                style={{
+                                  backgroundColor: 'var(--card)',
+                                  borderColor: 'var(--border)',
+                                  color: 'var(--text)'
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingManager(null)}
+                              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                              className="px-3 py-1.5 rounded-lg border text-[11px] hover:text-[var(--text)] transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSavingManagerCreds}
+                              onClick={() => handleSaveManagerCredentials(mgr)}
+                              style={{ backgroundColor: '#22C55E', color: '#FFFFFF' }}
+                              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-sm hover:bg-emerald-600 transition-all"
+                            >
+                              {isSavingManagerCreds ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Save className="w-3 h-3" />
+                              )}
+                              <span>Save Credentials</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Manager Matches Dropdown Selector */}
+                      <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>
+                            Matches Dropdown:
+                          </label>
+                          <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                            {mgrMatches.length} matches
+                          </span>
+                        </div>
+
+                        {mgrMatches.length === 0 ? (
+                          <div className="text-[11px] py-1 text-[var(--muted)] italic">
+                            No matches created by this manager yet.
+                          </div>
+                        ) : (
+                          <select
+                            value={selectedMatchId || ''}
+                            onChange={(e) =>
+                              setSelectedManagerMatch((prev) => ({
+                                ...prev,
+                                [mgr.uid]: e.target.value
+                              }))
+                            }
+                            style={{
+                              backgroundColor: 'var(--card-alt)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--text)'
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                          >
+                            <option value="">-- Select a match to view ({mgrMatches.length}) --</option>
+                            {mgrMatches.map((m) => {
+                              const sc = deriveMatchDisplayScore(m);
+                              return (
+                                <option key={m.matchId || m.id} value={m.matchId || m.id}>
+                                  {m.teams?.[0]?.name || 'T1'} vs {m.teams?.[1]?.name || 'T2'} ({m.code}) - {sc.inn1Text || '0/0'} [{m.status?.toUpperCase() || 'LIVE'}]
+                                </option>
+                              );
+                            })}
+                          </select>
+                        )}
+
+                        {/* Selected Match Card Details */}
+                        {selectedMatchObj && (() => {
+                          const sc = deriveMatchDisplayScore(selectedMatchObj);
+                          const meta = getMatchStatusMeta(selectedMatchObj);
+                          return (
+                            <div
+                              style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
+                              className="p-2.5 rounded-lg border flex flex-col gap-2 mt-1 animate-in fade-in"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-bold text-xs" style={{ color: 'var(--text)' }}>
+                                  {selectedMatchObj.teams?.[0]?.name || 'Team 1'} vs{' '}
+                                  {selectedMatchObj.teams?.[1]?.name || 'Team 2'}
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                                    meta.isCompleted
+                                      ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                      : 'bg-emerald-500/10 text-[#22C55E] border-emerald-500/20'
+                                  }`}
+                                >
+                                  {meta.isCompleted ? 'COMPLETED' : 'LIVE'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between text-[11px]" style={{ color: 'var(--muted)' }}>
+                                <span>{sc.inn1Text || 'Match initialized'}</span>
+                                <span className="font-mono text-emerald-400 font-semibold flex items-center gap-1">
+                                  #{selectedMatchObj.code}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => copyCode(e, selectedMatchObj.code)}
+                                    className="hover:text-white"
+                                    title="Copy Code"
+                                  >
+                                    {copiedCode === selectedMatchObj.code ? (
+                                      <Check className="w-3 h-3 text-[#22C55E]" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                </span>
+                              </div>
+
+                              {/* Action buttons for dropdown-selected match */}
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenMatch?.(selectedMatchObj.code || selectedMatchObj.matchId)}
+                                  style={{ backgroundColor: '#22C55E', color: '#FFFFFF' }}
+                                  className="py-1 px-2.5 rounded text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-emerald-600 transition-all"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Open Match</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveChatMatch(selectedMatchObj)}
+                                  style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                                  className="py-1 px-2 rounded border text-[10px] font-medium flex items-center gap-1 hover:border-[#22C55E] transition-colors"
+                                >
+                                  <MessageSquare className="w-3 h-3 text-[#22C55E]" />
+                                  <span>Chat</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setWatchAndChatMatch(selectedMatchObj)}
+                                  style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+                                  className="py-1 px-2 rounded border text-[10px] font-medium flex items-center gap-1 hover:border-[#22C55E] transition-colors"
+                                >
+                                  <Radio className="w-3 h-3 text-red-400" />
+                                  <span>Watch</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleExportMatch(e, selectedMatchObj)}
+                                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                                  className="py-1 px-2 rounded border text-[10px] flex items-center gap-1 hover:text-[var(--text)] transition-colors"
+                                  title="Export JSON"
+                                >
+                                  <Download className="w-3 h-3" />
+                                  <span>JSON</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingMatch(selectedMatchObj)}
+                                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                                  className="py-1 px-2 rounded border text-[10px] flex items-center gap-1 hover:text-red-400 transition-colors"
+                                  title="Soft Delete"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Detail metadata: Join date & Last active */}
@@ -981,13 +1498,13 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                         </div>
                       </div>
 
-                      {/* Expand / Collapse Button */}
+                      {/* Expand / Collapse Button for full match list */}
                       <button
                         onClick={() => setExpandedManagerId(isExpanded ? null : mgr.uid)}
                         style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
                         className="py-1.5 px-2 rounded-lg border text-[11px] font-medium flex items-center justify-center gap-1 hover:text-[#22C55E] transition-colors"
                       >
-                        <span>{isExpanded ? 'Hide Matches' : `View ${mgrMatches.length} Matches`}</span>
+                        <span>{isExpanded ? 'Hide Full Match List' : `View All ${mgrMatches.length} Matches`}</span>
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                       </button>
 

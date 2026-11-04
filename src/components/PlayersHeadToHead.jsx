@@ -10,11 +10,11 @@ import {
   Target,
   Flame,
   UserCheck,
-  ChevronDown,
-  ChevronUp
+  ChevronDown
 } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
+import MatchCharts from './MatchCharts.jsx';
 
 export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
   const [selectedTeamIndex, setSelectedTeamIndex] = useState(0);
@@ -41,7 +41,7 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
 
   // Compute Head-to-Head breakdown for every batter against every bowler
   const computeHeadToHead = (balls = []) => {
-    const h2h = {}; // { [batterName]: { [bowlerName]: { balls: 0, runs: 0, dots: 0, fours: 0, sixes: 0, isDismissed: false } } }
+    const h2h = {};
     balls.forEach((b) => {
       const batter = b.striker;
       const bowler = b.bowler;
@@ -76,7 +76,6 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
   const activeBowlStats = selectedTeamIndex === 0 ? team1BowlingStats : team2BowlingStats;
   const activeH2H = selectedTeamIndex === 0 ? h2hTeam1Batters : h2hTeam2Batters;
 
-  // Comparison metrics
   const t1CRR = calculateCRR(inn1.score, inn1.legalBalls);
   const t2CRR = calculateCRR(inn2.score, inn2.legalBalls);
 
@@ -100,291 +99,311 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
   };
 
   return (
-    <div className="w-full flex flex-col gap-4 pb-20 select-none">
-      {/* 1. Head-to-Head Comparison Card */}
-      <div
-        style={{
-          backgroundColor: 'var(--card)',
-          borderColor: 'var(--border)'
-        }}
-        className="rounded-3xl p-4 sm:p-5 border shadow-sm flex flex-col gap-3"
-      >
-        <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2">
-            <Swords className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-            <h3 className="text-sm font-black uppercase tracking-wider" style={{ color: 'var(--text)' }}>
-              Head to Head Comparison
-            </h3>
-          </div>
-          <span className="text-[11px] font-bold" style={{ color: 'var(--muted)' }}>
-            Match Overview
-          </span>
-        </div>
-
-        {/* Team 1 vs Team 2 Score Header */}
-        <div className="grid grid-cols-2 gap-3">
-          <div
-            style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-            className="p-3 rounded-2xl border text-center"
-          >
-            <span className="text-xs font-black truncate block" style={{ color: 'var(--primary)' }}>
-              {team1.name}
-            </span>
-            <div className="text-xl sm:text-2xl font-black mt-1" style={{ color: 'var(--text)' }}>
-              {inn1.score}<span style={{ color: 'var(--red)' }}>/{inn1.wickets}</span>
-            </div>
-            <span className="text-[11px] font-bold" style={{ color: 'var(--orange)' }}>
-              {formatOvers(inn1.legalBalls)} ov
-            </span>
-          </div>
-
-          <div
-            style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-            className="p-3 rounded-2xl border text-center"
-          >
-            <span className="text-xs font-black truncate block" style={{ color: 'var(--blue)' }}>
-              {team2.name}
-            </span>
-            <div className="text-xl sm:text-2xl font-black mt-1" style={{ color: 'var(--text)' }}>
-              {inn2.score}<span style={{ color: 'var(--red)' }}>/{inn2.wickets}</span>
-            </div>
-            <span className="text-[11px] font-bold" style={{ color: 'var(--orange)' }}>
-              {formatOvers(inn2.legalBalls)} ov
-            </span>
-          </div>
-        </div>
-
-        {/* Comparison Metric Bars */}
-        <div className="flex flex-col gap-2 pt-1 text-xs">
-          {/* CRR */}
-          <div className="flex items-center justify-between">
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t1CRR}</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Run Rate (CRR)</span>
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t2CRR}</span>
-          </div>
-
-          {/* Boundaries */}
-          <div className="flex items-center justify-between">
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t1Boundaries}</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Boundaries (4s/6s)</span>
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t2Boundaries}</span>
-          </div>
-
-          {/* Dot Balls */}
-          <div className="flex items-center justify-between">
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t1Dots}</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Dot Balls</span>
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{t2Dots}</span>
-          </div>
-
-          {/* Extras */}
-          <div className="flex items-center justify-between">
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{stats1.extras?.total || 0}</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Extras Conceded</span>
-            <span className="font-bold" style={{ color: 'var(--text)' }}>{stats2.extras?.total || 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Squad Selection Tabs */}
-      <div className="flex rounded-2xl p-1 border shadow-sm" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
-        <button
-          onClick={() => setSelectedTeamIndex(0)}
+    <div className="w-full flex flex-col gap-3.5 sm:gap-4 select-none px-0">
+      <div className="w-full flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+        {/* 1. Head-to-Head Comparison Card Matching Blueprint (media_1793793018216_dd96f4b8.jpg) */}
+        <section
+          className="card glass-card w-full lg:col-span-5 rounded-2xl p-5 border shadow-sm"
           style={{
-            backgroundColor: selectedTeamIndex === 0 ? 'var(--primary)' : 'transparent',
-            color: selectedTeamIndex === 0 ? '#FFFFFF' : 'var(--muted)'
+            background: 'var(--card)',
+            borderColor: 'var(--bd)'
           }}
-          className="flex-1 py-2 rounded-xl text-xs font-black transition-all text-center truncate"
         >
-          {team1.name} Squad ({team1.players?.length || 0})
-        </button>
-        <button
-          onClick={() => setSelectedTeamIndex(1)}
-          style={{
-            backgroundColor: selectedTeamIndex === 1 ? 'var(--primary)' : 'transparent',
-            color: selectedTeamIndex === 1 ? '#FFFFFF' : 'var(--muted)'
-          }}
-          className="flex-1 py-2 rounded-xl text-xs font-black transition-all text-center truncate"
-        >
-          {team2.name} Squad ({team2.players?.length || 0})
-        </button>
-      </div>
+          {/* Header Row with Cyan Crossed Bats Icon */}
+          <div className="flex flex-col gap-1 mb-4">
+            <div className="flex items-center gap-2">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="m14 2 8 8-4 4-8-8 4-4Z" />
+                <path d="m2 14 8 8 4-4-8-8-4 4Z" />
+                <circle cx="18" cy="18" r="2" />
+              </svg>
+              <h3 className="font-extrabold text-lg tracking-tight" style={{ color: 'var(--t1)' }}>Head to head comparison</h3>
+            </div>
+            <span className="text-xs font-medium pl-8" style={{ color: 'var(--t2)' }}>Match overview</span>
+          </div>
 
-      {/* 3. Squad Players & Head-to-Head Cards */}
-      <div className="flex flex-col gap-2.5">
-        {(activeTeam.players || []).map((player, idx) => {
-          const bat = activeBatStats[player] || { runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0, isOut: false };
-          const bowl = activeBowlStats[player] || { overs: '0.0', maidens: 0, runsConceded: 0, wickets: 0, economy: 0 };
-          const playerH2H = activeH2H[player] || {};
-          const isExpanded = expandedPlayer === player;
-          const isEditingThis = editingPlayer === player;
-
-          return (
+          {/* Side-by-Side Team Score Cards */}
+          <div className="grid grid-cols-2 gap-3 my-4">
             <div
-              key={player + idx}
+              className="p-4 rounded-2xl text-center"
               style={{
-                backgroundColor: 'var(--card)',
-                borderColor: 'var(--border)'
+                background: 'var(--well)',
+                border: '1.5px solid var(--bd)',
+                boxShadow: 'var(--card-shadow)'
               }}
-              className="rounded-2xl border p-3.5 shadow-sm flex flex-col gap-2 transition-all"
             >
-              {/* Player Header Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-                    className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shadow-sm"
-                  >
-                    {idx + 1}
-                  </div>
+              <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team1.name}</div>
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
+                {inn1.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn1.wickets}</span>
+              </div>
+              <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn1.legalBalls)} ov</div>
+            </div>
 
-                  {isEditingThis ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        style={{
-                          backgroundColor: 'var(--card-alt)',
-                          borderColor: 'var(--border)',
-                          color: 'var(--text)'
-                        }}
-                        className="px-2 py-1 text-xs rounded-lg border font-bold focus:outline-none"
-                      />
-                      <button
-                        onClick={handleSaveEdit}
-                        className="p-1 rounded-lg bg-green-500 text-white"
-                        title="Save"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setEditingPlayer(null)}
-                        className="p-1 rounded-lg bg-gray-500 text-white"
-                        title="Cancel"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-black" style={{ color: 'var(--text)' }}>
-                          {player}
-                        </span>
-                        {onEditPlayer && (
-                          <button
-                            onClick={() => handleStartEdit(player)}
-                            style={{ color: 'var(--muted)' }}
-                            className="hover:opacity-80 p-0.5"
-                            title="Edit player name"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-semibold" style={{ color: 'var(--muted)' }}>
-                        {bat.balls > 0 ? (bat.isOut ? 'Dismissed' : 'Not Out') : 'Yet to Bat'}
-                      </span>
-                    </div>
-                  )}
-                </div>
+            <div
+              className="p-4 rounded-2xl text-center"
+              style={{
+                background: 'var(--well)',
+                border: '1.5px solid var(--bd)',
+                boxShadow: 'var(--card-shadow)'
+              }}
+            >
+              <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team2.name}</div>
+              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
+                {inn2.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn2.wickets}</span>
+              </div>
+              <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn2.legalBalls)} ov</div>
+            </div>
+          </div>
 
-                {/* Quick Match Performance Pills */}
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <span className="text-xs font-black block" style={{ color: 'var(--text)' }}>
-                      {bat.runs} <span className="text-[10px] font-normal" style={{ color: 'var(--muted)' }}>({bat.balls})</span>
-                    </span>
-                    {bowl.overs !== '0.0' && (
-                      <span className="text-[10px] font-bold block" style={{ color: 'var(--blue)' }}>
-                        {bowl.wickets}/{bowl.runsConceded} ({bowl.overs} ov)
-                      </span>
-                    )}
-                  </div>
+          {/* Match Statistics Table */}
+          <div className="mt-5">
+            <div className="flex items-center justify-between pb-2 mb-1">
+              <h4 className="text-sm font-extrabold" style={{ color: 'var(--t1)' }}>Match statistics</h4>
+              <div className="flex items-center gap-5 text-xs font-extrabold tracking-wider uppercase" style={{ color: 'var(--t2)' }}>
+                <span className="w-14 text-right truncate">{(team1.name || 'ALPHA').slice(0, 6)}</span>
+                <span className="w-14 text-right truncate">{(team2.name || 'BRAVO').slice(0, 6)}</span>
+              </div>
+            </div>
 
-                  <button
-                    onClick={() => setExpandedPlayer(isExpanded ? null : player)}
-                    style={{ backgroundColor: 'var(--card-alt)', color: 'var(--text)' }}
-                    className="p-1.5 rounded-xl border border-transparent hover:border-[var(--border)] transition-all"
-                    title="View Head to Head details"
-                  >
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
+            <div className="divide-y divide-[var(--bd)]">
+              {/* Run rate (CRR) */}
+              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium" style={{ color: 'var(--t2)' }}>Run rate (CRR)</span>
+                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                  <span className="w-14 text-right">{t1CRR}</span>
+                  <span className="w-14 text-right">{t2CRR}</span>
                 </div>
               </div>
 
-              {/* Expanded Head-to-Head & Career Breakdown */}
-              {isExpanded && (
+              {/* Boundaries (4s / 6s) */}
+              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium" style={{ color: 'var(--t2)' }}>Boundaries (4s / 6s)</span>
+                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                  <span className="w-14 text-right">{t1Boundaries}</span>
+                  <span className="w-14 text-right">{t2Boundaries}</span>
+                </div>
+              </div>
+
+              {/* Dot balls */}
+              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium" style={{ color: 'var(--t2)' }}>Dot balls</span>
+                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                  <span className="w-14 text-right">{t1Dots}</span>
+                  <span className="w-14 text-right">{t2Dots}</span>
+                </div>
+              </div>
+
+              {/* Extras conceded */}
+              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium" style={{ color: 'var(--t2)' }}>Extras conceded</span>
+                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                  <span className="w-14 text-right">{stats1.extras?.total || 0}</span>
+                  <span className="w-14 text-right">{stats2.extras?.total || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Right Column on Desktop: Squad Tabs & Player Blocks */}
+        <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
+          {/* 2. Squad Selection Tabs */}
+          <div className="seg w-full" role="group">
+            <button
+              type="button"
+              onClick={() => setSelectedTeamIndex(0)}
+              className={selectedTeamIndex === 0 ? 'on' : ''}
+              aria-pressed={selectedTeamIndex === 0}
+            >
+              {team1.name} Squad ({team1.players?.length || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedTeamIndex(1)}
+              className={selectedTeamIndex === 1 ? 'on' : ''}
+              aria-pressed={selectedTeamIndex === 1}
+            >
+              {team2.name} Squad ({team2.players?.length || 0})
+            </button>
+          </div>
+
+          {/* 3. Squad Player Cards Matching Exact Blueprint (media_1793796113501_be88c163.jpg) */}
+          <div className="flex flex-col gap-2.5 w-full">
+            {(activeTeam.players || []).map((player, idx) => {
+              const bat = activeBatStats[player] || { runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0, isOut: false };
+              const bowl = activeBowlStats[player] || { overs: '0.0', maidens: 0, runsConceded: 0, wickets: 0, economy: 0 };
+              const playerH2H = activeH2H[player] || {};
+              const isExpanded = expandedPlayer === player;
+              const isEditingThis = editingPlayer === player;
+
+              const statusText = bat.balls > 0
+                ? (bat.isOut ? 'Out' : 'Not Out')
+                : 'Yet to Bat';
+
+              return (
                 <div
+                  key={player + idx}
+                  className="card glass-card w-full rounded-[20px] transition-all duration-200 overflow-hidden"
                   style={{
-                    backgroundColor: 'var(--card-alt)',
-                    borderColor: 'var(--border)'
+                    background: 'var(--card)',
+                    border: '1.5px solid var(--bd)',
+                    boxShadow: 'var(--card-shadow)'
                   }}
-                  className="rounded-xl p-3 border mt-1 flex flex-col gap-2.5 text-xs animate-in fade-in"
                 >
-                  {/* Batting Summary */}
-                  <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: 'var(--border)' }}>
-                    <span className="font-bold text-[11px]" style={{ color: 'var(--muted)' }}>BATTING</span>
-                    <span className="font-bold" style={{ color: 'var(--text)' }}>
-                      {bat.runs} runs · {bat.balls} balls · {bat.fours} 4s · {bat.sixes} 6s · SR {Math.round(bat.strikeRate || 0)}
-                    </span>
-                  </div>
-
-                  {/* Bowling Summary */}
-                  {bowl.overs !== '0.0' && (
-                    <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: 'var(--border)' }}>
-                      <span className="font-bold text-[11px]" style={{ color: 'var(--muted)' }}>BOWLING</span>
-                      <span className="font-bold" style={{ color: 'var(--text)' }}>
-                        {bowl.overs} ov · {bowl.maidens} M · {bowl.runsConceded} R · {bowl.wickets} W · Econ {bowl.economy}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Head-to-Head Record Against Each Bowler */}
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider block mb-1.5" style={{ color: 'var(--primary)' }}>
-                      Head to Head vs Bowlers Faced
-                    </span>
-                    {Object.keys(playerH2H).length === 0 ? (
-                      <span className="text-[11px] italic" style={{ color: 'var(--muted)' }}>
-                        No deliveries faced in this innings yet.
-                      </span>
+                  <div
+                    className="flex items-center justify-between px-4 py-2.5 sm:px-5 sm:py-3 cursor-pointer select-none"
+                    onClick={() => setExpandedPlayer(isExpanded ? null : player)}
+                  >
+                    {/* Left: Player Name & Blue Pill Score Badge */}
+                    {isEditingThis ? (
+                      <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          style={{
+                            backgroundColor: 'var(--well)',
+                            borderColor: 'var(--pri)',
+                            color: 'var(--t1)'
+                          }}
+                          className="px-3 py-1.5 text-xs rounded-xl border font-bold focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveEdit}
+                          className="p-1.5 rounded-lg bg-[var(--ok)] text-white hover:opacity-90"
+                          title="Save"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingPlayer(null)}
+                          className="p-1.5 rounded-lg border border-[var(--bd)] text-[var(--t2)] hover:text-[var(--t1)]"
+                          title="Cancel"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ) : (
-                      <div className="flex flex-col gap-1.5">
-                        {Object.entries(playerH2H).map(([bowlerName, record]) => {
-                          const sr = record.balls > 0 ? Math.round((record.runs / record.balls) * 100) : 0;
-                          return (
-                            <div
-                              key={bowlerName}
-                              style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
-                              className="p-2 rounded-lg border flex items-center justify-between text-[11px]"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-black" style={{ color: 'var(--text)' }}>
-                                  vs {bowlerName}
-                                </span>
-                                {record.isDismissed && (
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
-                                    OUT
-                                  </span>
-                                )}
-                              </div>
-                              <div className="font-mono font-bold" style={{ color: 'var(--muted)' }}>
-                                <span style={{ color: 'var(--text)' }}>{record.runs}</span>r (
-                                <span>{record.balls}</span>b) · SR <span style={{ color: 'var(--orange)' }}>{sr}</span> · {record.dots} dots
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <span className="font-extrabold text-sm sm:text-base tracking-tight truncate" style={{ color: 'var(--t1)' }}>
+                          {player}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-bold font-mono shrink-0"
+                          style={{
+                            backgroundColor: 'var(--well)',
+                            border: '1.5px solid var(--pri)',
+                            color: 'var(--t1)'
+                          }}
+                        >
+                          <span>{bat.runs}</span>
+                          <span className="text-[11px] font-sans font-normal" style={{ color: 'var(--t2)' }}>({bat.balls}b)</span>
+                        </span>
                       </div>
                     )}
+
+                    {/* Right: Batting Status & Outlined Pencil Icon */}
+                    <div className="flex items-center gap-2.5 shrink-0 ml-auto">
+                      <span className="text-xs sm:text-sm font-medium" style={{ color: 'var(--t2)' }}>
+                        {statusText}
+                      </span>
+                      {onEditPlayer && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(player);
+                          }}
+                          className="p-1 text-[var(--t2)] hover:text-[var(--t1)] transition-colors"
+                          title="Edit player name"
+                        >
+                          <Edit2 className="w-4 h-4 stroke-[2]" />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Expanded Performance Tiles (shown smoothly if clicked) */}
+                  {isExpanded && (
+                    <div
+                      className="px-4 pb-3 pt-2 flex flex-col gap-2 border-t"
+                      style={{
+                        borderColor: 'var(--bd)',
+                        backgroundColor: 'var(--well)'
+                      }}
+                    >
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="tile" style={{ padding: '6px 8px', borderRadius: '10px' }}>
+                          <b style={{ fontSize: '15px' }}>{bat.fours || 0}</b>
+                          <span style={{ fontSize: '10px' }}>4s</span>
+                        </div>
+                        <div className="tile" style={{ padding: '6px 8px', borderRadius: '10px' }}>
+                          <b style={{ fontSize: '15px' }}>{bat.sixes || 0}</b>
+                          <span style={{ fontSize: '10px' }}>6s</span>
+                        </div>
+                        <div className="tile" style={{ padding: '6px 8px', borderRadius: '10px' }}>
+                          <b style={{ fontSize: '15px' }}>{Math.round(bat.strikeRate || 0)}</b>
+                          <span style={{ fontSize: '10px' }}>SR</span>
+                        </div>
+                      </div>
+
+                      {bowl.overs !== '0.0' && (
+                        <div
+                          className="row bt"
+                          style={{
+                            background: 'var(--card)',
+                            borderRadius: '10px',
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            border: '1px solid var(--bd)'
+                          }}
+                        >
+                          <span style={{ color: 'var(--t2)' }}>Bowling:</span>
+                          <b className="text-[var(--ok)] font-mono">{bowl.wickets}/{bowl.runsConceded} ({bowl.overs} ov)</b>
+                        </div>
+                      )}
+
+                      {/* Head-to-Head bowler matchups */}
+                      {Object.keys(playerH2H).length > 0 && (
+                        <div className="flex flex-col gap-1 mt-0.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--t2)' }}>vs Opponent Bowlers:</span>
+                          {Object.entries(playerH2H).map(([bowler, hStat]) => (
+                            <div
+                              key={bowler}
+                              className="row bt text-xs"
+                              style={{
+                                background: 'var(--card)',
+                                padding: '5px 8px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--bd)'
+                              }}
+                            >
+                              <span className="font-semibold" style={{ color: 'var(--t1)' }}>{bowler}</span>
+                              <span className="font-mono text-[11px]" style={{ color: 'var(--t2)' }}>
+                                <b style={{ color: 'var(--t1)' }}>{hStat.runs} runs</b> off {hStat.balls}b {hStat.isDismissed && <span className="text-red-400 font-bold ml-1">• OUT</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Worm Graph at the End of the Teams Section with Constrained Responsive Width */}
+      <div className="w-full mt-4 pt-4 border-t border-[var(--bd)] flex flex-col items-center">
+        <div className="text-xs font-bold text-[var(--t2)] uppercase tracking-wider mb-2">
+          Match Worm Chart
+        </div>
+        <div className="w-full max-w-md mx-auto px-0.5 sm:px-0">
+          <MatchCharts matchState={matchState} initialChart="worm" />
+        </div>
       </div>
     </div>
   );

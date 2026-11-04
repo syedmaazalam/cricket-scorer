@@ -1,31 +1,34 @@
-# QA Remediation: Scorer Chat, Developer Soft-Delete & Spectator UI Polish
+# Implementation Plan: Theme Default, Dev Delete Match & Dev Credential Fixes
 
 ## Overview
-Remediate the two defects and two UI observations discovered in the automated Argon QA audit:
-- **DEF-01 (High)**: Add soft-delete ("Delete" button with confirmation) on Developer Dashboard match cards to set match status to `'inactive'`.
-- **DEF-02 (High)**: Wire the chat button in the Scorer header to open `DeveloperScorerChatModal` with unread badge counter.
-- **OBS-01 (Polish)**: In `Live.jsx`, house Share and Theme Toggle inside the three-dots (More) menu.
-- **OBS-02 (Polish)**: Embed `MatchCharts` into `MatchSummary.jsx` for post-match visual progression.
-- **Graph Polish**: In `OversGraph.jsx`, ensure overs with 10+ runs that also have wickets preserve the prominent royal blue bar with red W badge.
+1. **Default Dark Theme & Synchronized Switch Button**:
+   - Set dark theme as default system-wide (HTML root, CSS tokens, local storage, Settings).
+   - Update theme switch button to reflect current active theme (Moon icon for Dark mode, Sun icon for Light mode) and synchronize dynamically across header and settings.
+2. **Developer Mode Delete Match Button**:
+   - Make the Delete Match button prominently visible with label and icon in both the Managers tab (dropdown-selected match) and Matches tab (every match card).
+   - Wire up `deleteMatchFromCloud` to permanently remove deleted matches from Firestore and the UI.
+3. **Developer Credentials Persistence & Login**:
+   - Add Firestore rules for `config/{configId}` so developer credentials persist in Cloud.
+   - Fix login authentication so updating developer email immediately enforces the new email and prevents logging in with old IDs.
+
+---
 
 ## Chunks
 
-- [x] **Chunk 1: Scorer Header Chat Binding & Unread Counter (DEF-02)**
-  - Ensure the chat icon in `src/pages/Scoring.jsx` header is interactive and toggles `DeveloperScorerChatModal`.
-  - Display unread indicator on the chat icon when developer messages arrive.
-  - Verify chat drawer opens and permits two-way reply.
+- [x] **Chunk 1: Default Dark Theme & Synchronized Theme Switch Button**
+  - Set default theme to `dark` in `index.html`, `src/index.css`, `src/main.jsx`, `src/components/ThemeToggle.jsx`, and `src/pages/Settings.jsx`.
+  - Update `ThemeToggle.jsx` so the button icon and styling dynamically match the active theme (Moon for dark, Sun for light).
+  - Add reactive event synchronization (`cricket_theme_changed`) so toggling theme anywhere instantly updates all toggle buttons and views.
+  - Verified with 107/107 unit tests passing.
 
-- [x] **Chunk 2: Developer Console Soft Delete Action (DEF-01)**
-  - Add a "Delete" button on each match card/row in `src/pages/DeveloperDashboard.jsx`.
-  - Wire to a confirmation dialog that soft-deletes the match by setting `status = 'inactive'`.
-  - Exclude inactive matches from active live lists while preserving full audit record.
+- [ ] **Chunk 2: Developer Mode Delete Match Button Visibility & Deletion Flow**
+  - Update `DeveloperDashboard.jsx` to render prominent, labeled red "Delete Match" buttons in both the Managers tab (for dropdown-selected match) and the Matches tab.
+  - Wire up delete action using `deleteMatchFromCloud` and remove from local matches state.
+  - Update confirmation modal with clear permanent delete and cancel actions.
+  - Verify with unit tests.
 
-- [x] **Chunk 3: Spectator Three-Dots Menu & Summary Charts (OBS-01, OBS-02, Polish)**
-  - Move Share and Theme toggle into a three-dots popover menu in `src/pages/Live.jsx`.
-  - Embed Manhattan & Worm charts in `src/pages/MatchSummary.jsx`.
-  - Retain blue `#2563EB` fill on 10+ run overs that also contain wickets in `src/components/OversGraph.jsx`.
-
-- [x] **Chunk 4: Automated Tests, Full Verification, Build & Deploy**
-  - Add unit tests for Scorer chat toggle, soft-delete action, and three-dots menu.
-  - Run `npx vitest run` (all tests passing) and `npm run build`.
-  - Deploy to Firebase Hosting (`https://smartcricket-c79b5.web.app`) and update Graphify.
+- [ ] **Chunk 3: Developer Credentials Cloud Persistence & Auth Enforcement**
+  - Add Firestore security rule for `match /config/{configId}` in `firestore.rules`.
+  - Update developer login logic in `DeveloperDashboard.jsx` to strictly authenticate against the current configured credentials, preventing bypassed login with outdated credentials.
+  - Ensure cloud save and retrieval of developer credentials succeed in both development and production.
+  - Run full test suite (all vitest suites), build web bundle, and deploy to Firebase.

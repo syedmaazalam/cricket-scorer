@@ -2,6 +2,19 @@ import React, { useState } from 'react';
 import { RotateCcw, ArrowLeftRight, Zap, Clock, CornerUpRight } from 'lucide-react';
 import { EXTRA_TYPES } from '../engine/constants.js';
 
+const triggerHaptic = (ms = 12) => {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('setting_haptics') === 'false') {
+      return;
+    }
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(ms);
+    }
+  } catch (_) {
+    // Graceful no-op on unsupported browsers / permissions
+  }
+};
+
 export default function RunPad({
   onScoreBall,
   onOpenWicket,
@@ -14,11 +27,13 @@ export default function RunPad({
   onSkipCooldown
 }) {
   const [extraMode, setExtraMode] = useState(null);
+  const isLeftHanded = typeof localStorage !== 'undefined' && localStorage.getItem('setting_left_handed') === 'true';
 
   const isScoringDisabled = Boolean(disabled || cooldownSeconds > 0);
 
   const handleRunClick = (runs) => {
     if (isScoringDisabled) return;
+    triggerHaptic(12);
 
     if (!extraMode) {
       onScoreBall({
@@ -65,6 +80,7 @@ export default function RunPad({
 
   const handleQuickExtra = (type) => {
     if (isScoringDisabled) return;
+    triggerHaptic(10);
     if (extraMode === type) {
       setExtraMode(null);
       return;
@@ -78,29 +94,29 @@ export default function RunPad({
       {cooldownSeconds > 0 && (
         <div
           style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: '#22C55E'
+            backgroundColor: 'var(--well)',
+            borderColor: 'var(--ok)'
           }}
-          className="px-3 py-2 rounded-xl border flex items-center justify-between shadow-sm animate-in fade-in duration-200"
+          className="px-3.5 py-2 rounded-2xl border flex items-center justify-between shadow-sm animate-in fade-in duration-200"
         >
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#22C55E] animate-pulse shrink-0" />
+            <Clock className="w-4 h-4 text-[var(--ok)] animate-pulse shrink-0" />
             <div className="flex flex-col">
-              <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                Next ball in <span className="font-mono text-[#22C55E] font-bold text-sm">{cooldownSeconds}s</span>
+              <span className="text-xs font-bold" style={{ color: 'var(--t1)' }}>
+                Next ball in <span className="font-mono text-[var(--ok)] font-extrabold text-sm">{cooldownSeconds}s</span>
               </span>
-              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+              <span className="text-[10px]" style={{ color: 'var(--t2)' }}>
                 10-second waiting time active
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-16 h-1.5 rounded-full bg-slate-700/30 overflow-hidden">
+            <div className="w-16 h-1.5 rounded-full bg-[var(--bd)] overflow-hidden">
               <div
                 style={{
                   width: `${(cooldownSeconds / 10) * 100}%`,
-                  backgroundColor: '#22C55E',
+                  backgroundColor: 'var(--ok)',
                   transition: 'width 1s linear'
                 }}
                 className="h-full rounded-full"
@@ -111,11 +127,8 @@ export default function RunPad({
               <button
                 type="button"
                 onClick={onSkipCooldown}
-                style={{
-                  borderColor: 'var(--border)',
-                  color: 'var(--muted)'
-                }}
-                className="px-2 py-0.5 rounded-md border text-[10px] font-semibold hover:text-[var(--text)] hover:border-[#22C55E] transition-all shrink-0"
+                className="btn s"
+                style={{ height: '26px', padding: '0 8px', fontSize: '10px' }}
                 title="Skip waiting time"
               >
                 Skip
@@ -129,16 +142,16 @@ export default function RunPad({
       {extraMode && (
         <div
           style={{
-            backgroundColor: 'var(--green-15)',
-            borderColor: 'var(--primary)',
-            color: 'var(--primary)'
+            backgroundColor: 'color-mix(in srgb, var(--pri) 14%, transparent)',
+            borderColor: 'var(--bda)',
+            color: 'var(--pri)'
           }}
-          className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center justify-between animate-pulse"
+          className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center justify-between animate-pulse"
         >
-          <span>Active: {extraMode.toUpperCase()} — Now tap runs (0 to 6)</span>
+          <span>Active: {extraMode.toUpperCase()} — Tap runs (0 to 6)</span>
           <button
             onClick={() => setExtraMode(null)}
-            className="text-[10px] uppercase font-bold underline ml-2"
+            className="text-[10px] uppercase font-extrabold underline ml-2"
           >
             Cancel
           </button>
@@ -149,44 +162,38 @@ export default function RunPad({
       {isFreeHit && (
         <div
           style={{
-            backgroundColor: 'var(--green-15)',
-            borderColor: 'var(--primary)',
-            color: 'var(--primary)'
+            backgroundColor: 'color-mix(in srgb, var(--ok) 14%, transparent)',
+            borderColor: 'var(--ok)',
+            color: 'var(--ok)'
           }}
-          className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5"
+          className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
         >
-          <Zap className="w-4 h-4 text-emerald-500 animate-bounce" />
+          <Zap className="w-4 h-4 text-[var(--ok)] animate-bounce" />
           <span>FREE HIT BALL</span>
         </div>
       )}
 
-      {/* Row 1: Runs 0, 1, 2, 3, 4, 6 */}
-      <div className={`grid grid-cols-6 gap-1.5 transition-opacity duration-200 ${isScoringDisabled ? 'opacity-50' : 'opacity-100'}`}>
+      {/* Main 4-Column Keypad */}
+      <div
+        className={`pad ${isScoringDisabled ? 'opacity-50' : 'opacity-100'}`}
+        style={isLeftHanded ? { direction: 'rtl' } : undefined}
+      >
         {/* 0 (DOT) */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(0)}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--muted)'
-          }}
-          className="h-11 sm:h-12 rounded-xl border flex flex-col items-center justify-center font-bold text-xs active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          aria-label="0 runs dot"
+          title="0 runs (Keyboard: 0)"
         >
-          <span className="text-sm font-semibold">0</span>
-          <span className="text-[8px] font-medium tracking-wider -mt-0.5">DOT</span>
+          <span style={{ fontSize: '18px' }}>0</span>
         </button>
 
         {/* 1 */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(1)}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)'
-          }}
-          className="h-11 sm:h-12 rounded-xl border flex items-center justify-center font-bold text-base active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          aria-label="1 run"
+          title="1 run (Keyboard: 1)"
         >
           1
         </button>
@@ -195,12 +202,8 @@ export default function RunPad({
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(2)}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)'
-          }}
-          className="h-11 sm:h-12 rounded-xl border flex items-center justify-center font-bold text-base active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          aria-label="2 runs"
+          title="2 runs (Keyboard: 2)"
         >
           2
         </button>
@@ -209,12 +212,8 @@ export default function RunPad({
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(3)}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)'
-          }}
-          className="h-11 sm:h-12 rounded-xl border flex items-center justify-center font-bold text-base active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          aria-label="3 runs"
+          title="3 runs (Keyboard: 3)"
         >
           3
         </button>
@@ -223,73 +222,53 @@ export default function RunPad({
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(4)}
-          style={{
-            backgroundColor: 'var(--primary)',
-            color: '#FFFFFF'
-          }}
-          className="h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center font-bold text-base active:scale-95 transition-all shadow-sm hover:brightness-105 disabled:cursor-not-allowed"
+          className="f"
+          aria-label="4 runs boundary"
+          title="4 runs boundary (Keyboard: 4)"
         >
-          <span>4</span>
-          <span className="text-[8px] font-semibold uppercase tracking-wider -mt-1 opacity-90">FOUR</span>
+          4
         </button>
 
         {/* 6 (SIX) */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleRunClick(6)}
-          style={{
-            backgroundColor: '#16A34A',
-            color: '#FFFFFF'
-          }}
-          className="h-11 sm:h-12 rounded-xl flex flex-col items-center justify-center font-bold text-base active:scale-95 transition-all shadow-sm hover:brightness-105 disabled:cursor-not-allowed"
+          className="f"
+          aria-label="6 runs maximum"
+          title="6 runs maximum (Keyboard: 6)"
         >
-          <span>6</span>
-          <span className="text-[8px] font-semibold uppercase tracking-wider -mt-1 opacity-90">SIX</span>
+          6
         </button>
-      </div>
 
-      {/* Row 2: WD, NB, BYE, LB, OUT */}
-      <div className={`grid grid-cols-5 gap-1.5 transition-opacity duration-200 ${isScoringDisabled ? 'opacity-50' : 'opacity-100'}`}>
         {/* WD */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.WIDE)}
-          style={{
-            backgroundColor: extraMode === EXTRA_TYPES.WIDE ? 'var(--primary)' : 'var(--card-alt)',
-            color: extraMode === EXTRA_TYPES.WIDE ? '#FFFFFF' : 'var(--text)',
-            borderColor: extraMode === EXTRA_TYPES.WIDE ? 'var(--primary)' : 'var(--border)'
-          }}
-          className="h-10 sm:h-11 rounded-xl border text-[11px] font-bold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm disabled:cursor-not-allowed"
+          className={`e ${extraMode === EXTRA_TYPES.WIDE ? '!bg-[var(--pri)] !text-[var(--onpri)]' : ''}`}
+          aria-label="Wide"
+          title="Wide delivery"
         >
-          <span>WD</span>
-          <span className="text-[8px] font-medium opacity-80 -mt-0.5">WIDE</span>
+          WD
         </button>
 
         {/* NB */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.NO_BALL)}
-          style={{
-            backgroundColor: extraMode === EXTRA_TYPES.NO_BALL ? 'var(--primary)' : 'var(--card-alt)',
-            color: extraMode === EXTRA_TYPES.NO_BALL ? '#FFFFFF' : 'var(--text)',
-            borderColor: extraMode === EXTRA_TYPES.NO_BALL ? 'var(--primary)' : 'var(--border)'
-          }}
-          className="h-10 sm:h-11 rounded-xl border text-[11px] font-bold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm disabled:cursor-not-allowed"
+          className={`e ${extraMode === EXTRA_TYPES.NO_BALL ? '!bg-[var(--pri)] !text-[var(--onpri)]' : ''}`}
+          aria-label="No ball"
+          title="No ball delivery"
         >
-          <span>NB</span>
-          <span className="text-[8px] font-medium opacity-80 -mt-0.5">NO BALL</span>
+          NB
         </button>
 
         {/* BYE */}
         <button
           disabled={isScoringDisabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.BYE)}
-          style={{
-            backgroundColor: extraMode === EXTRA_TYPES.BYE ? 'var(--primary)' : 'var(--card-alt)',
-            color: extraMode === EXTRA_TYPES.BYE ? '#FFFFFF' : 'var(--text)',
-            borderColor: 'var(--border)'
-          }}
-          className="h-10 sm:h-11 rounded-xl border text-[11px] font-semibold flex items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          className={`e ${extraMode === EXTRA_TYPES.BYE ? '!bg-[var(--pri)] !text-[var(--onpri)]' : ''}`}
+          aria-label="Bye"
+          title="Bye runs"
         >
           BYE
         </button>
@@ -298,78 +277,75 @@ export default function RunPad({
         <button
           disabled={isScoringDisabled}
           onClick={() => handleQuickExtra(EXTRA_TYPES.LEG_BYE)}
-          style={{
-            backgroundColor: extraMode === EXTRA_TYPES.LEG_BYE ? 'var(--primary)' : 'var(--card-alt)',
-            color: extraMode === EXTRA_TYPES.LEG_BYE ? '#FFFFFF' : 'var(--text)',
-            borderColor: extraMode === EXTRA_TYPES.LEG_BYE ? 'var(--primary)' : 'var(--border)'
-          }}
-          className="h-10 sm:h-11 rounded-xl border text-[11px] font-semibold flex flex-col items-center justify-center active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:cursor-not-allowed"
+          className={`e ${extraMode === EXTRA_TYPES.LEG_BYE ? '!bg-[var(--pri)] !text-[var(--onpri)]' : ''}`}
+          aria-label="Leg bye"
+          title="Leg bye runs"
         >
-          <span>LB</span>
-          <span className="text-[7px] font-medium opacity-80 -mt-0.5">LEG BYE</span>
+          LB
         </button>
 
-        {/* OUT */}
+        {/* OUT (WICKET) */}
         <button
           disabled={isScoringDisabled}
-          onClick={onOpenWicket}
-          style={{
-            backgroundColor: 'var(--red)',
-            color: '#FFFFFF'
+          onClick={() => {
+            triggerHaptic(20);
+            onOpenWicket();
           }}
-          className="h-10 sm:h-11 rounded-xl flex items-center justify-center gap-1 font-bold text-xs uppercase tracking-wider active:scale-95 transition-all shadow-sm hover:brightness-110 disabled:cursor-not-allowed"
+          className="w"
+          aria-label="Wicket Out"
+          title="Wicket Out (Keyboard: W)"
         >
-          <Zap className="w-3.5 h-3.5 fill-white text-white" />
-          <span>OUT</span>
+          <Zap className="w-4 h-4 fill-current inline mr-1" />
+          OUT
+        </button>
+
+        {/* Undo Ball */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic(15);
+            onUndo();
+          }}
+          disabled={disabled}
+          className="e"
+          aria-label="Undo last ball"
+          title="Undo last ball (Keyboard: U)"
+        >
+          <RotateCcw className="w-4 h-4 inline mr-1" />
+          Undo
         </button>
       </div>
 
-      {/* Row 3: Overthrow, Swap Batter & Undo (Always available during cooldown so mistakes can be undone immediately) */}
-      <div className="grid grid-cols-3 gap-1.5">
+      {/* Auxiliary Controls: Overthrow & Swap Batter */}
+      <div className="grid grid-cols-2 gap-2 mt-0.5">
         <button
           type="button"
-          onClick={onOpenOverthrow}
-          disabled={isScoringDisabled}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)'
+          onClick={() => {
+            triggerHaptic(10);
+            onOpenOverthrow();
           }}
-          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-blue-500 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isScoringDisabled}
+          className="btn s"
+          style={{ width: '100%', height: '40px', borderRadius: '12px', fontSize: '12px' }}
           title="Record Overthrow (Runs ran + Overthrow runs)"
         >
-          <CornerUpRight className="w-3.5 h-3.5 text-blue-400" />
+          <CornerUpRight className="w-3.5 h-3.5 text-[var(--pri)]" />
           <span>+OT Overthrow</span>
         </button>
 
         <button
           type="button"
-          onClick={onSwapBatter}
-          disabled={disabled}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--text)'
+          onClick={() => {
+            triggerHaptic(10);
+            onSwapBatter();
           }}
-          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={disabled}
+          className="btn s"
+          style={{ width: '100%', height: '40px', borderRadius: '12px', fontSize: '12px' }}
+          title="Swap Striker and Non-Striker (Keyboard: Space or S)"
         >
-          <ArrowLeftRight className="w-3.5 h-3.5" style={{ color: 'var(--primary)' }} />
+          <ArrowLeftRight className="w-3.5 h-3.5 text-[var(--pri)]" />
           <span>Swap Batter</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={disabled}
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)',
-            color: 'var(--muted)'
-          }}
-          className="py-2.5 px-2 rounded-xl border flex items-center justify-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm hover:border-[var(--red)] hover:text-[var(--red)] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Undo Ball</span>
         </button>
       </div>
     </div>

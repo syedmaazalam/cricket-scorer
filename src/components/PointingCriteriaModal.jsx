@@ -6,70 +6,65 @@ export default function PointingCriteriaModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md select-none animate-in fade-in duration-200"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
+        className="card"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pointing System Criteria"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: 'var(--card)',
-          borderColor: 'var(--border)',
-          color: 'var(--text)'
+          maxWidth: '400px',
+          width: '100%',
+          margin: 0,
+          background: 'linear-gradient(150deg, color-mix(in srgb, var(--card) 92%, transparent), color-mix(in srgb, var(--card) 80%, transparent))',
+          backdropFilter: 'blur(30px) saturate(1.8)',
+          WebkitBackdropFilter: 'blur(30px) saturate(1.8)',
+          border: '1px solid color-mix(in srgb, var(--t1) 12%, transparent)',
+          borderTopColor: 'color-mix(in srgb, #fff 75%, transparent)',
+          boxShadow: 'inset 0 1px 0 color-mix(in srgb, #fff 60%, transparent), 0 24px 60px -20px rgba(8, 20, 50, 0.45)'
         }}
-        className="w-full max-w-md rounded-xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 relative max-h-[90vh] overflow-y-auto"
       >
-        <button
-          onClick={onClose}
-          style={{ color: 'var(--muted)' }}
-          className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 active:scale-95 transition-all"
-          title="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-2.5 border-b pb-3" style={{ borderColor: 'var(--border)' }}>
-          <div
-            style={{
-              backgroundColor: 'var(--green-15)',
-              color: 'var(--primary)'
-            }}
-            className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg border border-emerald-500/30"
+        <div className="row bt" style={{ marginBottom: '14px' }}>
+          <div className="row">
+            <span className="ok"><Award className="w-5 h-5 text-[var(--ok)]" /></span>
+            <h3 className="h2 font-serif font-bold text-lg">Scoring Criteria</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="ib"
+            aria-label="Close"
           >
-            <Award className="w-5 h-5 text-emerald-500" />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold m-0" style={{ color: 'var(--text)' }}>
-              Official Pointing System Criteria
-            </h3>
-            <p className="text-xs m-0" style={{ color: 'var(--muted)' }}>
-              Player of the Match & Performance Ranking Formula
-            </p>
-          </div>
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">
           {POINTING_CRITERIA.map((crit, idx) => (
             <div
               key={idx}
+              className="row bt"
               style={{
-                backgroundColor: 'var(--card-alt)',
-                borderColor: 'var(--border)'
+                backgroundColor: 'var(--well)',
+                border: '1px solid var(--bd)',
+                borderRadius: '12px',
+                padding: '8px 12px',
+                fontSize: '12px'
               }}
-              className="p-3 rounded-lg border flex items-center justify-between gap-3 text-xs"
             >
               <div className="flex flex-col">
-                <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+                <span className="font-bold" style={{ color: 'var(--t1)' }}>
                   {crit.item}
                 </span>
-                <span className="text-[11px] font-normal" style={{ color: 'var(--muted)' }}>
+                <span className="mu" style={{ fontSize: '11px' }}>
                   {crit.desc}
                 </span>
               </div>
-              <span
-                style={{
-                  backgroundColor: 'var(--green-15)',
-                  color: 'var(--green)',
-                  borderColor: 'var(--green-30)'
-                }}
-                className="px-2.5 py-1 rounded-md font-mono font-bold text-xs shrink-0 border"
-              >
+              <span className="chip" style={{ fontSize: '11px', padding: '3px 8px' }}>
                 {crit.points}
               </span>
             </div>
@@ -78,20 +73,23 @@ export default function PointingCriteriaModal({ isOpen, onClose }) {
 
         <div
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--primary) 10%, var(--card-alt))',
-            borderColor: 'var(--primary)'
+            backgroundColor: 'var(--well)',
+            border: '1px solid var(--bd)',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            fontSize: '11px',
+            textAlign: 'center',
+            marginTop: '12px'
           }}
-          className="rounded-lg p-3 border text-xs text-center font-medium"
+          className="mu"
         >
-          <span style={{ color: 'var(--text)' }}>
-            Points calculate live throughout the match and crown the <strong style={{ color: 'var(--primary)' }}>Player of the Match</strong> at conclusion.
-          </span>
+          Points calculate live and crown the <b className="ac">Player of the Match</b> at conclusion.
         </div>
 
         <button
           onClick={onClose}
-          style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-          className="w-full py-3 rounded-lg font-semibold text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+          className="btn p"
+          style={{ marginTop: '12px', marginBottom: 0 }}
         >
           Got It
         </button>

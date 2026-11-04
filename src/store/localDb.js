@@ -303,6 +303,7 @@ export async function saveManagerLocally(managerData) {
     uid: managerData.uid,
     name: managerData.name || 'Manager',
     email: managerData.email || '',
+    password: managerData.password || '',
     createdAt: managerData.createdAt || Date.now(),
     lastActive: Date.now()
   };
@@ -323,6 +324,43 @@ export async function saveManagerLocally(managerData) {
   } catch (e) {}
 
   return record;
+}
+
+/**
+ * Updates a manager record locally (email, password, name).
+ */
+export async function updateManagerLocally(uid, updates) {
+  if (!uid || !updates) return null;
+  try {
+    const key = 'cricket_local_managers';
+    const current = JSON.parse(localStorage.getItem(key) || '[]');
+    const idx = current.findIndex(m => m.uid === uid);
+    let updatedRecord = null;
+    if (idx !== -1) {
+      current[idx] = { ...current[idx], ...updates, lastActive: Date.now() };
+      updatedRecord = current[idx];
+      localStorage.setItem(key, JSON.stringify(current));
+    }
+    const currentSession = JSON.parse(localStorage.getItem('cricket_manager_user') || 'null');
+    if (currentSession && currentSession.uid === uid) {
+      localStorage.setItem('cricket_manager_user', JSON.stringify({ ...currentSession, ...updates }));
+    }
+    const db = await openDb();
+    const tx = db.transaction('managers', 'readwrite');
+    const store = tx.objectStore('managers');
+    const existing = await new Promise((res) => {
+      const r = store.get(uid);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => res(null);
+    });
+    if (existing) {
+      const merged = { ...existing, ...updates, lastActive: Date.now() };
+      store.put(merged);
+    }
+    return updatedRecord;
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
@@ -392,5 +430,46 @@ export function getActionLogsLocally(matchId) {
     return JSON.parse(localStorage.getItem(key) || '[]');
   } catch (e) {
     return [];
+  }
+}
+
+/**
+ * Wipes all previous matches, managers, snapshots, and logs for a completely fresh clean slate.
+ */
+export async function clearAllPreviousData() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (
+          k.startsWith('cricket_local_') ||
+          k.startsWith('cricket_events_') ||
+          k.startsWith('cricket_snapshot_') ||
+          k.startsWith('cricket_action_logs_') ||
+          k === 'cricket_manager_user' ||
+          k === 'cricket_is_manager' ||
+          k === 'cricket_active_match_id'
+        )) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    }
+  } catch (e) {
+    console.warn('Error clearing localStorage:', e);
+  }
+
+  try {
+    const db = await openDb();
+    const storeNames = ['matches', 'events', 'snapshots', 'managers'];
+    for (const name of storeNames) {
+      if (db.objectStoreNames.contains(name)) {
+        const tx = db.transaction(name, 'readwrite');
+        tx.objectStore(name).clear();
+      }
+    }
+  } catch (e) {
+    console.warn('Error clearing IndexedDB:', e);
   }
 }

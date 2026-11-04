@@ -43,3 +43,12 @@ export const MATCH_STATUS = {
   COMPLETED: 'completed',
   ABANDONED: 'abandoned'
 };
+
+export const WEB_APP_URL = 'https://smartcricket-c79b5.web.app';
+
+export function getShareUrl(paramKey = 'watch', code = '') {
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : WEB_APP_URL;
+  const isLocalOrNative = !origin || origin.includes('localhost') || origin.includes('capacitor://') || origin.startsWith('file://');
+  const base = isLocalOrNative ? WEB_APP_URL : origin;
+  return `${base}/?${paramKey}=${encodeURIComponent(code || '')}`;
+}

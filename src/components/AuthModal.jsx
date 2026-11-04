@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, ShieldCheck, AlertCircle, LogIn, UserPlus } from 'lucide-react';
+import { X, Lock, Mail, User, ShieldCheck, AlertCircle, LogIn, UserPlus, WifiOff } from 'lucide-react';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { saveManagerProfileToCloud } from '../firebase/matches.js';
-import { saveManagerLocally } from '../store/localDb.js';
+import { saveManagerProfileToCloud, getAllManagersFromCloud } from '../firebase/matches.js';
+import { saveManagerLocally, getAllLocalManagers } from '../store/localDb.js';
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [isRegister, setIsRegister] = useState(true);
@@ -14,6 +14,23 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
+  const handleContinueOffline = () => {
+    const offlineMgr = {
+      uid: 'offline_' + Math.random().toString(36).substring(2, 9),
+      name: name.trim() || 'Offline Manager',
+      email: email.trim() || 'offline@scorer.local',
+      password: password.trim() || '',
+      isOffline: true,
+      createdAt: Date.now(),
+      lastActive: Date.now()
+    };
+    saveManagerLocally(offlineMgr);
+    localStorage.setItem('cricket_manager_user', JSON.stringify(offlineMgr));
+    localStorage.setItem('cricket_is_manager', 'true');
+    onSuccess(offlineMgr);
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -21,6 +38,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
     const cleanName = name.trim();
+
+    // If device is offline, allow them to continue offline directly
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      handleContinueOffline();
+      return;
+    }
 
     if (!cleanEmail || !cleanPassword) {
       setError('Please fill in both email and password.');
@@ -42,8 +65,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       const auth = getAuth();
       let managerData = null;
 
-      try {
-        if (isRegister) {
+      if (isRegister) {
+        try {
           const cred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
           if (cleanName) {
             await updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
@@ -52,28 +75,85 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
             uid: cred.user.uid,
             name: cleanName || cleanEmail.split('@')[0],
             email: cleanEmail,
+            password: cleanPassword,
             createdAt: Date.now(),
             lastActive: Date.now()
           };
-        } else {
+        } catch (fbErr) {
+          const code = fbErr.code || '';
+          if (code === 'auth/email-already-in-use') {
+            setError('This email is already registered. Please switch to Sign In.');
+            setLoading(false);
+            return;
+          } else if (code === 'auth/invalid-email') {
+            setError('Please enter a valid email address.');
+            setLoading(false);
+            return;
+          } else if (code === 'auth/weak-password') {
+            setError('Password should be at least 6 characters.');
+            setLoading(false);
+            return;
+          } else if (!navigator.onLine) {
+            handleContinueOffline();
+            return;
+          } else {
+            // Local fallback if Firebase auth rules block
+            const localUid = 'mgr_' + Math.random().toString(36).substring(2, 9);
+            managerData = {
+              uid: localUid,
+              name: cleanName || cleanEmail.split('@')[0],
+              email: cleanEmail,
+              password: cleanPassword,
+              createdAt: Date.now(),
+              lastActive: Date.now()
+            };
+          }
+        }
+      } else {
+        // Sign In
+        try {
           const cred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
           managerData = {
             uid: cred.user.uid,
             name: cred.user.displayName || cleanEmail.split('@')[0],
             email: cleanEmail,
+            password: cleanPassword,
             lastActive: Date.now()
           };
+        } catch (fbErr) {
+          const code = fbErr.code || '';
+          if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+            // Check local managers list
+            const localMgrs = await getAllLocalManagers();
+            const foundLocal = localMgrs.find(m => m.email?.toLowerCase() === cleanEmail.toLowerCase());
+            if (!foundLocal) {
+              setError('No manager account found with this email. Please register first.');
+              setLoading(false);
+              return;
+            }
+            if (foundLocal.password && foundLocal.password !== cleanPassword) {
+              setError('Incorrect password. Please verify and try again.');
+              setLoading(false);
+              return;
+            }
+            managerData = { ...foundLocal, password: cleanPassword, lastActive: Date.now() };
+          } else if (code === 'auth/wrong-password') {
+            setError('Incorrect password. Please verify and try again.');
+            setLoading(false);
+            return;
+          } else if (code === 'auth/invalid-email') {
+            setError('Please enter a valid email address.');
+            setLoading(false);
+            return;
+          } else if (!navigator.onLine) {
+            handleContinueOffline();
+            return;
+          } else {
+            setError('Authentication failed. Please verify credentials or register.');
+            setLoading(false);
+            return;
+          }
         }
-      } catch (fbErr) {
-        console.warn('Firebase Auth fallback active:', fbErr);
-        const localUid = 'mgr_' + Math.random().toString(36).substring(2, 9);
-        managerData = {
-          uid: localUid,
-          name: cleanName || cleanEmail.split('@')[0],
-          email: cleanEmail,
-          createdAt: Date.now(),
-          lastActive: Date.now()
-        };
       }
 
       // Persist profile locally and to Firestore
@@ -259,7 +339,27 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
             )}
           </button>
 
-          <p className="text-[10px] text-center pt-2" style={{ color: 'var(--muted)' }}>
+          {/* Offline Continuation Option */}
+          <div className="pt-2 border-t flex flex-col items-center gap-1.5 mt-2" style={{ borderColor: 'var(--border)' }}>
+            <button
+              type="button"
+              onClick={handleContinueOffline}
+              style={{
+                backgroundColor: 'var(--well)',
+                borderColor: 'var(--border)',
+                color: 'var(--muted)'
+              }}
+              className="w-full py-2 rounded-lg border text-xs font-semibold hover:text-[var(--text)] transition-colors flex items-center justify-center gap-1.5"
+            >
+              <WifiOff className="w-3.5 h-3.5 text-amber-500" />
+              <span>Continue Offline without Login</span>
+            </button>
+            <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+              Scoring works 100% offline. Matches sync automatically when connected.
+            </span>
+          </div>
+
+          <p className="text-[10px] text-center pt-1" style={{ color: 'var(--muted)' }}>
             Only managers creating matches require an account. Spectators can watch live matches freely without registering.
           </p>
         </form>

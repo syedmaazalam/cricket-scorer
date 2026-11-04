@@ -17,6 +17,10 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Builds and binaries
+*.apk
+.firebase/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -27,3 +31,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Agent and temporary artifacts
+.agent/
+.agents/
+.taste-skill/
+dashboard_*.png
+dashboard_*.html
+skills-lock.json
+graphify-out/
+WEBSITE_BLUEPRINT.md
+
+

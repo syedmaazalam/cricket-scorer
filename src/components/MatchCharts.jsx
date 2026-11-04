@@ -3,12 +3,14 @@ import { BarChart3, TrendingUp, Sparkles } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 
-export default function MatchCharts({ matchState }) {
-  const [activeChart, setActiveChart] = useState('runs'); // 'runs' (Bar Chart) | 'worm' (Line Chart)
+export default function MatchCharts({ matchState, initialChart = 'runs' }) {
+  const [activeChart, setActiveChart] = useState(initialChart); // 'runs' (Bar Chart) | 'worm' (Line Chart)
   const [selectedInnings, setSelectedInnings] = useState(0);
-  const [selectedOver, setSelectedOver] = useState(null); // overIndex tapped for tooltip
+  const [selectedOver, setSelectedOver] = useState(null);
+  const [hoveredOver, setHoveredOver] = useState(null);
   const [overRange, setOverRange] = useState('all'); // '1-10' | '11-20' | 'all'
   const [selectedWormOver, setSelectedWormOver] = useState(null);
+  const [hoveredWormOver, setHoveredWormOver] = useState(null);
 
   const chartId = useId();
 
@@ -41,7 +43,7 @@ export default function MatchCharts({ matchState }) {
     };
   });
 
-  // Filter based on mobile selector (1-10, 11-20, all)
+  // Filter based on range selector (1-10, 11-20, all)
   const filteredOvers = allOversData.filter(ov => {
     if (overRange === '1-10') return ov.overIndex <= 10;
     if (overRange === '11-20') return ov.overIndex > 10 && ov.overIndex <= 20;
@@ -53,12 +55,10 @@ export default function MatchCharts({ matchState }) {
 
   // Find max runs in any recorded over to scale Y-axis dynamically
   const maxOverRuns = Math.max(14, ...allOversData.filter(o => o.hasData).map(o => o.runs || 0));
-  // Round up to nice round number (multiple of 4 or 5)
   const yAxisMax = Math.ceil(maxOverRuns / 4) * 4;
   const yAxisSteps = [0, yAxisMax * 0.25, yAxisMax * 0.5, yAxisMax * 0.75, yAxisMax];
 
   // Best Over, Average, Total Stats for bottom cards
-  // Best Bowling Over: Fewest runs conceded is best (e.g. 5 runs beats 10 runs). Wickets add major merit.
   const recordedOvers = allOversData.filter(o => o.hasData);
   let bestOverObj = null;
   if (recordedOvers.length > 0) {
@@ -83,13 +83,20 @@ export default function MatchCharts({ matchState }) {
   // Set default selected over for the tooltip if none selected yet
   useEffect(() => {
     if (selectedOver === null && recordedOvers.length > 0) {
-      // Pick the last completed or highest over
       const highest = recordedOvers.reduce((prev, curr) => (curr.runs > prev.runs ? curr : prev), recordedOvers[0]);
       setSelectedOver(highest ? highest.overIndex : recordedOvers[recordedOvers.length - 1].overIndex);
     }
   }, [recordedOvers.length]);
 
-  const activeTooltipOver = allOversData.find(o => o.overIndex === selectedOver);
+  const effectiveOverIndex = hoveredOver || selectedOver;
+  const activeTooltipOver = allOversData.find(o => o.overIndex === effectiveOverIndex);
+
+  const cumulativeRuns = activeTooltipOver && activeTooltipOver.overIndex
+    ? allOversData.slice(0, activeTooltipOver.overIndex).reduce((sum, o) => sum + (o.runs || 0), 0)
+    : 0;
+  const cumulativeWickets = activeTooltipOver && activeTooltipOver.overIndex
+    ? allOversData.slice(0, activeTooltipOver.overIndex).reduce((sum, o) => sum + (o.wickets || 0), 0)
+    : 0;
 
   // --- Worm / Line Chart Data Builder ---
   const buildLineChartData = (innings) => {
@@ -99,10 +106,8 @@ export default function MatchCharts({ matchState }) {
     let wicketsCount = 0;
     let legalBalls = 0;
 
-    // Point at 0
     overMap.push({ over: 0, score: 0, wickets: 0, isWicket: false });
 
-    // Track ball by ball
     innings.balls.forEach((b) => {
       currentScore = b.scoreAtBall || (currentScore + (b.runs || 0) + (b.extraRuns || 0));
       if (b.isLegal) {
@@ -112,7 +117,6 @@ export default function MatchCharts({ matchState }) {
         wicketsCount++;
       }
 
-      // Record at end of each over
       if (b.isLegal && legalBalls % 6 === 0) {
         const ov = legalBalls / 6;
         overMap.push({
@@ -124,7 +128,6 @@ export default function MatchCharts({ matchState }) {
       }
     });
 
-    // If current over is incomplete, add current point
     if (legalBalls % 6 !== 0 && legalBalls > 0) {
       const ov = Number((legalBalls / 6).toFixed(1));
       overMap.push({
@@ -150,15 +153,14 @@ export default function MatchCharts({ matchState }) {
 
   // Worm SVG Dimensions
   const wormSvgWidth = 600;
-  const wormSvgHeight = 260;
-  const wormPad = { top: 35, right: 35, bottom: 40, left: 45 };
+  const wormSvgHeight = 240;
+  const wormPad = { top: 30, right: 30, bottom: 35, left: 40 };
   const wormPlotW = wormSvgWidth - wormPad.left - wormPad.right;
   const wormPlotH = wormSvgHeight - wormPad.top - wormPad.bottom;
 
   const getWormX = (over) => wormPad.left + (over / totalMatchOvers) * wormPlotW;
   const getWormY = (score) => wormPad.top + wormPlotH - (score / wormMaxY) * wormPlotH;
 
-  // Generate smooth cubic Bézier SVG path
   const createSmoothLinePath = (points) => {
     if (!points || points.length === 0) return '';
     if (points.length === 1) return `M ${getWormX(points[0].over)} ${getWormY(points[0].score)}`;
@@ -175,7 +177,6 @@ export default function MatchCharts({ matchState }) {
       const x2 = getWormX(p2.over);
       const y2 = getWormY(p2.score);
 
-      // Control points
       const cp1x = x1 + (x2 - getWormX(p0.over)) / 6;
       const cp1y = y1 + (y2 - getWormY(p0.score)) / 6;
       const cp2x = x2 - (getWormX(p3.over) - x1) / 6;
@@ -189,7 +190,6 @@ export default function MatchCharts({ matchState }) {
   const linePath1 = createSmoothLinePath(lineData1);
   const linePath2 = createSmoothLinePath(lineData2);
 
-  // Area fill paths
   const createAreaPath = (linePath, points) => {
     if (!linePath || points.length === 0) return '';
     const firstX = getWormX(points[0].over);
@@ -201,99 +201,87 @@ export default function MatchCharts({ matchState }) {
   const areaPath1 = createAreaPath(linePath1, lineData1);
   const areaPath2 = createAreaPath(linePath2, lineData2);
 
-  // Default selected worm over
-  const activeWormPoint = (selectedWormOver !== null
-    ? (lineData1.find(p => Math.round(p.over) === selectedWormOver) || lineData1[lineData1.length - 1])
+  const effectiveWormOver = hoveredWormOver !== null ? hoveredWormOver : selectedWormOver;
+  const activeWormPoint = (effectiveWormOver !== null
+    ? (lineData1.find(p => Math.round(p.over) === effectiveWormOver) || lineData1[lineData1.length - 1])
     : (lineData1[Math.min(8, lineData1.length - 1)] || lineData1[lineData1.length - 1])) || { over: 8, score: inn1.score, wickets: inn1.wickets };
 
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--card)',
-        borderColor: 'var(--border)'
-      }}
-      className="app-card p-3 sm:p-5 flex flex-col gap-3 shadow-md rounded-[20px] transition-all"
-    >
+    <section className="card">
       {/* 1. Header with Title & Run Rate / Worm Toggle */}
-      <div
-        style={{ borderColor: 'var(--border)' }}
-        className="flex items-center justify-between border-b pb-3"
-      >
-        <div className="flex items-center gap-2">
-          <div
-            style={{ backgroundColor: 'var(--card-alt)' }}
-            className="p-1.5 rounded-xl flex items-center justify-center border"
-          >
-            {activeChart === 'runs' ? (
-              <BarChart3 className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-            ) : (
-              <TrendingUp className="w-4 h-4" style={{ color: 'var(--orange)' }} />
-            )}
-          </div>
-          <span className="font-black text-xs sm:text-sm tracking-wider uppercase" style={{ color: 'var(--text)' }}>
-            OVER COMPARISON
+      <div className="row bt wrap" style={{ marginBottom: '8px' }}>
+        <div className="row">
+          <span className="ico" style={{ width: '40px', height: '40px' }}>
+            {activeChart === 'runs' ? <BarChart3 className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
           </span>
+          <h3 className="h2">Over comparison</h3>
         </div>
 
-        {/* Toggle buttons per spec */}
-        <div
-          style={{
-            backgroundColor: 'var(--card-alt)',
-            borderColor: 'var(--border)'
-          }}
-          className="flex items-center gap-1.5 p-1 rounded-2xl border"
-        >
+        <div className="seg" role="group">
           <button
             type="button"
             onClick={() => setActiveChart('runs')}
-            style={{
-              backgroundColor: activeChart === 'runs' ? 'var(--primary)' : 'transparent',
-              color: activeChart === 'runs' ? '#FFFFFF' : 'var(--muted)',
-              lineHeight: '1.4'
-            }}
-            className="min-h-[30px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm flex items-center justify-center"
+            className={activeChart === 'runs' ? 'on' : ''}
+            aria-pressed={activeChart === 'runs'}
           >
             Run Rate
           </button>
           <button
             type="button"
             onClick={() => setActiveChart('worm')}
-            style={{
-              backgroundColor: activeChart === 'worm' ? 'var(--primary)' : 'transparent',
-              color: activeChart === 'worm' ? '#FFFFFF' : 'var(--muted)',
-              lineHeight: '1.4'
-            }}
-            className="min-h-[30px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm flex items-center justify-center"
+            className={activeChart === 'worm' ? 'on' : ''}
+            aria-pressed={activeChart === 'worm'}
           >
             Worm
           </button>
         </div>
       </div>
 
+      {/* View Range Row */}
+      <div className="row bt" style={{ margin: '10px 0' }}>
+        <span className="mu" style={{ fontWeight: 600, fontSize: '13px' }}>View range</span>
+        <div className="seg" role="group">
+          <button
+            type="button"
+            onClick={() => setOverRange('1-10')}
+            className={overRange === '1-10' ? 'on' : ''}
+            aria-pressed={overRange === '1-10'}
+          >
+            1-10
+          </button>
+          <button
+            type="button"
+            onClick={() => setOverRange('11-20')}
+            className={overRange === '11-20' ? 'on' : ''}
+            aria-pressed={overRange === '11-20'}
+          >
+            11-20
+          </button>
+          <button
+            type="button"
+            onClick={() => setOverRange('all')}
+            className={overRange === 'all' ? 'on' : ''}
+            aria-pressed={overRange === 'all'}
+          >
+            All
+          </button>
+        </div>
+      </div>
+
       {/* Innings Selector if 2nd Innings has begun */}
       {inn2 && inn2.balls && inn2.balls.length > 0 && activeChart === 'runs' && (
-        <div className="flex items-center gap-2">
+        <div className="seg" role="group" style={{ marginBottom: '10px' }}>
           <button
             type="button"
             onClick={() => setSelectedInnings(0)}
-            style={{
-              backgroundColor: selectedInnings === 0 ? 'var(--primary)' : 'var(--card-alt)',
-              color: selectedInnings === 0 ? '#FFFFFF' : 'var(--muted)',
-              borderColor: 'var(--border)'
-            }}
-            className="px-3 py-1 rounded-xl text-xs font-bold border transition-all"
+            className={selectedInnings === 0 ? 'on' : ''}
           >
             {inn1.battingTeam} ({inn1.score}/{inn1.wickets})
           </button>
           <button
             type="button"
             onClick={() => setSelectedInnings(1)}
-            style={{
-              backgroundColor: selectedInnings === 1 ? 'var(--primary)' : 'var(--card-alt)',
-              color: selectedInnings === 1 ? '#FFFFFF' : 'var(--muted)',
-              borderColor: 'var(--border)'
-            }}
-            className="px-3 py-1 rounded-xl text-xs font-bold border transition-all"
+            className={selectedInnings === 1 ? 'on' : ''}
           >
             {inn2.battingTeam} ({inn2.score}/{inn2.wickets})
           </button>
@@ -301,90 +289,78 @@ export default function MatchCharts({ matchState }) {
       )}
 
       {/* ============================================================ */}
-      {/* 2. BAR CHART MODE (MATCHING REFERENCE IMAGE 2) */}
+      {/* 2. BAR CHART MODE */}
       {/* ============================================================ */}
       {activeChart === 'runs' && (
-        <div className="flex flex-col gap-3">
-          {/* Mobile Overs Range Combo Box (Overs 1-10, Overs 11-20, All Overs) */}
-          <div className="flex sm:hidden items-center justify-between text-xs">
-            <span style={{ color: 'var(--muted)' }} className="font-semibold text-[11px]">View Range:</span>
-            <div
-              style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
-              className="flex items-center gap-1 p-0.5 rounded-xl border text-[11px]"
-            >
-              <button
-                type="button"
-                onClick={() => setOverRange('1-10')}
-                style={{
-                  backgroundColor: overRange === '1-10' ? 'var(--primary)' : 'transparent',
-                  color: overRange === '1-10' ? '#FFFFFF' : 'var(--muted)'
-                }}
-                className="px-2 py-0.5 rounded-lg font-bold transition-all"
-              >
-                1-10
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverRange('11-20')}
-                style={{
-                  backgroundColor: overRange === '11-20' ? 'var(--primary)' : 'transparent',
-                  color: overRange === '11-20' ? '#FFFFFF' : 'var(--muted)'
-                }}
-                className="px-2 py-0.5 rounded-lg font-bold transition-all"
-              >
-                11-20
-              </button>
-              <button
-                type="button"
-                onClick={() => setOverRange('all')}
-                style={{
-                  backgroundColor: overRange === 'all' ? 'var(--primary)' : 'transparent',
-                  color: overRange === 'all' ? '#FFFFFF' : 'var(--muted)'
-                }}
-                className="px-2 py-0.5 rounded-lg font-bold transition-all"
-              >
-                All
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Tooltip shown at top parallel to X-axis (Matching Image 2) */}
-          <div className="min-h-[36px] py-1 flex items-center justify-center relative my-1">
+        <div className="flex flex-col gap-2">
+          {/* Interactive Over Summary Tooltip Card */}
+          <div
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--well) 70%, transparent)',
+              borderColor: 'var(--bda)'
+            }}
+            className="rounded-xl border p-2.5 transition-all duration-200 shadow-sm"
+          >
             {activeTooltipOver && activeTooltipOver.hasData ? (
-              <div
-                style={{
-                  backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                  lineHeight: '1.4'
-                }}
-                className="px-4 py-1.5 min-h-[30px] rounded-full text-xs font-black shadow-md border flex items-center gap-2 animate-fadeIn"
-              >
-                <span>Over {activeTooltipOver.overIndex}</span>
-                <span style={{ color: 'var(--muted)' }}>•</span>
-                <span style={{ color: activeTooltipOver.runs >= 10 ? 'var(--chart-high, #3B82F6)' : 'var(--chart-normal, #22C55E)' }}>
-                  {activeTooltipOver.runs} runs
-                </span>
-                {activeTooltipOver.wickets > 0 && (
-                  <>
-                    <span style={{ color: 'var(--muted)' }}>•</span>
-                    <span style={{ color: 'var(--red)' }}>
-                      {activeTooltipOver.wickets} {activeTooltipOver.wickets === 1 ? 'wicket' : 'wickets'}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded-md bg-[var(--pri)] text-white text-[10px] font-black uppercase tracking-wider">
+                      Over {activeTooltipOver.overIndex}
                     </span>
-                  </>
+                    {activeTooltipOver.bowler && (
+                      <span className="text-xs font-bold truncate max-w-[150px]" style={{ color: 'var(--t1)' }}>
+                        {activeTooltipOver.bowler}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-mono">
+                    <span className="font-extrabold text-[var(--pri)]">+{activeTooltipOver.runs} r</span>
+                    {activeTooltipOver.wickets > 0 && (
+                      <span className="px-1.5 py-0.5 rounded bg-[var(--bad)] text-white text-[10px] font-black">
+                        {activeTooltipOver.wickets}W
+                      </span>
+                    )}
+                    <span className="text-[var(--t2)] text-[11px]">
+                      (Total {cumulativeRuns}/{cumulativeWickets})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ball by ball sequence dots if available */}
+                {activeTooltipOver.balls && activeTooltipOver.balls.length > 0 && (
+                  <div className="flex items-center gap-1 pt-0.5 overflow-x-auto">
+                    <span className="text-[10px] font-semibold text-[var(--t3)] mr-0.5">Balls:</span>
+                    {activeTooltipOver.balls.map((b, bIdx) => (
+                      <span
+                        key={bIdx}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                          b.isWicket
+                            ? 'bg-[var(--bad)] text-white'
+                            : b.runs === 4 || b.runs === 6
+                            ? 'bg-[var(--pri)] text-white'
+                            : b.extraType
+                            ? 'bg-[var(--warn)] text-black'
+                            : 'bg-[var(--bd)] text-[var(--t1)]'
+                        }`}
+                      >
+                        {b.isWicket ? 'W' : b.extraType ? (b.extraType === 'wide' ? 'wd' : 'nb') : (b.runs || 0)}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             ) : (
-              <span className="text-[11px] font-medium leading-normal" style={{ color: 'var(--muted)' }}>
-                Tap any over bar to view ball details
-              </span>
+              <div className="text-center text-xs text-[var(--t2)] py-0.5">
+                Hover or tap any over bar to inspect bowler, runs, wickets, and cumulative score
+              </div>
             )}
           </div>
 
           {/* Over-by-Over Bar Chart Grid */}
-          <div className="relative w-full h-56 pt-2 pb-6 px-1 flex">
+          <div className="relative w-full h-48 pt-2 pb-6 px-1 flex">
             {/* Y-Axis scale numbers & dashed horizontal grid lines */}
-            <div className="w-8 shrink-0 flex flex-col justify-between items-end pr-1.5 text-[10px] font-mono select-none" style={{ color: 'var(--muted)' }}>
+            <div className="w-7 shrink-0 flex flex-col justify-between items-end pr-1 text-[10px] font-mono select-none" style={{ color: 'var(--t2)' }}>
               {yAxisSteps.slice().reverse().map((stepVal, idx) => (
                 <span key={idx}>{Math.round(stepVal)}</span>
               ))}
@@ -397,13 +373,13 @@ export default function MatchCharts({ matchState }) {
                 {yAxisSteps.slice().reverse().map((_, idx) => (
                   <div
                     key={idx}
-                    style={{ borderColor: 'var(--border)' }}
+                    style={{ borderColor: 'var(--bd)' }}
                     className="w-full border-b border-dashed"
                   />
                 ))}
               </div>
 
-              {/* Dotted CRR Line with CRR badge on the right (matching Image 2) */}
+              {/* Dotted CRR Line with CRR badge */}
               {crrValue > 0 && crrValue <= yAxisMax && (
                 <div
                   style={{
@@ -412,22 +388,22 @@ export default function MatchCharts({ matchState }) {
                   className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
                 >
                   <div
-                    style={{ borderColor: 'var(--primary)' }}
+                    style={{ borderColor: 'var(--ok)' }}
                     className="flex-1 border-b-2 border-dotted opacity-75"
                   />
                   <div
                     style={{
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF'
+                      backgroundColor: 'var(--ok)',
+                      color: 'var(--bg)'
                     }}
-                    className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shadow-sm ml-1 shrink-0"
+                    className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider shadow-sm ml-1 shrink-0"
                   >
                     CRR {crrValue.toFixed(1)}
                   </div>
                 </div>
               )}
 
-              {/* Over Bars (responsive: 10 overs on mobile or all overs on desktop) */}
+              {/* Over Bars */}
               <div className="relative z-10 w-full h-full flex items-end justify-between gap-1 sm:gap-2">
                 {filteredOvers.map((ov) => {
                   const runs = ov.runs || 0;
@@ -438,44 +414,44 @@ export default function MatchCharts({ matchState }) {
                   const hasWicket = ov.wickets > 0;
                   const isSelected = selectedOver === ov.overIndex;
 
-                  // Color semantics:
-                  // 10+ runs over: --chart-high (BLUE: #2563EB in light / #3B82F6 in dark), even if wicket fell (retaining overhead W badge)
-                  // Wicket over with <10 runs: --chart-wicket (#DC2626 in light / #EF4444 in dark)
-                  // Normal over (<10 runs, no wicket): --chart-normal (#16A34A green in light / #22C55E green in dark)
-                  let barBg = 'var(--chart-normal, #22C55E)';
-                  if (runs >= 10) {
-                    barBg = 'var(--chart-high, #3B82F6)';
-                  } else if (hasWicket) {
-                    barBg = 'var(--chart-wicket, #EF4444)';
+                  // Required test-verified semantics:
+                  // 10+ runs over: var(--chart-high, #2563EB)
+                  // Normal over: var(--chart-normal, #16A34A)
+                  // Wicket over: var(--chart-wicket, var(--bad))
+                  let barBg = 'var(--chart-normal, #16A34A)';
+                  if (hasWicket) {
+                    barBg = 'var(--chart-wicket, var(--bad))';
+                  } else if (runs >= 10) {
+                    barBg = 'var(--chart-high, #2563EB)';
                   }
 
                   return (
                     <div
                       key={ov.overIndex}
                       onClick={() => ov.hasData && setSelectedOver(ov.overIndex)}
+                      onMouseEnter={() => ov.hasData && setHoveredOver(ov.overIndex)}
+                      onMouseLeave={() => setHoveredOver(null)}
                       className={`flex-1 flex flex-col items-center justify-end h-full cursor-pointer transition-all ${
                         ov.hasData ? 'hover:opacity-90 active:scale-95' : 'opacity-20'
                       }`}
-                      style={{
-                        minWidth: '18px'
-                      }}
+                      style={{ minWidth: '16px' }}
                     >
-                      {/* Runs number & Wicket circle indicator above bar */}
+                      {/* Runs number & Wicket indicator above bar */}
                       {ov.hasData && (
                         <div className="flex flex-col items-center gap-0.5 mb-1 select-none">
                           {hasWicket && (
                             <div
-                              style={{ backgroundColor: 'var(--red)', color: '#FFFFFF' }}
-                              className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shadow-sm"
+                              style={{ backgroundColor: 'var(--bad)', color: '#FFFFFF' }}
+                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black shadow-sm"
                               title={`${ov.wickets} wicket in this over`}
                             >
                               W
                             </div>
                           )}
                           <span
-                            className="text-[10px] font-black transition-colors"
+                            className="text-[10px] font-bold transition-colors"
                             style={{
-                              color: isSelected ? 'var(--primary)' : 'var(--text)'
+                              color: isSelected ? 'var(--pri)' : 'var(--t1)'
                             }}
                           >
                             {runs}
@@ -488,9 +464,10 @@ export default function MatchCharts({ matchState }) {
                         style={{
                           height: `${heightPercent}%`,
                           backgroundColor: barBg,
-                          borderColor: isSelected ? 'var(--text)' : 'transparent'
+                          borderRadius: '6px 6px 0 0',
+                          borderColor: isSelected ? 'var(--ring)' : 'transparent'
                         }}
-                        className={`w-full rounded-t-lg transition-all duration-300 ${
+                        className={`w-full transition-all duration-300 ${
                           isSelected ? 'border-2 shadow-lg scale-x-105' : ''
                         }`}
                       />
@@ -499,7 +476,7 @@ export default function MatchCharts({ matchState }) {
                       <span
                         className="text-[10px] font-mono mt-1 font-bold select-none"
                         style={{
-                          color: isSelected ? 'var(--primary)' : 'var(--muted)'
+                          color: isSelected ? 'var(--pri)' : ov.hasData ? 'var(--ok)' : 'var(--t3)'
                         }}
                       >
                         {ov.overIndex}
@@ -511,135 +488,95 @@ export default function MatchCharts({ matchState }) {
             </div>
           </div>
 
-          {/* Centered "Over" Label */}
-          <div className="text-center text-[10px] font-bold uppercase tracking-widest -mt-2" style={{ color: 'var(--muted)' }}>
-            Over
-          </div>
-
           {/* Bar Chart Legend */}
-          <div
-            style={{ borderColor: 'var(--border)' }}
-            className="flex items-center justify-center gap-4 text-xs font-semibold pt-2 border-t"
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-normal, #22C55E)' }} />
-              <span style={{ color: 'var(--muted)' }} className="text-[11px]">Normal Over</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-high, #3B82F6)' }} />
-              <span style={{ color: 'var(--muted)' }} className="text-[11px]">10+ Runs</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--chart-wicket, #EF4444)' }} />
-              <span style={{ color: 'var(--muted)' }} className="text-[11px]">Wicket Over</span>
-            </div>
+          <div className="row wrap" style={{ justifyContent: 'center', gap: '14px', fontSize: '12px', color: 'var(--t2)', margin: '4px 0 10px' }}>
+            <span className="flex items-center gap-1.5">
+              <i className="dot" style={{ backgroundColor: 'var(--chart-normal, #16A34A)' }} />
+              <span>Normal over</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="dot" style={{ backgroundColor: 'var(--chart-high, #2563EB)' }} />
+              <span>10+ runs</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="dot" style={{ backgroundColor: 'var(--bad)' }} />
+              <span>Wicket over</span>
+            </span>
           </div>
 
-          {/* 3 Summary Stat Cards (Matching Image 2: Best Over, Avg, Total) */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
-            {/* Best Over */}
-            <div
-              style={{
-                backgroundColor: 'var(--card-alt)',
-                borderColor: 'var(--border)'
-              }}
-              className="p-3 rounded-2xl border text-center flex flex-col justify-center"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-                Best Over
-              </span>
-              <div className="text-lg sm:text-xl font-black flex items-center justify-center gap-1 mt-0.5" style={{ color: 'var(--text)' }}>
-                <span>{bestOverRuns}</span>
-                <Sparkles className="w-3.5 h-3.5 text-emerald-500 inline" />
-              </div>
-              {bestOverNumber && (
-                <span className="text-[10px] font-bold" style={{ color: 'var(--orange)' }}>
-                  Over {bestOverNumber}
-                </span>
-              )}
+          {/* 3 Summary Stat Tiles: Best Over, Avg, Total */}
+          <div className="flex flex-col gap-2 w-full mt-3">
+            <div className="tile py-2.5 px-4 rounded-xl border border-[var(--bd)] text-center">
+              <span className="text-[11px] text-[var(--t2)] font-semibold block">Best over</span>
+              <b className="text-sm font-bold mt-0.5 block">{bestOverRuns} <span className="text-[var(--ok)]">Over {bestOverNumber || 1}</span></b>
             </div>
 
-            {/* Average */}
-            <div
-              style={{
-                backgroundColor: 'var(--card-alt)',
-                borderColor: 'var(--border)'
-              }}
-              className="p-3 rounded-2xl border text-center flex flex-col justify-center"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-                Avg
-              </span>
-              <div className="text-lg sm:text-xl font-black mt-0.5" style={{ color: 'var(--text)' }}>
-                {avgRunsPerOver}
-              </div>
+            <div className="tile py-2.5 px-4 rounded-xl border border-[var(--bd)] text-center">
+              <span className="text-[11px] text-[var(--t2)] font-semibold block">Avg</span>
+              <b className="text-sm font-bold mt-0.5 block">{avgRunsPerOver}</b>
             </div>
 
-            {/* Total */}
-            <div
-              style={{
-                backgroundColor: 'var(--card-alt)',
-                borderColor: 'var(--border)'
-              }}
-              className="p-3 rounded-2xl border text-center flex flex-col justify-center"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
-                Total
-              </span>
-              <div className="text-lg sm:text-xl font-black mt-0.5" style={{ color: 'var(--orange)' }}>
-                {currentInn.score}/{currentInn.wickets}
-              </div>
+            <div className="tile py-2.5 px-4 rounded-xl border border-[var(--bd)] text-center">
+              <span className="text-[11px] text-[var(--t2)] font-semibold block">Total</span>
+              <b className="text-sm font-bold mt-0.5 block text-[var(--ok)]">{currentInn.score}/{currentInn.wickets}</b>
             </div>
           </div>
         </div>
       )}
 
       {/* ============================================================ */}
-      {/* 3. WORM / LINE CHART MODE (MATCHING REFERENCE IMAGE 1) */}
+      {/* 3. WORM / LINE CHART MODE */}
       {/* ============================================================ */}
       {activeChart === 'worm' && (
         <div className="flex flex-col gap-2">
-          {/* Interactive Tooltip shown parallel to X-Axis */}
-          <div className="min-h-[36px] py-1 flex items-center justify-center my-1">
+          {/* Interactive Worm Tooltip Card */}
+          <div
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--well) 70%, transparent)',
+              borderColor: 'var(--bda)'
+            }}
+            className="rounded-xl border p-2.5 transition-all duration-200 shadow-sm"
+          >
             {activeWormPoint ? (
-              <div
-                style={{
-                  backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                  lineHeight: '1.4'
-                }}
-                className="px-4 py-1.5 min-h-[30px] rounded-full text-xs font-black shadow-md border flex items-center gap-2"
-              >
-                <span>Over {activeWormPoint.over}</span>
-                <span style={{ color: 'var(--muted)' }}>•</span>
-                <span style={{ color: 'var(--red)' }}>
-                  {activeWormPoint.score}/{activeWormPoint.wickets}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--pri)] text-white text-[10px] font-black uppercase tracking-wider">
+                    Over {activeWormPoint.over}
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: 'var(--t1)' }}>
+                    Score: <b className="text-[var(--pri)]">{activeWormPoint.score}/{activeWormPoint.wickets}</b>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono text-[var(--t2)]">
+                  <span>CRR: <b style={{ color: 'var(--t1)' }}>{(activeWormPoint.over > 0 ? (activeWormPoint.score / activeWormPoint.over).toFixed(2) : '0.00')}</b></span>
+                  {matchState?.target && (
+                    <span className="text-[var(--warn)] font-bold">
+                      {Math.max(0, matchState.target - activeWormPoint.score)} to win
+                    </span>
+                  )}
+                </div>
               </div>
             ) : (
-              <span className="text-[11px] font-medium leading-normal" style={{ color: 'var(--muted)' }}>
-                Tap any over node to view cumulative score
-              </span>
+              <div className="text-center text-xs text-[var(--t2)] py-0.5">
+                Hover or tap nodes on the worm line to inspect score trajectory
+              </div>
             )}
           </div>
 
           <div className="w-full overflow-x-auto">
             <svg
               viewBox={`0 0 ${wormSvgWidth} ${wormSvgHeight}`}
-              className="w-full h-56 select-none overflow-visible"
+              className="w-full h-52 select-none overflow-visible"
             >
               <defs>
-                {/* Gradient for Team Alpha (Coral / Red) */}
                 <linearGradient id={`${chartId}-grad1`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--red)" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="var(--red)" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor="var(--pri)" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="var(--pri)" stopOpacity="0.0" />
                 </linearGradient>
 
-                {/* Gradient for Team Bravo (Blue / Slate) */}
                 <linearGradient id={`${chartId}-grad2`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--blue)" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="var(--blue)" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor="var(--sec)" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="var(--sec)" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
@@ -653,16 +590,16 @@ export default function MatchCharts({ matchState }) {
                       y1={y}
                       x2={wormSvgWidth - wormPad.right}
                       y2={y}
-                      stroke="var(--border)"
-                      strokeDasharray="3,3"
+                      stroke="var(--bd)"
+                      strokeDasharray="3 4"
                       strokeWidth="1"
                     />
                     <text
                       x={wormPad.left - 6}
                       y={y + 3.5}
                       textAnchor="end"
-                      fill="var(--muted)"
-                      fontSize="9"
+                      fill="var(--t2)"
+                      fontSize="10"
                       fontFamily="monospace"
                       fontWeight="bold"
                     >
@@ -672,7 +609,7 @@ export default function MatchCharts({ matchState }) {
                 );
               })}
 
-              {/* Target Line if chasing - placed above line on the left */}
+              {/* Target Line if chasing */}
               {matchState?.target && (
                 <g>
                   <line
@@ -680,17 +617,16 @@ export default function MatchCharts({ matchState }) {
                     y1={getWormY(matchState.target)}
                     x2={wormSvgWidth - wormPad.right}
                     y2={getWormY(matchState.target)}
-                    stroke="var(--orange)"
-                    strokeOpacity="0.4"
-                    opacity="0.4"
-                    strokeDasharray="4,4"
+                    stroke="var(--warn)"
+                    strokeDasharray="4 4"
                     strokeWidth="1.5"
+                    opacity="0.6"
                   />
                   <text
                     x={wormPad.left + 6}
                     y={getWormY(matchState.target) - 6}
                     textAnchor="start"
-                    fill="var(--orange)"
+                    fill="var(--warn)"
                     fontSize="10"
                     fontWeight="bold"
                   >
@@ -699,20 +635,17 @@ export default function MatchCharts({ matchState }) {
                 </g>
               )}
 
-              {/* X-Axis labels (Overs 1 to totalMatchOvers) */}
-              <text x={wormPad.left} y={wormSvgHeight - 12} fill="var(--muted)" fontSize="9" fontWeight="bold">
-                Overs
-              </text>
+              {/* X-Axis labels */}
               {Array.from({ length: totalMatchOvers }, (_, i) => i + 1).map((ov) => {
                 const x = getWormX(ov);
                 return (
                   <text
                     key={`ov-label-${ov}`}
                     x={x}
-                    y={wormSvgHeight - 12}
+                    y={wormSvgHeight - 10}
                     textAnchor="middle"
-                    fill={selectedWormOver === ov ? 'var(--primary)' : 'var(--muted)'}
-                    fontSize="9"
+                    fill={selectedWormOver === ov ? 'var(--pri)' : 'var(--t2)'}
+                    fontSize="10"
                     fontFamily="monospace"
                     fontWeight={selectedWormOver === ov ? 'bold' : 'normal'}
                   >
@@ -721,41 +654,33 @@ export default function MatchCharts({ matchState }) {
                 );
               })}
 
-              {/* Team Alpha Area Fill */}
-              {areaPath1 && (
-                <path d={areaPath1} fill={`url(#${chartId}-grad1)`} />
-              )}
+              {/* Area Fills */}
+              {areaPath1 && <path d={areaPath1} fill={`url(#${chartId}-grad1)`} />}
+              {areaPath2 && <path d={areaPath2} fill={`url(#${chartId}-grad2)`} />}
 
-              {/* Team Bravo Area Fill */}
-              {areaPath2 && (
-                <path d={areaPath2} fill={`url(#${chartId}-grad2)`} />
-              )}
-
-              {/* Team Alpha Smooth Bézier Line */}
+              {/* Polyline / Bezier curves */}
               {linePath1 && (
                 <path
                   d={linePath1}
                   fill="none"
-                  stroke="var(--red)"
+                  stroke="var(--pri)"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               )}
-
-              {/* Team Bravo Smooth Bézier Line */}
               {linePath2 && (
                 <path
                   d={linePath2}
                   fill="none"
-                  stroke="var(--blue)"
+                  stroke="var(--sec)"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               )}
 
-              {/* Team Alpha Node Markers & Wicket Badges */}
+              {/* Node Markers */}
               {lineData1.map((p, idx) => {
                 if (p.over === 0) return null;
                 const cx = getWormX(p.over);
@@ -767,116 +692,47 @@ export default function MatchCharts({ matchState }) {
                     key={`inn1-pt-${idx}`}
                     className="cursor-pointer"
                     onClick={() => setSelectedWormOver(Math.round(p.over))}
+                    onMouseEnter={() => setHoveredWormOver(Math.round(p.over))}
+                    onMouseLeave={() => setHoveredWormOver(null)}
                   >
                     {isWicketOver ? (
                       <g>
-                        <circle cx={cx} cy={cy} r="7" fill="var(--red)" stroke="#FFFFFF" strokeWidth="1.5" />
-                        <text cx={cx} cy={cy} x={cx} y={cy + 3} textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="black">
+                        <circle cx={cx} cy={cy} r="6" fill="var(--bad)" stroke="#FFFFFF" strokeWidth="1.5" />
+                        <text x={cx} y={cy + 3} textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="black">
                           W
                         </text>
                       </g>
                     ) : (
-                      <circle cx={cx} cy={cy} r="3" fill="#FFFFFF" stroke="var(--red)" strokeWidth="2" />
+                      <circle cx={cx} cy={cy} r="3" fill="#FFFFFF" stroke="var(--pri)" strokeWidth="2" />
                     )}
                   </g>
                 );
               })}
-
-              {/* Team Bravo Node Markers */}
-              {lineData2.map((p, idx) => {
-                if (p.over === 0) return null;
-                const cx = getWormX(p.over);
-                const cy = getWormY(p.score);
-                const isWicketOver = (stats2?.overSummaries.find(o => o.overIndex === Math.round(p.over))?.wickets || 0) > 0;
-
-                return (
-                  <g
-                    key={`inn2-pt-${idx}`}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedWormOver(Math.round(p.over))}
-                  >
-                    {isWicketOver ? (
-                      <g>
-                        <circle cx={cx} cy={cy} r="7" fill="var(--red)" stroke="#FFFFFF" strokeWidth="1.5" />
-                        <text cx={cx} cy={cy} x={cx} y={cy + 3} textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="black">
-                          W
-                        </text>
-                      </g>
-                    ) : (
-                      <circle cx={cx} cy={cy} r="3" fill="#FFFFFF" stroke="var(--blue)" strokeWidth="2" />
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* End of Innings Labels with 12px offset */}
-              {lineData1.length > 1 && (() => {
-                const pt1 = lineData1[lineData1.length - 1];
-                return (
-                  <text
-                    x={getWormX(pt1.over) + 12}
-                    y={getWormY(pt1.score) - 4}
-                    fill="var(--text)"
-                    fontSize="9"
-                    fontWeight="bold"
-                    textAnchor="start"
-                  >
-                    End
-                  </text>
-                );
-              })()}
-
-              {lineData2.length > 1 && (() => {
-                const pt2 = lineData2[lineData2.length - 1];
-                return (
-                  <text
-                    x={getWormX(pt2.over) + 12}
-                    y={getWormY(pt2.score) + 11}
-                    fill="var(--blue)"
-                    fontSize="9"
-                    fontWeight="bold"
-                    textAnchor="start"
-                  >
-                    {inn2?.battingTeam || 'Team Bravo'}
-                  </text>
-                );
-              })()}
             </svg>
           </div>
 
-          {/* Line Chart Footer Legend (Matching Image 1) */}
-          <div
-            style={{ borderColor: 'var(--border)' }}
-            className="flex items-center justify-between text-xs pt-2 border-t"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 font-bold">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--red)' }} />
-                <span style={{ color: 'var(--text)' }}>{inn1.battingTeam || 'Team Alpha'}</span>
-              </div>
+          {/* Line Chart Legend */}
+          <div className="row bt" style={{ fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--bd)' }}>
+            <div className="row" style={{ gap: '10px' }}>
+              <span className="flex items-center gap-1.5 font-bold">
+                <i className="dot" style={{ backgroundColor: 'var(--pri)' }} />
+                <span>{inn1.battingTeam || 'Team 1'}</span>
+              </span>
               {inn2 && (
-                <div className="flex items-center gap-1.5 font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--blue)' }} />
-                  <span style={{ color: 'var(--text)' }}>{inn2.battingTeam || 'Team Bravo'}</span>
-                </div>
+                <span className="flex items-center gap-1.5 font-bold">
+                  <i className="dot" style={{ backgroundColor: 'var(--sec)' }} />
+                  <span>{inn2.battingTeam || 'Team 2'}</span>
+                </span>
               )}
             </div>
 
-            <div className="flex items-center gap-3 text-right">
-              <div>
-                <span className="text-[10px] block" style={{ color: 'var(--muted)' }}>CRR</span>
-                <span className="font-black text-xs" style={{ color: 'var(--text)' }}>{crrValue.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="text-[10px] block" style={{ color: 'var(--muted)' }}>Projected</span>
-                <span className="font-black text-xs" style={{ color: 'var(--text)' }}>
-                  {Math.round(crrValue * totalMatchOvers)}
-                </span>
-              </div>
+            <div className="row" style={{ gap: '12px' }}>
+              <span className="mu">CRR <b style={{ color: 'var(--t1)' }}>{crrValue.toFixed(1)}</b></span>
+              <span className="mu">Proj <b style={{ color: 'var(--t1)' }}>{Math.round(crrValue * totalMatchOvers)}</b></span>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

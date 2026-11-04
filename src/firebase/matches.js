@@ -339,6 +339,7 @@ export async function saveManagerProfileToCloud(managerData) {
       uid: managerData.uid,
       name: managerData.name || 'Manager',
       email: managerData.email || '',
+      password: managerData.password || '',
       createdAt: managerData.createdAt || Date.now(),
       lastActive: Date.now()
     });
@@ -347,6 +348,58 @@ export async function saveManagerProfileToCloud(managerData) {
   } catch (err) {
     console.warn('Error saving manager profile to cloud:', err);
   }
+}
+
+/**
+ * Updates a manager's credentials in Firestore.
+ */
+export async function updateManagerCredentialsInCloud(uid, updates = {}) {
+  if (!uid) return;
+  try {
+    const managerRef = doc(db, 'managers', uid);
+    const sanitized = sanitizeForFirestore({
+      ...updates,
+      lastActive: Date.now()
+    });
+    await setDoc(managerRef, sanitized, { merge: true });
+    return sanitized;
+  } catch (err) {
+    console.warn('Error updating manager credentials in cloud:', err);
+  }
+}
+
+/**
+ * Saves developer credentials in Firestore config.
+ */
+export async function saveDeveloperCredentialsInCloud(creds = {}) {
+  try {
+    const devRef = doc(db, 'config', 'developer');
+    const sanitized = sanitizeForFirestore({
+      email: creds.email || 'syedmaazalam2007@gmail.com',
+      password: creds.password || 'Silicon123@',
+      updatedAt: Date.now()
+    });
+    await setDoc(devRef, sanitized, { merge: true });
+    return sanitized;
+  } catch (err) {
+    console.warn('Error saving developer credentials to cloud:', err);
+  }
+}
+
+/**
+ * Fetches developer credentials from Firestore config.
+ */
+export async function getDeveloperCredentialsFromCloud() {
+  try {
+    const devRef = doc(db, 'config', 'developer');
+    const snap = await getDoc(devRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+  } catch (err) {
+    console.warn('Error getting developer credentials from cloud:', err);
+  }
+  return null;
 }
 
 /**

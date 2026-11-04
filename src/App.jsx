@@ -201,8 +201,29 @@ export default function App() {
   return (
     <div
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen font-sans transition-colors"
+      className="min-h-screen font-sans transition-colors relative"
     >
+      {/* Ambient background SVG layer */}
+      <div className="bgfx" aria-hidden="true">
+        <svg viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+          <defs>
+            <linearGradient id="bg_g1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="var(--sec)" stopOpacity="0.5" />
+              <stop offset="1" stopColor="var(--pri)" stopOpacity="0.06" />
+            </linearGradient>
+            <filter id="bg_bl"><feGaussianBlur stdDeviation="16" /></filter>
+          </defs>
+          <path d="M0 0H300C250 90 170 70 120 150S40 260 0 230Z" fill="url(#bg_g1)" />
+          <path d="M400 430C320 470 290 580 220 650S90 790 60 800H400Z" fill="url(#bg_g1)" />
+          <path d="M0 560C80 540 140 620 200 700S320 790 400 770" fill="none" stroke="var(--sec)" strokeOpacity="0.3" strokeWidth="2" />
+          <path d="M0 600C90 580 150 660 210 740S330 800 400 800" fill="none" stroke="var(--pri)" strokeOpacity="0.2" strokeWidth="1.5" />
+          <g filter="url(#bg_bl)">
+            <g className="o"><circle cx="330" cy="130" r="60" fill="var(--pri)" opacity="0.3" /></g>
+            <circle cx="30" cy="470" r="50" fill="var(--sec)" opacity="0.28" />
+            <circle cx="350" cy="700" r="70" fill="var(--pri)" opacity="0.25" />
+          </g>
+        </svg>
+      </div>
       {page === 'home' && (
         <Home
           onNavigate={(p) => setPage(p)}
