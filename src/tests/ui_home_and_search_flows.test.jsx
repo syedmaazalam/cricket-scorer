@@ -6,7 +6,7 @@ import AuthModal from '../components/AuthModal.jsx';
 
 describe('UI Verification: Home Experience & Auth Modals', () => {
   describe('Home Page Portals & Search Controls', () => {
-    it('renders unified home screen with View the Matches switch and Search on Device', () => {
+    it('renders formal portal choice screen on initial load', () => {
       const html = renderToString(
         <Home
           onNavigate={() => {}}
@@ -16,13 +16,32 @@ describe('UI Verification: Home Experience & Auth Modals', () => {
         />
       );
 
+      expect(html).toContain('Choose your experience');
+      expect(html).toContain('Do you want to create a match?');
+      expect(html).toContain('Do you want to stream a match?');
+      expect(html).toContain('Manager Portal');
+      expect(html).toContain('Instant Access');
+      expect(html).toContain('SmartCricket');
+      expect(html).toContain('Developer Console');
+      expect(html).toContain('2026 SmartCricket');
+    });
+
+    it('renders create portal with View the Matches switch and Search on Device', () => {
+      const html = renderToString(
+        <Home
+          onNavigate={() => {}}
+          onResumeMatch={() => {}}
+          onWatchLive={() => {}}
+          onOpenDeveloper={() => {}}
+          initialPortal="create"
+        />
+      );
+
       expect(html).toContain('View the Matches');
       expect(html).toContain('SmartCricket');
       expect(html).toContain('Create New Match');
       expect(html).toContain('SEARCH ON THIS DEVICE');
       expect(html).toContain('Search team, player, or 6-char code...');
-      expect(html).toContain('Developer Console');
-      expect(html).toContain('2026 SmartCricket');
     });
   });
 
