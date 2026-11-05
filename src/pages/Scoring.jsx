@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Copy,
   Edit3,
+  X,
   Activity
 } from 'lucide-react';
 import SyncBadge from '../components/SyncBadge.jsx';
@@ -88,6 +89,9 @@ export default function Scoring({
   const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
   const [isActionLogsOpen, setIsActionLogsOpen] = useState(false);
   const [isMorePopupOpen, setIsMorePopupOpen] = useState(false);
+  const [isMidOverModalOpen, setIsMidOverModalOpen] = useState(false);
+  const [isChangeBowlerModalOpen, setIsChangeBowlerModalOpen] = useState(false);
+  const [pendingChangeMode, setPendingChangeMode] = useState('split_over');
   const [activeTab, setActiveTab] = useState('score');
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -314,7 +318,36 @@ export default function Scoring({
     return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
+  const handleOpenBowlerChange = () => {
+    if (isFirstInningsEnded || matchState?.status === 'completed' || currentInnings?.isCompleted) return;
+    const completedLegalThreshold = currentInnings ? Math.floor(currentInnings.legalBalls / 6) * 6 : 0;
+    let ballsInActiveOver = 0;
+    if (currentInnings?.balls) {
+      let legalCount = 0;
+      for (const b of currentInnings.balls) {
+        if (legalCount >= completedLegalThreshold) {
+          ballsInActiveOver++;
+        }
+        if (b.isLegal) legalCount++;
+      }
+    }
+
+    if (ballsInActiveOver === 0) {
+      setPendingChangeMode('reassign_over');
+      setIsChangeBowlerModalOpen(true);
+    } else {
+      setIsMidOverModalOpen(true);
+    }
+  };
+
   const handleScoreBall = (ballData) => {
+    if (matchState?.needsBowlerChange || !matchState?.currentBowler) {
+      return;
+    }
+    if (isFirstInningsEnded || matchState?.status === 'completed' || matchState?.needsNewBatter) {
+      return;
+    }
+
     const isWicket = Boolean(ballData.isWicket);
     const runs = Number(ballData.runs || 0);
     const extraType = ballData.extraType;
@@ -433,6 +466,8 @@ export default function Scoring({
     isPointingCriteriaOpen ||
     isActionLogsOpen ||
     isMorePopupOpen ||
+    isMidOverModalOpen ||
+    isChangeBowlerModalOpen ||
     isMenuOpen ||
     isChatModalOpen ||
     matchState?.needsBowlerChange ||
@@ -444,7 +479,6 @@ export default function Scoring({
     const handleKeyDown = (e) => {
       if (activeTab !== 'score') return;
       if (matchState?.isCompleted || currentInnings?.isCompleted) return;
-      if (isAnyModalOpen) return;
 
       // Ignore if typing inside text inputs, textareas, selects, or contenteditable
       const targetTag = e.target?.tagName?.toUpperCase();
@@ -459,6 +493,16 @@ export default function Scoring({
 
       // Ignore modifier keys
       if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      // 'u' or 'U' for Undo (allow even during over-boundary or bowler change modal)
+      if (e.key === 'u' || e.key === 'U') {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      // Scoring buttons and other actions require no modal and valid active bowler
+      if (isAnyModalOpen || matchState?.needsBowlerChange || !matchState?.currentBowler) return;
 
       // Runs 0-6 (Number row or NumPad)
       if (['0', '1', '2', '3', '4', '5', '6'].includes(e.key)) {
@@ -478,13 +522,6 @@ export default function Scoring({
         if (cooldownSeconds > 0) return;
         e.preventDefault();
         setIsWicketModalOpen(true);
-        return;
-      }
-
-      // 'u' or 'U' for Undo
-      if (e.key === 'u' || e.key === 'U') {
-        e.preventDefault();
-        handleUndo();
         return;
       }
 
@@ -1048,7 +1085,19 @@ export default function Scoring({
                 <table className="t">
                   <thead>
                     <tr>
-                      <th>BOWLER</th>
+                      <th className="flex items-center justify-between">
+                        <span>BOWLER</span>
+                        <button
+                          type="button"
+                          onClick={handleOpenBowlerChange}
+                          disabled={Boolean(isFirstInningsEnded || matchState.status === 'completed' || currentInnings?.isCompleted)}
+                          className="text-[10px] text-[var(--pri)] hover:underline flex items-center gap-1 font-bold lowercase tracking-normal px-1.5 py-0.5 rounded hover:bg-[var(--well)] transition-colors"
+                          title="Change active bowler (pre-ball swap or mid-over correction/injury)"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>change</span>
+                        </button>
+                      </th>
                       <th className="r">O</th>
                       <th className="r">M</th>
                       <th className="r">R</th>
@@ -1056,13 +1105,18 @@ export default function Scoring({
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
+                    <tr
+                      onClick={handleOpenBowlerChange}
+                      className="cursor-pointer hover:bg-[var(--well)] transition-colors"
+                      title="Click to change active bowler"
+                    >
                       <td>
                         <b className="ok flex items-center gap-1.5 truncate">
                           <Target className="w-3.5 h-3.5 shrink-0 text-[var(--ok)]" />
                           <span className="truncate">{matchState.currentBowler || 'Select Bowler'}</span>
+                          <Edit3 className="w-3 h-3 text-[var(--t3)] ml-0.5 shrink-0" />
                         </b>
-                        <small>Active bowler</small>
+                        <small>Active bowler · tap to change</small>
                       </td>
                       <td className="r mono">{bowlerStat.overs}</td>
                       <td className="r m">{bowlerStat.maidens}</td>
@@ -1083,7 +1137,8 @@ export default function Scoring({
                 onSwapBatter={onSwapBatter}
                 onUndo={handleUndo}
                 isFreeHit={matchState.isFreeHit}
-                disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || matchState.needsNewBatter || matchState.status === 'completed')}
+                disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || !matchState.currentBowler || matchState.needsNewBatter || matchState.status === 'completed')}
+                disableUndo={Boolean(matchState.status === 'completed' || isFirstInningsEnded || (matchState.events && matchState.events.length <= 1))}
                 cooldownSeconds={cooldownSeconds}
                 onSkipCooldown={() => setCooldownSeconds(0)}
               />
@@ -1290,7 +1345,133 @@ export default function Scoring({
           bowlersSquad={bowlingSquad}
           previousBowler={matchState.previousBowler || matchState.currentBowler}
           onSelectBowler={onChangeBowler}
+          onUndo={handleUndo}
+          isMandatory={true}
         />
+      )}
+
+      {/* 5b. Manual Bowler Change Modal (Pre-ball or Mid-over) */}
+      {isChangeBowlerModalOpen && (
+        <BowlerModal
+          isOpen={isChangeBowlerModalOpen}
+          bowlingTeam={currentInnings.bowlingTeam}
+          bowlers={bowlingSquad}
+          bowlersSquad={bowlingSquad}
+          previousBowler={matchState.previousBowler}
+          title={pendingChangeMode === 'reassign_over' ? 'Reassign Over to Bowler' : 'Select Replacement Bowler (Split Over)'}
+          isMandatory={false}
+          onClose={() => setIsChangeBowlerModalOpen(false)}
+          onSelectBowler={(newBowler) => {
+            if (onChangeBowler) {
+              onChangeBowler(newBowler, pendingChangeMode);
+            }
+            setIsChangeBowlerModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* 5c. Mid-Over Choice Modal: Reassign Over vs Split Over */}
+      {isMidOverModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3">
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--text)'
+            }}
+            className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div style={{ borderColor: 'var(--border)' }} className="border-b pb-3 flex items-start justify-between">
+              <div>
+                <h3 className="font-black text-lg" style={{ color: 'var(--text)' }}>
+                  Change Bowler Mid-Over
+                </h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                  Current Bowler: <strong style={{ color: 'var(--primary)' }}>{matchState.currentBowler}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMidOverModalOpen(false)}
+                className="p-1 rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs" style={{ color: 'var(--text)' }}>
+              Balls have already been bowled in this active over. How would you like to handle the bowler change?
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              {/* Option 1: Full Over Reassignment */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingChangeMode('reassign_over');
+                  setIsMidOverModalOpen(false);
+                  setIsChangeBowlerModalOpen(true);
+                }}
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)'
+                }}
+                className="p-3.5 rounded-2xl border text-left flex items-start gap-3 hover:border-[var(--primary)] hover:opacity-95 transition-all shadow-sm group"
+              >
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 shrink-0 mt-0.5">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-[var(--text)] group-hover:text-[var(--primary)]">
+                    Reassign Entire Over
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                    Fix scorer mistake: reattribute all deliveries and stats in this active over to the new bowler.
+                  </div>
+                </div>
+              </button>
+
+              {/* Option 2: Split Over */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingChangeMode('split_over');
+                  setIsMidOverModalOpen(false);
+                  setIsChangeBowlerModalOpen(true);
+                }}
+                style={{
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)'
+                }}
+                className="p-3.5 rounded-2xl border text-left flex items-start gap-3 hover:border-[var(--orange)] hover:opacity-95 transition-all shadow-sm group"
+              >
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 shrink-0 mt-0.5">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-[var(--text)] group-hover:text-[var(--orange)]">
+                    Split Over (Injury / Disqualification)
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                    Close {matchState.currentBowler}&apos;s partial spell and bring in a replacement bowler to finish the remaining balls.
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
+              <button
+                type="button"
+                onClick={() => setIsMidOverModalOpen(false)}
+                className="px-4 py-2 rounded-xl border text-xs font-semibold hover:bg-[var(--card-alt)] transition-colors"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 6. New Batter Modal (Fall of Wicket) */}

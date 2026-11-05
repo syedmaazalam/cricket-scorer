@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { UserCheck, Plus, AlertCircle, Shield } from 'lucide-react';
+import { UserCheck, Plus, AlertCircle, Shield, RotateCcw, X } from 'lucide-react';
 
 export default function BowlerModal({
   isOpen,
   bowlers = [],
   bowlersSquad = [],
   previousBowler,
-  onSelectBowler
+  onSelectBowler,
+  onUndo,
+  onClose,
+  title = 'Over Complete — Select Next Bowler',
+  isMandatory = true
 }) {
   const [customBowlerName, setCustomBowlerName] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
@@ -18,7 +22,7 @@ export default function BowlerModal({
   const allCandidateBowlers = Array.from(new Set(rawList.filter(Boolean)));
 
   const handleSelect = (name) => {
-    if (!name) return;
+    if (!name || typeof name !== 'string' || !name.trim()) return;
     onSelectBowler(name.trim());
     setCustomBowlerName('');
     setShowAddCustom(false);
@@ -26,7 +30,7 @@ export default function BowlerModal({
 
   const handleAddCustom = (e) => {
     e.preventDefault();
-    if (customBowlerName.trim()) {
+    if (customBowlerName && customBowlerName.trim()) {
       handleSelect(customBowlerName.trim());
     }
   };
@@ -42,17 +46,29 @@ export default function BowlerModal({
         className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div style={{ borderColor: 'var(--border)' }} className="border-b pb-3">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary)' }} />
-            <h3 className="font-black text-lg" style={{ color: 'var(--text)' }}>
-              Over Complete — Select Next Bowler
-            </h3>
+        <div style={{ borderColor: 'var(--border)' }} className="border-b pb-3 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary)' }} />
+              <h3 className="font-black text-lg" style={{ color: 'var(--text)' }}>
+                {title}
+              </h3>
+            </div>
+            {previousBowler && (
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                Previous bowler was <strong style={{ color: 'var(--orange)' }}>{previousBowler}</strong> (cannot bowl consecutive overs).
+              </p>
+            )}
           </div>
-          {previousBowler && (
-            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-              Previous bowler was <strong style={{ color: 'var(--orange)' }}>{previousBowler}</strong> (cannot bowl consecutive overs).
-            </p>
+          {!isMandatory && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
           )}
         </div>
 
@@ -151,6 +167,25 @@ export default function BowlerModal({
             </form>
           )}
         </div>
+
+        {/* Undo Last Ball / Cancel Option */}
+        {onUndo && (
+          <div className="pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button
+              type="button"
+              onClick={onUndo}
+              style={{
+                backgroundColor: 'var(--card-alt)',
+                borderColor: 'var(--red, #EF4444)',
+                color: 'var(--red, #EF4444)'
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-98 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Undo Last Ball (Reopen Over)</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

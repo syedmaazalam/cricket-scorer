@@ -12,6 +12,9 @@ export default function EditBallModal({
   bowlingSquad = []
 }) {
   const [selectedBallId, setSelectedBallId] = useState(null);
+  const [bowler, setBowler] = useState('');
+  const [customBowler, setCustomBowler] = useState('');
+  const [isAddingCustomBowler, setIsAddingCustomBowler] = useState(false);
   const [runs, setRuns] = useState(0);
   const [extraType, setExtraType] = useState(null);
   const [extraRuns, setExtraRuns] = useState(0);
@@ -28,6 +31,7 @@ export default function EditBallModal({
     if (!target) return;
 
     setSelectedBallId(target.ballId || target.seq);
+    setBowler(target.bowler || '');
     setRuns(Number(target.runs) || 0);
     setExtraType(target.extraType || null);
     setExtraRuns(Number(target.extraRuns) || 0);
@@ -48,6 +52,7 @@ export default function EditBallModal({
     const found = allBalls.find((b) => String(b.ballId || b.seq) === String(val));
     if (found) {
       setSelectedBallId(found.ballId || found.seq);
+      setBowler(found.bowler || '');
       setRuns(Number(found.runs) || 0);
       setExtraType(found.extraType || null);
       setExtraRuns(Number(found.extraRuns) || 0);
@@ -64,15 +69,17 @@ export default function EditBallModal({
     e.preventDefault();
     if (!currentBall) return;
 
+    const chosenBowler = bowler || currentBall.bowler;
     const payload = {
       runs: extraType === EXTRA_TYPES.WIDE ? 0 : runs,
       extraType,
       extraRuns: (extraType === EXTRA_TYPES.BYE || extraType === EXTRA_TYPES.LEG_BYE) ? (extraRuns || runs) : extraRuns,
+      bowler: chosenBowler,
       isWicket,
       wicket: isWicket ? {
         type: wicketType,
         playerOut: dismissedPlayer || currentBall.striker,
-        bowler: currentBall.bowler,
+        bowler: chosenBowler,
         fielder: fielder.trim() || null
       } : null,
       wicketType: isWicket ? wicketType : null,
@@ -155,22 +162,98 @@ export default function EditBallModal({
                 backgroundColor: 'var(--card-alt)',
                 borderColor: 'var(--border)'
               }}
-              className="p-3 rounded-2xl border flex items-center justify-between text-xs"
+              className="p-3 rounded-2xl border flex flex-col gap-2.5 text-xs"
             >
-              <div>
-                <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
-                  Bowler: {currentBall.bowler || 'Current Bowler'}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--muted)' }}>
+                  Delivery Details
                 </span>
-                <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                  Striker: <strong style={{ color: 'var(--text)' }}>{currentBall.striker || 'Striker'}</strong>
-                  {currentBall.nonStriker && ` • Non-Striker: ${currentBall.nonStriker}`}
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--muted)' }}>Current:</span>
                 <div className="font-black text-sm text-blue-400">
                   {currentBall.shortLabel || `${currentBall.runs || 0} runs`}
                 </div>
+              </div>
+
+              {/* Editable Bowler Selector */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold tracking-wide" style={{ color: 'var(--muted)' }}>
+                    Bowler:
+                  </label>
+                  {!isAddingCustomBowler && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomBowler(true)}
+                      className="text-[10px] text-blue-400 hover:underline"
+                    >
+                      + Custom Bowler
+                    </button>
+                  )}
+                </div>
+
+                {!isAddingCustomBowler ? (
+                  <select
+                    value={bowler}
+                    onChange={(e) => setBowler(e.target.value)}
+                    style={{
+                      backgroundColor: 'var(--card)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text)'
+                    }}
+                    className="w-full py-2 px-3 rounded-xl border text-xs font-semibold focus:outline-none focus:border-[var(--primary)]"
+                  >
+                    {Array.from(new Set([currentBall.bowler, ...bowlingSquad].filter(Boolean))).map((bName) => (
+                      <option key={bName} value={bName}>
+                        {bName} {bName === currentBall.bowler ? '(Original)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Enter bowler name..."
+                      value={customBowler}
+                      onChange={(e) => setCustomBowler(e.target.value)}
+                      style={{
+                        backgroundColor: 'var(--card)',
+                        borderColor: 'var(--border)',
+                        color: 'var(--text)'
+                      }}
+                      className="flex-1 py-1.5 px-3 rounded-xl border text-xs font-semibold focus:outline-none focus:border-[var(--primary)]"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customBowler.trim()}
+                      onClick={() => {
+                        if (customBowler.trim()) {
+                          setBowler(customBowler.trim());
+                          setIsAddingCustomBowler(false);
+                          setCustomBowler('');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs disabled:opacity-40"
+                    >
+                      Set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingCustomBowler(false);
+                        setCustomBowler('');
+                      }}
+                      className="px-2 py-1.5 rounded-xl border text-xs font-semibold"
+                      style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                Striker: <strong style={{ color: 'var(--text)' }}>{currentBall.striker || 'Striker'}</strong>
+                {currentBall.nonStriker && ` • Non-Striker: ${currentBall.nonStriker}`}
               </div>
             </div>
           )}

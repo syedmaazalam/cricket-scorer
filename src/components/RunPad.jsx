@@ -23,6 +23,7 @@ export default function RunPad({
   onUndo,
   isFreeHit,
   disabled,
+  disableUndo,
   cooldownSeconds = 0,
   onSkipCooldown
 }) {
@@ -306,7 +307,7 @@ export default function RunPad({
             triggerHaptic(15);
             onUndo();
           }}
-          disabled={disabled}
+          disabled={disableUndo !== undefined ? disableUndo : disabled}
           className="e"
           aria-label="Undo last ball"
           title="Undo last ball (Keyboard: U)"

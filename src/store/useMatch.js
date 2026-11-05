@@ -250,8 +250,16 @@ export function useMatch(matchId, isViewerMode = false) {
     return dispatch(EVENT_TYPES.SWAP_BATTER);
   }, [dispatch]);
 
-  const changeBowler = useCallback((bowlerName) => {
-    return dispatch(EVENT_TYPES.CHANGE_BOWLER, { bowler: bowlerName });
+  const changeBowler = useCallback((bowlerName, modeOrOptions = 'split_over', allowConsecutive = false) => {
+    let mode = 'split_over';
+    let allow = allowConsecutive;
+    if (typeof modeOrOptions === 'object' && modeOrOptions !== null) {
+      mode = modeOrOptions.mode || 'split_over';
+      allow = Boolean(modeOrOptions.allowConsecutive || allowConsecutive);
+    } else if (typeof modeOrOptions === 'string') {
+      mode = modeOrOptions;
+    }
+    return dispatch(EVENT_TYPES.CHANGE_BOWLER, { bowler: bowlerName, mode, allowConsecutive: allow });
   }, [dispatch]);
 
   const addNewBatter = useCallback((batterName, slot) => {
@@ -312,6 +320,9 @@ export function useMatch(matchId, isViewerMode = false) {
     // undoing should roll back BOTH the new batter assignment and the wicket delivery
     // so the dismissed batter is restored to the crease and user isn't dragged into NewBatterModal
     let dropCount = 1;
+    const curInn = stateRef.current.innings?.[stateRef.current.currentInningsIndex];
+    const isAtOverBoundary = Boolean(curInn && curInn.legalBalls > 0 && curInn.legalBalls % 6 === 0);
+
     if (
       currentEvents.length >= 3 &&
       lastEvent?.type === EVENT_TYPES.NEW_BATTER &&
@@ -320,6 +331,22 @@ export function useMatch(matchId, isViewerMode = false) {
     ) {
       dropCount = 2;
       undoDesc = 'Undid wicket & new batter selection: restored dismissed batter to crease';
+    } else if (
+      isAtOverBoundary &&
+      currentEvents.length >= 3 &&
+      lastEvent?.type === EVENT_TYPES.CHANGE_BOWLER &&
+      prevEvent?.type === EVENT_TYPES.NEW_BATTER
+    ) {
+      dropCount = 3;
+      undoDesc = 'Reopened previous over & undid final wicket delivery';
+    } else if (
+      isAtOverBoundary &&
+      currentEvents.length >= 2 &&
+      lastEvent?.type === EVENT_TYPES.CHANGE_BOWLER &&
+      prevEvent?.type === EVENT_TYPES.BALL
+    ) {
+      dropCount = 2;
+      undoDesc = 'Reopened previous over & undid last delivery';
     }
 
     const logEntry = {

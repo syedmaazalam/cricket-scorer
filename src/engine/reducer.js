@@ -218,19 +218,20 @@ export function applyEvent(state, event) {
 
       // Normalize wicket object
       let normalizedWicket = wicket ? { ...wicket } : null;
+      const ballBowler = event.payload.bowler || next.currentBowler;
       if (calculatedWicket && !normalizedWicket) {
         normalizedWicket = {
           type: wicketType || WICKET_TYPES.BOWLED,
           playerOut: dismissedPlayer || event.payload.playerOut || next.striker,
           fielder: fielder || null,
-          bowler: next.currentBowler
+          bowler: ballBowler
         };
       }
       if (normalizedWicket && !normalizedWicket.playerOut) {
         normalizedWicket.playerOut = next.striker;
       }
       if (normalizedWicket && !normalizedWicket.bowler) {
-        normalizedWicket.bowler = next.currentBowler;
+        normalizedWicket.bowler = ballBowler;
       }
 
       // Check Free Hit rules: only run-outs / obstructing / hit ball twice / retired are valid on Free Hit
@@ -281,7 +282,7 @@ export function applyEvent(state, event) {
         seq: event.seq || (next.events.length + 1),
         striker: next.striker,
         nonStriker: next.nonStriker,
-        bowler: next.currentBowler,
+        bowler: ballBowler,
         runs,
         extraType,
         extraRuns,
@@ -298,6 +299,14 @@ export function applyEvent(state, event) {
       };
       curInn.balls.push(ballRecord);
       next.lastBallSummary = ballRecord.shortLabel;
+
+      // Ensure ballBowler is in bowling team squad list
+      if (curInn && ballBowler && next.teams) {
+        const bowlingTeam = next.teams.find(t => t.name === curInn.bowlingTeam);
+        if (bowlingTeam && bowlingTeam.players && !bowlingTeam.players.includes(ballBowler)) {
+          bowlingTeam.players.push(ballBowler);
+        }
+      }
 
       // Strike Rotation & Wickets handling (MCC Law 18.11, 18.12, 21.18, 22.17)
       let curStriker = next.striker;
@@ -420,6 +429,24 @@ export function applyEvent(state, event) {
       // MCC Law 21.1: Bowler cannot bowl consecutive overs if bowling squad > 1
       if (bowlingSquadSize > 1 && next.previousBowler && newBowler === next.previousBowler && !event.payload.allowConsecutive) {
         return state; // Consecutive overs disallowed
+      }
+
+      // If mid-over reassignment: reassign all balls bowled in the current active over to newBowler
+      if (curInn && curInn.balls && curInn.balls.length > 0 && event.payload.mode === 'reassign_over') {
+        const targetLegalCutoff = Math.floor(curInn.legalBalls / 6) * 6;
+        let legalSeen = 0;
+        for (let i = 0; i < curInn.balls.length; i++) {
+          const b = curInn.balls[i];
+          if (legalSeen >= targetLegalCutoff) {
+            b.bowler = newBowler;
+            if (b.wicket && b.wicket.bowler) {
+              b.wicket.bowler = newBowler;
+            }
+          }
+          if (b.isLegal) {
+            legalSeen++;
+          }
+        }
       }
 
       next.currentBowler = newBowler;
@@ -596,9 +623,14 @@ export function applyEvent(state, event) {
       if (curInn && curInn.balls.length > 0) {
         if (next.previousBowler) {
           next.currentBowler = next.previousBowler;
-          next.needsBowlerChange = false;
-          next.isOverComplete = false;
+          next.previousBowler = null;
         }
+        next.needsBowlerChange = false;
+        next.isOverComplete = false;
+        // Swap ends back to restore previous over's positions if over had completed
+        const temp = next.striker;
+        next.striker = next.nonStriker;
+        next.nonStriker = temp;
       }
       break;
     }
