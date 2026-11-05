@@ -1,7 +1,8 @@
-# Implementation Plan: Full End-to-End & UI Verification (Flows, Buttons, Navigation, Modals)
+# Implementation Plan: Over Comparison Auto-Worm & More Menu Role Polish
 
 ## Overview
-Comprehensive test suite and end-to-end UI verification for the SmartCricket web application (`smartcricket-c79b5.web.app`), validating all user flows, interactive buttons, navigation transitions, scoring modals, and offline-first state integrity.
+1. **Over comparison auto-switch**: In `MatchCharts.jsx`, when the user selects "All" in the view range, automatically switch them to the Worm chart (`setActiveChart('worm')`).
+2. **More menu role separation & plain-English labels**: In `MoreMenuModal.jsx`, hide scorer-only editing/audit items in spectator/viewer mode (`Live.jsx`). For scorers (`Scoring.jsx`), provide clear, friendly English descriptions for each action (e.g., explaining "Edit Ball" and "Action Audit Logs") and replace the trophy icon with an intuitive history/log icon.
 
 ---
 
@@ -9,47 +10,26 @@ Comprehensive test suite and end-to-end UI verification for the SmartCricket web
 
 ```mermaid
 flowchart TD
-    subgraph UI_Verification["UI & Interaction Test Suites"]
-        C1["Chunk 1: Modals & Dialogs (Wicket, Bowler, Batter, Innings Break, Overthrow)"]
-        C2["Chunk 2: Navigation & RunPad (RunPad Buttons, BottomNavBar, SyncBadge)"]
-        C3["Chunk 3: End-to-End Match Lifecycle (Setup -> Scoring -> Scorecard -> Summary)"]
-        C4["Chunk 4: Home Experience & Search (Portals, Radial Spinner Search, Auth)"]
-        C5["Chunk 5: Full Suite Verification, Production Build & Smoke Test"]
+    subgraph UI_Enhancements["More Menu & MatchCharts Enhancements"]
+        C1["Chunk 1: Over Comparison Auto-Switch to Worm on 'All' in MatchCharts.jsx"]
+        C2["Chunk 2: More Menu Scorer English Labels & Spectator Role Filtering"]
     end
-    C1 --> C2 --> C3 --> C4 --> C5
+    C1 --> C2
 ```
 
 ---
 
 ## Chunks
 
-- [x] **Chunk 1: UI Verification for Core Modals & Component Dialogs**
-  - Test critical in-match dialogs: `WicketModal`, `BowlerModal`, `NewBatterModal`, `InningsBreakModal`, `OverthrowModal`, and `TimeDeclareModal`.
-  - Validate render outputs, button labels, dismissal options, and callback props.
-  - Create test suite in `src/tests/ui_modals_and_dialogs.test.jsx`.
-  - Verification: Run Vitest on `src/tests/ui_modals_and_dialogs.test.jsx` (13/13 passed).
+- [x] **Chunk 1: Over Comparison Auto-Switch to Worm on 'All'**
+  - In `src/components/MatchCharts.jsx`, update the view range handler so clicking "All" automatically activates the Worm chart (`setActiveChart('worm')`).
+  - When switching back to "1-10" or "11-20", ensure the bar chart mode is active.
+  - Verification: Run Vitest test suite to ensure charts and stats compute accurately (150/150 passed).
 
-- [x] **Chunk 2: Navigation, RunPad & Interactive Scoring Controls**
-  - Test `RunPad.jsx` button inputs (0, 1, 2, 3, 4, 6, Wide, NoBall, Bye, LegBye, Wicket) and disabled states.
-  - Test `BottomNavBar.jsx` 5 tabs (Score, Scorecard, More, Teams, Settings) active states and navigation callbacks.
-  - Test `SyncBadge.jsx` rendering offline, syncing, and cloud-synced status indicators.
-  - Create test suite in `src/tests/ui_navigation_and_runpad.test.jsx`.
-  - Verification: Run Vitest on `src/tests/ui_navigation_and_runpad.test.jsx` (11/11 passed).
-
-- [x] **Chunk 3: End-to-End Match Lifecycle & Screen Transitions**
-  - Test the full match flow across components: Setup squad configuration -> Toss -> First innings ball inputs -> Over complete -> Innings break -> Second innings chase -> Match conclusion -> POTM calculation & Summary presentation.
-  - Create test suite in `src/tests/e2e_match_workflow.test.jsx`.
-  - Verification: Run Vitest on `src/tests/e2e_match_workflow.test.jsx` (Passed).
-
-- [x] **Chunk 4: Home Portal, Search Bar, Pull-to-Refresh & Auth Flows**
-  - Test Home portal transitions (Choose experience, Manager portal vs Streamer portal).
-  - Test Stream search input with `SegmentedCapsuleSpinner`, matching queries, and empty results.
-  - Test Pull-to-refresh and infinite scroll threshold logic.
-  - Test `AuthModal` login/logout state and validation.
-  - Create test suite in `src/tests/ui_home_and_search_flows.test.jsx`.
-  - Verification: Run Vitest on `src/tests/ui_home_and_search_flows.test.jsx` (3/3 passed).
-
-- [x] **Chunk 5: Full Suite Verification, Production Build & Deployment**
-  - Run all Vitest test suites across 13 test files (**147/147 passed**).
-  - Run oxlint check (0 errors) and Vite production build (Built in 3.48s).
-  - Deployed live build to Firebase Hosting: `https://smartcricket-c79b5.web.app`.
+- [x] **Chunk 2: More Menu Scorer English Labels & Spectator Role Filtering**
+  - In `src/components/MoreMenuModal.jsx`, add an `isViewer` prop:
+    - Hide scorer-only controls (`edit_ball`, `action_logs`, `time_declare`, `declare_innings`) when `isViewer={true}` in `src/pages/Live.jsx`.
+    - Enhance all cards for scorers in `src/pages/Scoring.jsx` with clear, plain-English descriptive subtitles (e.g., "Fix runs, extras, or wickets on previous balls", "Review complete history of undos and ball events").
+    - Replace `Trophy` icon on Action Logs with intuitive `History` icon.
+  - Update tests to verify role filtering and friendly labels.
+  - Verification: Run Vitest (150/150 tests passing), oxlint, Vite build, and live deploy.

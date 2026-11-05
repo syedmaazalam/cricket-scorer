@@ -876,12 +876,9 @@ export default function Live({
         onClose={() => setIsMorePopupOpen(false)}
         onOpenSummary={() => setActiveTab('summary')}
         onOpenSquad={() => setIsSquadModalOpen(true)}
-        onOpenTimeDeclare={() => {}}
-        onOpenDeclareInnings={() => {}}
-        onOpenBallEditor={() => {}}
-        onOpenActionLogs={() => {}}
         onOpenPointingCriteria={() => setIsPointingCriteriaOpen(true)}
         isFirstInningsEnded={isFirstInningsEnded}
+        isViewer={true}
       />
 
       {/* Persistent Bottom Navigation Bar */}

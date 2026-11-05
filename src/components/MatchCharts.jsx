@@ -265,7 +265,10 @@ export default function MatchCharts({ matchState, initialChart = 'runs' }) {
         <div className="seg" role="group">
           <button
             type="button"
-            onClick={() => setActiveChart('runs')}
+            onClick={() => {
+              setActiveChart('runs');
+              if (overRange === 'all') setOverRange('1-10');
+            }}
             className={activeChart === 'runs' ? 'on' : ''}
             aria-pressed={activeChart === 'runs'}
           >
@@ -273,7 +276,10 @@ export default function MatchCharts({ matchState, initialChart = 'runs' }) {
           </button>
           <button
             type="button"
-            onClick={() => setActiveChart('worm')}
+            onClick={() => {
+              setActiveChart('worm');
+              setOverRange('all');
+            }}
             className={activeChart === 'worm' ? 'on' : ''}
             aria-pressed={activeChart === 'worm'}
           >
@@ -288,25 +294,34 @@ export default function MatchCharts({ matchState, initialChart = 'runs' }) {
         <div className="seg" role="group">
           <button
             type="button"
-            onClick={() => setOverRange('1-10')}
-            className={overRange === '1-10' ? 'on' : ''}
-            aria-pressed={overRange === '1-10'}
+            onClick={() => {
+              setOverRange('1-10');
+              setActiveChart('runs');
+            }}
+            className={overRange === '1-10' && activeChart === 'runs' ? 'on' : ''}
+            aria-pressed={overRange === '1-10' && activeChart === 'runs'}
           >
             1-10
           </button>
           <button
             type="button"
-            onClick={() => setOverRange('11-20')}
-            className={overRange === '11-20' ? 'on' : ''}
-            aria-pressed={overRange === '11-20'}
+            onClick={() => {
+              setOverRange('11-20');
+              setActiveChart('runs');
+            }}
+            className={overRange === '11-20' && activeChart === 'runs' ? 'on' : ''}
+            aria-pressed={overRange === '11-20' && activeChart === 'runs'}
           >
             11-20
           </button>
           <button
             type="button"
-            onClick={() => setOverRange('all')}
-            className={overRange === 'all' ? 'on' : ''}
-            aria-pressed={overRange === 'all'}
+            onClick={() => {
+              setOverRange('all');
+              setActiveChart('worm');
+            }}
+            className={overRange === 'all' || activeChart === 'worm' ? 'on' : ''}
+            aria-pressed={overRange === 'all' || activeChart === 'worm'}
           >
             All
           </button>

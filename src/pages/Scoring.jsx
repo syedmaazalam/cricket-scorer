@@ -1457,10 +1457,15 @@ export default function Scoring({
         onOpenSquad={() => setIsSquadModalOpen(true)}
         onOpenTimeDeclare={() => setIsTimeDeclareOpen(true)}
         onOpenDeclareInnings={() => setIsBreakModalOpen(true)}
-        onOpenBallEditor={() => setIsEditBallModalOpen(true)}
+        onOpenBallEditor={() => {
+          const allBallsList = currentInnings?.balls || [];
+          setSelectedBallForEdit(allBallsList.length > 0 ? allBallsList[allBallsList.length - 1] : null);
+          setIsEditBallModalOpen(true);
+        }}
         onOpenActionLogs={() => setIsActionLogsOpen(true)}
         onOpenPointingCriteria={() => setIsPointingCriteriaOpen(true)}
         isFirstInningsEnded={isFirstInningsEnded}
+        isViewer={false}
       />
 
       {/* Persistent Bottom Navigation Bar */}

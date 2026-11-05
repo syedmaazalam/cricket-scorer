@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server';
 import RunPad from '../components/RunPad.jsx';
 import BottomNavBar from '../components/BottomNavBar.jsx';
 import SyncBadge from '../components/SyncBadge.jsx';
+import MoreMenuModal from '../components/MoreMenuModal.jsx';
 
 describe('UI Verification: Navigation, RunPad & Interactive Controls', () => {
   describe('RunPad Component', () => {
@@ -150,6 +151,53 @@ describe('UI Verification: Navigation, RunPad & Interactive Controls', () => {
 
       expect(html).toContain('Offline');
       expect(html).toContain('5');
+    });
+  });
+
+  describe('MoreMenuModal Component', () => {
+    it('returns empty string when closed', () => {
+      const html = renderToString(
+        <MoreMenuModal isOpen={false} onClose={() => {}} />
+      );
+      expect(html).toBe('');
+    });
+
+    it('renders all scorer tools with plain-English descriptive subtitles for scorers', () => {
+      const html = renderToString(
+        <MoreMenuModal
+          isOpen={true}
+          onClose={() => {}}
+          isViewer={false}
+        />
+      );
+
+      expect(html).toContain('Scorer Controls &amp; Tools');
+      expect(html).toContain('Edit Ball Score');
+      expect(html).toContain('Fix runs, extras, or wickets on previous balls');
+      expect(html).toContain('Action Audit Logs');
+      expect(html).toContain('Review complete history of undos and ball events');
+      expect(html).toContain('Pointing System Criteria');
+    });
+
+    it('hides scorer-only controls (Edit Ball, Action Logs, Time Declare, Declare Innings) in Spectator/Live view', () => {
+      const html = renderToString(
+        <MoreMenuModal
+          isOpen={true}
+          onClose={() => {}}
+          isViewer={true}
+        />
+      );
+
+      expect(html).toContain('Match Options');
+      expect(html).toContain('Match Summary');
+      expect(html).toContain('Squad &amp; Players');
+      expect(html).toContain('Pointing System Criteria');
+
+      // Scorer-only editing actions must be absent for spectators
+      expect(html).not.toContain('Edit Ball Score');
+      expect(html).not.toContain('Action Audit Logs');
+      expect(html).not.toContain('Time Declare');
+      expect(html).not.toContain('Declare 1st Innings');
     });
   });
 });
