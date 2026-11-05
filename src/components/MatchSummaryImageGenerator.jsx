@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Share2, X, Check, Image as ImageIcon, Sparkles, Loader2, Trophy } from 'lucide-react';
+import { Download, Share2, X, Image as ImageIcon, Sparkles, Loader2, Trophy } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
 
-// Helper for Team abbreviation logic per specification (section 8)
+// Preserve non-breaking spaces across canvas text rendering
+function toNbsp(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/ /g, '\u00A0');
+}
+
+// Helper for Team abbreviation logic per specification
 export function getTeamAbbreviation(name = '') {
   const trimmed = (name || '').trim();
   if (!trimmed) return 'TEAM';
@@ -13,16 +19,16 @@ export function getTeamAbbreviation(name = '') {
   if (words.length === 1) {
     return words[0]; // Single-word teams remain unshortened (e.g. Pakistan, Falcons)
   }
-  return words.map((w) => w[0].toUpperCase()).join(''); // Multi-word teams use initials (e.g. Lahore Lions -> LL, CS, UI)
+  return words.map((w) => w[0].toUpperCase()).join(''); // Multi-word teams use initials (e.g. Lahore Lions -> LL)
 }
 
 // Inline Team Crest Shield for the 1920x1080 canvas
 function ShieldBadge({ name, color, isSecondary = false }) {
   const abbr = getTeamAbbreviation(name).slice(0, 2);
   return (
-    <svg width="110" height="126" viewBox="0 0 54 62" style={{ flexShrink: 0 }}>
+    <svg width="100" height="116" viewBox="0 0 54 62" style={{ flexShrink: 0 }}>
       <defs>
-        <filter id={`sh_${abbr}`} x="-20%" y="-20%" width="140%" height="140%">
+        <filter id={`sh_${abbr}_${isSecondary ? 's' : 'p'}`} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="rgba(11,31,59,0.18)" />
         </filter>
       </defs>
@@ -31,7 +37,7 @@ function ShieldBadge({ name, color, isSecondary = false }) {
         fill={color}
         stroke="rgba(255,255,255,0.85)"
         strokeWidth="2.5"
-        filter={`url(#sh_${abbr})`}
+        filter={`url(#sh_${abbr}_${isSecondary ? 's' : 'p'})`}
       />
       <path d="M19 9l4 5 4-6 4 6 4-5-1 8H20Z" fill="#FFC83D" />
       <text
@@ -41,7 +47,7 @@ function ShieldBadge({ name, color, isSecondary = false }) {
         fontSize="17"
         fontWeight="800"
         fill="#FFFFFF"
-        fontFamily="'Plus Jakarta Sans', system-ui, sans-serif"
+        fontFamily="'Inter', system-ui, sans-serif"
       >
         {abbr}
       </text>
@@ -50,237 +56,278 @@ function ShieldBadge({ name, color, isSecondary = false }) {
 }
 
 // Inline Team Badge component for player tables per specification
+// Padding 4px 12px, line-height 1.2, white-space: nowrap, overflow: visible, min-width: fit-content
 function TeamPillBadge({ teamName, isNavy }) {
   if (!teamName) return null;
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       <span
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minWidth: '60px',
-          height: '24px',
-          padding: '0 12px',
+          padding: '4px 12px',
+          minWidth: 'fit-content',
           borderRadius: '999px',
           fontSize: '13px',
           fontWeight: 800,
+          lineHeight: 1.2,
           backgroundColor: isNavy ? '#071938' : '#DBEAFE',
           color: isNavy ? '#FFFFFF' : '#1D5CFF',
-          boxShadow: '0 1px 3px rgba(11,31,59,0.06)',
           whiteSpace: 'nowrap',
-          lineHeight: 1,
-          boxSizing: 'border-box'
+          overflow: 'visible',
+          boxSizing: 'border-box',
+          boxShadow: '0 1px 3px rgba(11,31,59,0.06)'
         }}
       >
-        {teamName}
+        {toNbsp(teamName)}
       </span>
     </div>
   );
 }
 
-// Batting Table Card (exactly 4 numbered rows, strict blank rule for empty cells)
+// Batting Table Card (exactly 4 numbered rows, table-layout: fixed, strict cell alignment)
 function BattingTableCard({ title, batters, isNavy }) {
+  const displayRows = Array.from({ length: 4 }, (_, idx) => batters?.[idx] || null);
+
   return (
     <div
       style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '24px',
-        padding: '18px 24px',
+        padding: '16px 20px',
         border: '1.5px solid #DBEAFE',
         boxShadow: '0 8px 24px rgba(11,31,59,0.04)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        overflow: 'hidden'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <path d="M19.5 4.5L14 10M14 10L12 12M14 10L16 12M7 17L3 21M7 17L10 14" />
         </svg>
-        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0B1F3B', letterSpacing: '-0.02em' }}>
-          {title}
+        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+          {toNbsp(title)}
         </h3>
       </div>
 
-      <div
+      <table
         style={{
-          display: 'grid',
-          gridTemplateColumns: '32px 1fr 90px 55px 50px 45px 45px 65px',
-          alignItems: 'center',
-          backgroundColor: '#E8F1FF',
-          borderRadius: '12px',
-          padding: '8px 12px',
-          fontSize: '13px',
-          fontWeight: 700,
-          color: '#475569',
-          marginBottom: '4px'
+          width: '100%',
+          tableLayout: 'fixed',
+          borderCollapse: 'collapse',
+          boxSizing: 'border-box',
+          letterSpacing: 'normal',
+          wordSpacing: 'normal'
         }}
       >
-        <span style={{ textAlign: 'center' }}>#</span>
-        <span>Player</span>
-        <span style={{ textAlign: 'center' }}>Team</span>
-        <span style={{ textAlign: 'right' }}>Runs</span>
-        <span style={{ textAlign: 'right' }}>Balls</span>
-        <span style={{ textAlign: 'right' }}>4s</span>
-        <span style={{ textAlign: 'right' }}>6s</span>
-        <span style={{ textAlign: 'right' }}>SR</span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {batters.map((b, idx) => (
-          <div
-            key={idx}
+        <colgroup>
+          <col style={{ width: '40px' }} />
+          <col style={{ width: '250px' }} />
+          <col style={{ width: '150px' }} />
+          <col style={{ width: '85px' }} />
+          <col style={{ width: '85px' }} />
+          <col style={{ width: '70px' }} />
+          <col style={{ width: '70px' }} />
+          <col style={{ width: '95px' }} />
+        </colgroup>
+        <thead>
+          <tr
             style={{
-              display: 'grid',
-              gridTemplateColumns: '32px 1fr 90px 55px 50px 45px 45px 65px',
-              alignItems: 'center',
-              padding: '9px 12px',
-              height: '42px',
-              boxSizing: 'border-box',
-              borderTop: idx > 0 ? '1px solid #E2E8F0' : 'none',
-              fontSize: '15px'
+              backgroundColor: '#E8F1FF',
+              height: '36px'
             }}
           >
-            <span style={{ fontWeight: 800, color: '#64748B', textAlign: 'center' }}>{idx + 1}</span>
-            {b ? (
-              <>
-                <span style={{ fontWeight: 800, color: '#0B1F3B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {b.name}
-                </span>
-                <TeamPillBadge teamName={b.team} isNavy={isNavy} />
-                <span style={{ textAlign: 'right', fontWeight: 900, color: '#0B1F3B', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.runs}
-                </span>
-                <span style={{ textAlign: 'right', color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.balls}
-                </span>
-                <span style={{ textAlign: 'right', color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.fours}
-                </span>
-                <span style={{ textAlign: 'right', color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.sixes}
-                </span>
-                <span style={{ textAlign: 'right', fontWeight: 700, color: '#0B1F3B', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.sr}
-                </span>
-              </>
-            ) : (
-              <>
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px' }}><span>#</span></th>
+            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Player</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Team</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Runs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Balls</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>4s</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>6s</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }}><span>SR</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {displayRows.map((b, idx) => (
+            <tr
+              key={idx}
+              style={{
+                height: '40px',
+                borderTop: '1px solid #E2E8F0',
+                boxSizing: 'border-box'
+              }}
+            >
+              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B' }}>
+                {idx + 1}
+              </td>
+              {b ? (
+                <>
+                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {toNbsp(b.name)}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px' }}>
+                    <TeamPillBadge teamName={b.team} isNavy={isNavy} />
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.runs}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.balls}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.fours}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.sixes}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.sr}
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// Bowling Table Card (exactly 4 numbered rows, strict blank rule for empty cells)
+// Bowling Table Card (exactly 4 numbered rows, table-layout: fixed, strict cell alignment)
 function BowlingTableCard({ title, bowlers, isNavy }) {
+  const displayRows = Array.from({ length: 4 }, (_, idx) => bowlers?.[idx] || null);
+
   return (
     <div
       style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '24px',
-        padding: '18px 24px',
+        padding: '16px 20px',
         border: '1.5px solid #DBEAFE',
         boxShadow: '0 8px 24px rgba(11,31,59,0.04)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        overflow: 'hidden'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" />
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
         </svg>
-        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0B1F3B', letterSpacing: '-0.02em' }}>
-          {title}
+        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+          {toNbsp(title)}
         </h3>
       </div>
 
-      <div
+      <table
         style={{
-          display: 'grid',
-          gridTemplateColumns: '32px 1fr 90px 60px 55px 60px 65px',
-          alignItems: 'center',
-          backgroundColor: '#E8F1FF',
-          borderRadius: '12px',
-          padding: '8px 12px',
-          fontSize: '13px',
-          fontWeight: 700,
-          color: '#475569',
-          marginBottom: '4px'
+          width: '100%',
+          tableLayout: 'fixed',
+          borderCollapse: 'collapse',
+          boxSizing: 'border-box',
+          letterSpacing: 'normal',
+          wordSpacing: 'normal'
         }}
       >
-        <span style={{ textAlign: 'center' }}>#</span>
-        <span>Player</span>
-        <span style={{ textAlign: 'center' }}>Team</span>
-        <span style={{ textAlign: 'right' }}>Overs</span>
-        <span style={{ textAlign: 'right' }}>Runs</span>
-        <span style={{ textAlign: 'right' }}>Wickets</span>
-        <span style={{ textAlign: 'right' }}>Econ</span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {bowlers.map((bw, idx) => (
-          <div
-            key={idx}
+        <colgroup>
+          <col style={{ width: '40px' }} />
+          <col style={{ width: '250px' }} />
+          <col style={{ width: '150px' }} />
+          <col style={{ width: '100px' }} />
+          <col style={{ width: '100px' }} />
+          <col style={{ width: '105px' }} />
+          <col style={{ width: '100px' }} />
+        </colgroup>
+        <thead>
+          <tr
             style={{
-              display: 'grid',
-              gridTemplateColumns: '32px 1fr 90px 60px 55px 60px 65px',
-              alignItems: 'center',
-              padding: '9px 12px',
-              height: '42px',
-              boxSizing: 'border-box',
-              borderTop: idx > 0 ? '1px solid #E2E8F0' : 'none',
-              fontSize: '15px'
+              backgroundColor: '#E8F1FF',
+              height: '36px'
             }}
           >
-            <span style={{ fontWeight: 800, color: '#64748B', textAlign: 'center' }}>{idx + 1}</span>
-            {bw ? (
-              <>
-                <span style={{ fontWeight: 800, color: '#0B1F3B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {bw.name}
-                </span>
-                <TeamPillBadge teamName={bw.team} isNavy={isNavy} />
-                <span style={{ textAlign: 'right', color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
-                  {bw.overs}
-                </span>
-                <span style={{ textAlign: 'right', color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>
-                  {bw.runs}
-                </span>
-                <span style={{ textAlign: 'right', fontWeight: 900, color: '#0B1F3B', fontVariantNumeric: 'tabular-nums' }}>
-                  {bw.wickets}
-                </span>
-                <span style={{ textAlign: 'right', fontWeight: 700, color: '#0B1F3B', fontVariantNumeric: 'tabular-nums' }}>
-                  {bw.econ}
-                </span>
-              </>
-            ) : (
-              <>
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px' }}><span>#</span></th>
+            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Player</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Team</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Overs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Runs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Wickets</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }}><span>Econ</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {displayRows.map((bw, idx) => (
+            <tr
+              key={idx}
+              style={{
+                height: '40px',
+                borderTop: '1px solid #E2E8F0',
+                boxSizing: 'border-box'
+              }}
+            >
+              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B' }}>
+                {idx + 1}
+              </td>
+              {bw ? (
+                <>
+                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {toNbsp(bw.name)}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px' }}>
+                    <TeamPillBadge teamName={bw.team} isNavy={isNavy} />
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {bw.overs}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {bw.runs}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {bw.wickets}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                    {bw.econ}
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px' }} />
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -297,8 +344,6 @@ export default function MatchSummaryImageGenerator({
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [dataUrlString, setDataUrlString] = useState(null);
   const [capturedCanvas, setCapturedCanvas] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [imageBlob, setImageBlob] = useState(null);
 
   // Extract Teams & Innings safely
   const teams = matchState?.teams || [];
@@ -361,7 +406,7 @@ export default function MatchSummaryImageGenerator({
   const t1Sixes = (inn1.balls || []).filter((b) => b.runs === 6).length;
   const t2Sixes = (inn2.balls || []).filter((b) => b.runs === 6).length;
 
-  // Dynamic Result Text
+  // Dynamic Result Text with explicit non-breaking spacing
   const resultText = matchState?.resultSummary || (
     inn2.legalBalls > 0 && inn2.score > inn1.score
       ? `${team2Name} Won by ${10 - inn2.wickets} Wickets`
@@ -370,26 +415,29 @@ export default function MatchSummaryImageGenerator({
       : `Match In Progress • ${team1Name} ${inn1.score}/${inn1.wickets}`
   );
 
-  // Subtitle per instruction: show tournament name if exists, else show "Team A vs Team B"
+  // Header Subtitle
   const tournamentName = matchState?.tournament || matchState?.series;
   const headerSubtitle = tournamentName
     ? `${tournamentName}${matchState?.matchNumber ? ` • Match ${matchState.matchNumber}` : ''}`
     : `${team1Name} vs ${team2Name}`;
 
-  // Date and Time (No stadium, No venue)
-  const matchDate = matchState?.date || new Date().toLocaleDateString('en-US', {
+  // Date and Time (Explicit spacing)
+  const rawDate = matchState?.date
+    ? new Date(matchState.date)
+    : (matchState?.createdAt ? new Date(matchState.createdAt) : new Date());
+  
+  const formattedDate = rawDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
   });
   const matchTime = matchState?.time || '';
-  const datePillText = matchTime ? `${matchDate} • ${matchTime}` : matchDate;
+  const datePillText = matchTime ? `${formattedDate} • ${matchTime}` : formattedDate;
 
   // Render & Capture when modal opens
   useEffect(() => {
     if (!isOpen) {
       setGeneratedImageUrl(null);
-      setImageBlob(null);
       return;
     }
 
@@ -400,14 +448,15 @@ export default function MatchSummaryImageGenerator({
           await document.fonts.ready;
         }
 
-        // Allow layout to stabilize
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Allow layout and web fonts to settle
+        await new Promise((resolve) => setTimeout(resolve, 350));
 
         const element = canvasRef.current;
         if (!element) return;
 
+        // Respect export resolution setting (Default 4k = scale 2x)
         const exportRes = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_export_res') || '4k') : '4k';
-        const exportScale = exportRes === '1080' ? 1 : 2; // scale: 2 produces 3840x2160 true 4K UHD
+        const exportScale = exportRes === '1080' ? 1 : 2;
 
         const canvas = await html2canvas(element, {
           width: 1920,
@@ -418,7 +467,14 @@ export default function MatchSummaryImageGenerator({
           backgroundColor: '#F0F7FF',
           logging: false,
           windowWidth: 1920,
-          windowHeight: 1080
+          windowHeight: 1080,
+          onclone: (clonedDoc) => {
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach((node) => {
+              node.style.letterSpacing = 'normal';
+              node.style.wordSpacing = 'normal';
+            });
+          }
         });
 
         const dUrl = canvas.toDataURL('image/png');
@@ -429,7 +485,6 @@ export default function MatchSummaryImageGenerator({
           if (!blob) return;
           const url = URL.createObjectURL(blob);
           setGeneratedImageUrl(url);
-          setImageBlob(blob);
         }, 'image/png');
       } catch (err) {
         console.error('Match summary generation error:', err);
@@ -444,7 +499,6 @@ export default function MatchSummaryImageGenerator({
   if (!isOpen) return null;
 
   const includeFooterCredit = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_footer_credit') !== 'false') : true;
-
   const fileName = `MatchSummary_${team1Name.replace(/\s+/g, '_')}_vs_${team2Name.replace(/\s+/g, '_')}.png`;
 
   const handleDownload = async () => {
@@ -553,10 +607,11 @@ export default function MatchSummaryImageGenerator({
       {/* =========================================================================
           OFF-SCREEN FIXED 1920x1080 CANVAS
           Rendered at exact dimensions left: -9999px for html2canvas capture.
-          All styling uses solid hex/rgba values, inline SVGs, and Plus Jakarta Sans.
+          All styling uses solid hex/rgba values, inline SVGs, and Inter font.
           ========================================================================= */}
       <div
         ref={canvasRef}
+        className="ms-canvas"
         style={{
           position: 'fixed',
           left: '-9999px',
@@ -564,10 +619,12 @@ export default function MatchSummaryImageGenerator({
           width: '1920px',
           height: '1080px',
           backgroundColor: '#F0F7FF',
-          color: '#0B1F3B',
-          fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+          color: '#0F172A',
+          fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          letterSpacing: 'normal',
+          wordSpacing: 'normal',
           boxSizing: 'border-box',
-          padding: '32px 48px',
+          padding: '28px 44px',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -575,21 +632,25 @@ export default function MatchSummaryImageGenerator({
           zIndex: -9999
         }}
       >
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          .ms-canvas * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+            letter-spacing: normal !important;
+            word-spacing: normal !important;
+          }
+        `}</style>
+
         {/* Soft Background SVG Waves & Stadium Crowd Silhouettes */}
         <svg
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
           viewBox="0 0 1920 1080"
           fill="none"
         >
-          {/* Top Background Waves */}
           <path d="M0 0H900C780 120 540 90 400 180S120 320 0 280Z" fill="#E6F0FA" opacity="0.6" />
           <path d="M1920 0H1200C1320 140 1560 100 1700 220S1880 340 1920 320Z" fill="#E6F0FA" opacity="0.5" />
-
-          {/* Bottom Background Waves */}
           <path d="M0 800C260 760 480 920 740 980S1400 900 1920 960V1080H0Z" fill="#E1ECF9" opacity="0.7" />
           <path d="M0 920C320 890 640 1020 960 1040S1600 980 1920 1020V1080H0Z" fill="#D6E4F7" opacity="0.5" />
-
-          {/* Faint Stadium Floodlights Silhouette (Top Right) */}
           <g transform="translate(1700, 40)" opacity="0.22" fill="#2563EB">
             <rect x="0" y="0" width="8" height="8" rx="2" />
             <rect x="14" y="0" width="8" height="8" rx="2" />
@@ -607,11 +668,10 @@ export default function MatchSummaryImageGenerator({
         </svg>
 
         {/* 1. TOP HEADER SECTION */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           {/* Left: Batter Silhouette + Divider + Heading + Subtitle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
-            {/* Batter Silhouette SVG */}
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <path
                 d="M19.5 4.5L14 10M14 10L12 12M14 10L16 12M7 17L3 21M7 17L10 14M7 17L5 19M12 12L10 14M12 12L14 14M10 14L8 16M16 5.5L18.5 3M17 19L21 21M9 6C9 7.1 8.1 8 7 8C5.9 8 5 7.1 5 6C5 4.9 5.9 4 7 4C8.1 4 9 4.9 9 6Z"
                 stroke="#1D5CFF"
@@ -621,17 +681,15 @@ export default function MatchSummaryImageGenerator({
               />
             </svg>
 
-            {/* Vertical Divider */}
-            <div style={{ width: '2.5px', height: '54px', backgroundColor: '#CBD5E1' }} />
+            <div style={{ width: '2.5px', height: '50px', backgroundColor: '#CBD5E1' }} />
 
-            {/* Heading & Subtitle */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h1
                 style={{
                   margin: 0,
-                  fontSize: '44px',
+                  fontSize: '40px',
                   fontWeight: 900,
-                  color: '#0B1F3B',
+                  color: '#0F172A',
                   letterSpacing: '-0.03em',
                   lineHeight: 1.05
                 }}
@@ -641,45 +699,46 @@ export default function MatchSummaryImageGenerator({
               <span
                 style={{
                   marginTop: '4px',
-                  fontSize: '20px',
+                  fontSize: '18px',
                   fontWeight: 700,
                   color: '#475569',
-                  letterSpacing: '-0.01em'
+                  letterSpacing: 'normal',
+                  wordSpacing: 'normal'
                 }}
               >
-                {headerSubtitle}
+                {toNbsp(headerSubtitle)}
               </span>
             </div>
           </div>
 
-          {/* Right: Date Pill (Right-aligned, no stadium) */}
+          {/* Right: Date Pill (Right-aligned, not cramped) */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '10px',
+              gap: '12px',
               backgroundColor: '#FFFFFF',
               border: '1.5px solid #DBEAFE',
               borderRadius: '999px',
               padding: '10px 24px',
               boxShadow: '0 4px 14px rgba(11,31,59,0.04)',
               boxSizing: 'border-box',
-              lineHeight: 1
+              whiteSpace: 'nowrap'
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ flexShrink: 0 }}>
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F3B', lineHeight: 1 }}>
-              {datePillText}
+            <span style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2, letterSpacing: 'normal', wordSpacing: 'normal' }}>
+              {toNbsp(datePillText)}
             </span>
           </div>
         </div>
 
         {/* 2. MIDDLE SECTION: Main Match Result Card (Left) & Match Statistics Card (Right) */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', marginBottom: '20px' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1.25fr 0.75fr', gap: '22px', marginBottom: '18px' }}>
           {/* Main Match Result Card */}
           <div
             style={{
@@ -691,33 +750,31 @@ export default function MatchSummaryImageGenerator({
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '250px',
+              minHeight: '255px',
               boxSizing: 'border-box'
             }}
           >
-            {/* Team 1 Score, VS Badge, Team 2 Score */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>
-              {/* Team 1 Block */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            {/* Team 1 Score, Centered VS Badge, Team 2 Score (Mirrored layout) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 1fr', alignItems: 'center', gap: '24px', width: '100%' }}>
+              {/* Team 1 Block: Name, Score and Overs centered over each other */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 <ShieldBadge name={team1Name} color="#0B2A63" />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#0B1F3B', marginBottom: '2px' }}>
-                    {team1Name}
-                  </span>
-                  <span style={{ fontSize: '54px', fontWeight: 900, color: '#0B1F3B', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                    {inn1.score}/{inn1.wickets}
-                  </span>
-                  <span style={{ fontSize: '19px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                    ({formatOvers(inn1.legalBalls)} ov)
-                  </span>
-                </div>
+                <span style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginTop: '6px', letterSpacing: '-0.01em' }}>
+                  {toNbsp(team1Name)}
+                </span>
+                <span style={{ fontSize: '48px', fontWeight: 900, color: '#0F172A', lineHeight: 1.05, letterSpacing: '-0.03em', marginTop: '2px' }}>
+                  {inn1.score}/{inn1.wickets}
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 600, color: '#64748B', marginTop: '3px' }}>
+                  ({formatOvers(inn1.legalBalls)} ov)
+                </span>
               </div>
 
-              {/* VS Circular Badge */}
+              {/* VS Circular Badge - Exactly in the Center */}
               <div
                 style={{
-                  width: '68px',
-                  height: '68px',
+                  width: '64px',
+                  height: '64px',
                   borderRadius: '50%',
                   backgroundColor: '#FFFFFF',
                   border: '2px solid #BFDBFE',
@@ -728,28 +785,25 @@ export default function MatchSummaryImageGenerator({
                   fontWeight: 900,
                   color: '#2563EB',
                   boxShadow: '0 0 20px rgba(37,99,235,0.18)',
-                  lineHeight: 1,
-                  boxSizing: 'border-box',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  lineHeight: 1
                 }}
               >
                 VS
               </div>
 
-              {/* Team 2 Block */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexDirection: 'row-reverse' }}>
+              {/* Team 2 Block: Name, Score and Overs centered over each other (Mirrored) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 <ShieldBadge name={team2Name} color="#2563EB" isSecondary />
-                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
-                  <span style={{ fontSize: '24px', fontWeight: 800, color: '#0B1F3B', marginBottom: '2px' }}>
-                    {team2Name}
-                  </span>
-                  <span style={{ fontSize: '54px', fontWeight: 900, color: '#0B1F3B', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                    {inn2.score}/{inn2.wickets}
-                  </span>
-                  <span style={{ fontSize: '19px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                    ({formatOvers(inn2.legalBalls)} ov)
-                  </span>
-                </div>
+                <span style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginTop: '6px', letterSpacing: '-0.01em' }}>
+                  {toNbsp(team2Name)}
+                </span>
+                <span style={{ fontSize: '48px', fontWeight: 900, color: '#0F172A', lineHeight: 1.05, letterSpacing: '-0.03em', marginTop: '2px' }}>
+                  {inn2.score}/{inn2.wickets}
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 600, color: '#64748B', marginTop: '3px' }}>
+                  ({formatOvers(inn2.legalBalls)} ov)
+                </span>
               </div>
             </div>
 
@@ -763,15 +817,14 @@ export default function MatchSummaryImageGenerator({
                 style={{
                   background: 'linear-gradient(90deg, #071938 0%, #0B2A63 100%)',
                   borderRadius: '999px',
-                  padding: '10px 36px',
+                  padding: '8px 32px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '12px',
                   border: '1.5px solid rgba(255,255,255,0.22)',
                   boxShadow: '0 6px 20px rgba(11,31,59,0.2)',
-                  boxSizing: 'border-box',
-                  lineHeight: 1
+                  boxSizing: 'border-box'
                 }}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -782,8 +835,8 @@ export default function MatchSummaryImageGenerator({
                   <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="#FBBF24" fillOpacity="0.3" />
                 </svg>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em', lineHeight: 1 }}>
-                  {resultText}
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#FFFFFF', letterSpacing: 'normal', wordSpacing: 'normal', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                  {toNbsp(resultText)}
                 </span>
               </div>
 
@@ -793,27 +846,27 @@ export default function MatchSummaryImageGenerator({
             </div>
           </div>
 
-          {/* Match Statistics Card */}
+          {/* Match Statistics Card (No dotted artifacts, clean 3-column rows) */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '24px',
-              padding: '20px 28px',
+              padding: '20px 24px',
               border: '1.5px solid #DBEAFE',
               boxShadow: '0 12px 36px rgba(11,31,59,0.06)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '250px',
+              minHeight: '255px',
               boxSizing: 'border-box'
             }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5">
                 <path d="M18 20V10M12 20V4M6 20v-6" />
               </svg>
-              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0B1F3B' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
                 Match Statistics
               </h2>
             </div>
@@ -829,17 +882,16 @@ export default function MatchSummaryImageGenerator({
                   color: '#FFFFFF',
                   borderRadius: '999px',
                   height: '32px',
-                  padding: '0 16px',
+                  padding: '4px 16px',
                   fontWeight: 800,
-                  fontSize: '15px',
-                  lineHeight: 1,
+                  fontSize: '13px',
+                  lineHeight: 1.2,
                   boxSizing: 'border-box',
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
+                  overflow: 'visible'
                 }}
               >
-                {team1Name}
+                {toNbsp(team1Name)}
               </div>
               <div
                 style={{
@@ -850,46 +902,46 @@ export default function MatchSummaryImageGenerator({
                   color: '#1D5CFF',
                   borderRadius: '999px',
                   height: '32px',
-                  padding: '0 16px',
+                  padding: '4px 16px',
                   fontWeight: 800,
-                  fontSize: '15px',
-                  lineHeight: 1,
+                  fontSize: '13px',
+                  lineHeight: 1.2,
                   boxSizing: 'border-box',
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
+                  overflow: 'visible'
                 }}
               >
-                {team2Name}
+                {toNbsp(team2Name)}
               </div>
             </div>
 
-            {/* 3-Column Table: Team 1 Stat | Label | Team 2 Stat */}
+            {/* 3-Column Table: Left Value / Center Label / Right Value */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {[
                 { label: 'Score', v1: `${inn1.score}/${inn1.wickets}`, v2: `${inn2.score}/${inn2.wickets}` },
                 { label: 'Overs', v1: formatOvers(inn1.legalBalls), v2: formatOvers(inn2.legalBalls) },
                 { label: 'Run Rate', v1: t1CRR.toFixed(2), v2: t2CRR.toFixed(2) },
-                { label: 'Fours', v1: t1Fours, v2: t2Fours },
-                { label: 'Sixes', v1: t1Sixes, v2: t2Sixes }
+                { label: 'Fours', v1: String(t1Fours), v2: String(t2Fours) },
+                { label: 'Sixes', v1: String(t1Sixes), v2: String(t2Sixes) }
               ].map((row, idx) => (
                 <div
                   key={row.label}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1.2fr 1fr',
+                    gridTemplateColumns: '1fr 110px 1fr',
                     alignItems: 'center',
-                    padding: '6px 4px',
-                    borderTop: idx > 0 ? '1px solid #E2E8F0' : 'none'
+                    height: '34px',
+                    borderTop: idx > 0 ? '1px solid #E2E8F0' : 'none',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <span style={{ fontSize: '17px', fontWeight: 800, color: '#0B1F3B', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                     {row.v1}
                   </span>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569', textAlign: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textAlign: 'center', letterSpacing: 'normal', wordSpacing: 'normal' }}>
                     {row.label}
                   </span>
-                  <span style={{ fontSize: '17px', fontWeight: 800, color: '#0B1F3B', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                     {row.v2}
                   </span>
                 </div>
@@ -906,20 +958,21 @@ export default function MatchSummaryImageGenerator({
               zIndex: 1,
               backgroundColor: '#FFFFFF',
               borderRadius: '20px',
-              padding: '12px 28px',
+              padding: '12px 24px',
               border: '1.5px solid #FDE68A',
               boxShadow: '0 6px 20px rgba(245, 158, 11, 0.08)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '16px'
+              marginBottom: '16px',
+              boxSizing: 'border-box'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div
                 style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '12px',
                   backgroundColor: '#F59E0B',
                   display: 'flex',
@@ -928,13 +981,13 @@ export default function MatchSummaryImageGenerator({
                   color: '#FFFFFF'
                 }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34M7 4h10v5a5 5 0 0 1-10 0V4Z" />
                 </svg>
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, color: '#D97706', textTransform: 'uppercase', letterSpacing: 'normal', wordSpacing: 'normal' }}>
                     Top Performer · Player of the Match
                   </span>
                   <span
@@ -944,23 +997,23 @@ export default function MatchSummaryImageGenerator({
                       justifyContent: 'center',
                       backgroundColor: '#FEF3C7',
                       color: '#B45309',
-                      height: '24px',
-                      padding: '0 12px',
+                      height: '22px',
+                      padding: '2px 10px',
                       borderRadius: '999px',
-                      fontSize: '12px',
+                      fontSize: '11px',
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.2,
                       boxSizing: 'border-box',
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {topPerformer.totalPoints} Points
+                    {topPerformer.totalPoints}&nbsp;Points
                   </span>
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: '#0B1F3B', letterSpacing: '-0.02em', marginTop: '1px' }}>
-                  {topPerformer.name}
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#64748B', marginLeft: '8px' }}>
-                    ({topPerformer.team})
+                <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', letterSpacing: 'normal', wordSpacing: 'normal', marginTop: '2px' }}>
+                  {toNbsp(topPerformer.name)}
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748B', marginLeft: '8px' }}>
+                    ({toNbsp(topPerformer.team)})
                   </span>
                 </div>
               </div>
@@ -976,17 +1029,17 @@ export default function MatchSummaryImageGenerator({
                     backgroundColor: '#F0FDF4',
                     border: '1.5px solid #BBF7D0',
                     height: '32px',
-                    padding: '0 16px',
+                    padding: '4px 14px',
                     borderRadius: '999px',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     color: '#166534',
                     fontWeight: 700,
-                    lineHeight: 1,
+                    lineHeight: 1.2,
                     boxSizing: 'border-box',
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  <span>Batting: <strong>{topPerformer.batting.runs}</strong> ({topPerformer.batting.balls}b, {topPerformer.batting.fours}x4, {topPerformer.batting.sixes}x6)</span>
+                  <span>Batting:&nbsp;<strong>{topPerformer.batting.runs}</strong>&nbsp;({topPerformer.batting.balls}b,&nbsp;{topPerformer.batting.fours}x4,&nbsp;{topPerformer.batting.sixes}x6)</span>
                 </div>
               )}
               {topPerformer.bowling?.legalBalls > 0 && (
@@ -998,17 +1051,17 @@ export default function MatchSummaryImageGenerator({
                     backgroundColor: '#EFF6FF',
                     border: '1.5px solid #BFDBFE',
                     height: '32px',
-                    padding: '0 16px',
+                    padding: '4px 14px',
                     borderRadius: '999px',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     color: '#1E40AF',
                     fontWeight: 700,
-                    lineHeight: 1,
+                    lineHeight: 1.2,
                     boxSizing: 'border-box',
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  <span>Bowling: <strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded} ({formatOvers(topPerformer.bowling.legalBalls)} ov)</span>
+                  <span>Bowling:&nbsp;<strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded}&nbsp;({formatOvers(topPerformer.bowling.legalBalls)}&nbsp;ov)</span>
                 </div>
               )}
             </div>
@@ -1022,7 +1075,7 @@ export default function MatchSummaryImageGenerator({
             zIndex: 1,
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '20px',
+            gap: '18px',
             flex: 1
           }}
         >
@@ -1059,19 +1112,21 @@ export default function MatchSummaryImageGenerator({
         {includeFooterCredit && (
           <div
             style={{
-              marginTop: '16px',
-              paddingTop: '10px',
+              marginTop: '12px',
+              paddingTop: '8px',
               borderTop: '1px solid rgba(148, 163, 184, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#64748B',
-              fontWeight: 600
+              fontWeight: 600,
+              letterSpacing: 'normal',
+              wordSpacing: 'normal'
             }}
           >
-            <span>SmartCricket live cricket scoring and match analytics</span>
-            <span>Official Match Report</span>
+            <span>SmartCricket&nbsp;live&nbsp;cricket&nbsp;scoring&nbsp;and&nbsp;match&nbsp;analytics</span>
+            <span>Official&nbsp;Match&nbsp;Report</span>
           </div>
         )}
       </div>

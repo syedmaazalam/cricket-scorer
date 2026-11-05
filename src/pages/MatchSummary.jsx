@@ -147,15 +147,15 @@ export default function MatchSummary({ matchState, onBack }) {
 
         <button
           onClick={onBack}
-          className="ib"
+          className="ib shrink-0"
           title="Back to scoring"
           aria-label="Back"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <h2 style={{ fontSize: '15px', fontWeight: 800 }}>Comprehensive Match Summary</h2>
+        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 800 }} className="truncate">Comprehensive Match Summary</h2>
           <span className="mono ok" style={{ fontSize: '12px', fontWeight: 700 }}>
             #{matchCode || 'MATCH'}
           </span>
@@ -164,16 +164,16 @@ export default function MatchSummary({ matchState, onBack }) {
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="btn p s shrink-0 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full m-0 font-bold text-xs"
+            className="btn p s shrink-0 inline-flex items-center justify-center gap-2 h-9 px-3.5 sm:px-4 rounded-full m-0 font-bold text-xs box-border"
             title="Export Scorecard"
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
-            <span className="truncate">Export Scorecard</span>
+            <span className="truncate leading-none">Export Scorecard</span>
           </button>
 
           <button
             onClick={handleShareSummary}
-            className="ib p"
+            className="ib p shrink-0"
             title="Share Summary"
             aria-label="Share"
           >
@@ -224,10 +224,10 @@ export default function MatchSummary({ matchState, onBack }) {
         {matchState?.resultSummary && (
           <div
             style={{ backgroundColor: 'var(--well)', borderColor: 'var(--bd)' }}
-            className="p-3 rounded-2xl border text-center flex items-center justify-center gap-2"
+            className="p-3 rounded-2xl border text-center flex items-center justify-center gap-2 box-border"
           >
-            <Trophy className="w-4 h-4 text-[var(--ok)]" />
-            <span className="font-extrabold text-xs" style={{ color: 'var(--t1)' }}>
+            <Trophy className="w-4 h-4 text-[var(--ok)] shrink-0" />
+            <span className="font-extrabold text-xs leading-normal" style={{ color: 'var(--t1)' }}>
               {matchState.resultSummary}
             </span>
           </div>

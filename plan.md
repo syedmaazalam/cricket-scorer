@@ -1,9 +1,15 @@
-# Implementation Plan: Home Header Polish, Match Summary Alignment & Version 1.2 Release
+# Implementation Plan: Pixel-Perfect Match Summary Screen & Export Layout
 
 ## Overview
-1. Clean up `Home.jsx` top header by removing the `Offline Manager` badge and ensuring the corner theme toggle is fully visible without clipping.
-2. Refine the Match Summary screen and scorecard image generator so all text inside oval/pill badges (date pill, VS badge, winner banner, team pills, performance tags) is centered using strict flexbox alignment without hardcoded transform offsets, and ensure the Export Scorecard button is properly aligned and functional.
-3. Prepare version 1.2, rebuild the APK, publish GitHub Release `v1.2`, and verify that the automated update notification system triggers.
+Address all 8 items specified by the user for the Match Summary screen and its 4K / 2x exported scorecard graphic:
+1. Word Spacing & Font Rendering Fix (prevent collapsed spaces like "BetavsGama", "Nov4,2026", "BetaP1").
+2. Table Columns: fixed layout, explicit column widths, numeric columns centered with tabular-nums, player left-aligned, team centered with minimum 12px cell padding.
+3. Team Pills: 4px 12px padding, line-height 1.2, white-space nowrap, perfectly centered under Team header.
+4. Value Styling: uniform dark slate color across all row values, bold only Runs in the same color, no faint gray.
+5. Match Statistics: clean 3 fixed-width centered columns, equal row heights, no stray dashes or dotted artifacts.
+6. Sizes & Row Heights: minimum font sizes (headers 12px, body 13px, overs 14px, labels 12px), consistent 40px row heights including empty rows.
+7. Header / Score Card: team name, score and overs centered over each other on both sides (mirrored), VS circle centered, date pill uncramped.
+8. Complete Verification & Output full updated copy-paste ready code.
 
 ---
 
@@ -11,48 +17,34 @@
 
 ```mermaid
 flowchart TD
-    subgraph UI_Header_Fixes
-        H1["Home.jsx Top Bar"] --> H2["Remove Offline Manager Badge"]
-        H2 --> H3["Ensure ThemeToggle 100% visible on all viewports"]
-    end
-
-    subgraph Match_Summary_Pills_Fix
-        MS1["MatchSummaryImageGenerator.jsx"] --> MS2["Replace translateY offsets with flexbox centering"]
-        MS2 --> MS3["Standardize Team pills, VS badge, Winner banner, Stat pills"]
-        MS3 --> MS4["Export Scorecard button styling & full data verification"]
-    end
-
-    subgraph Version_1_2_Release
-        V1["Bump to version 1.2 (code 2)"] --> V2["Compile Android APK"]
-        V2 --> V3["Publish GitHub Release v1.2 with SmartCricket.apk"]
-        V3 --> V4["Update notification triggers for v1.0 users"]
-    end
+    FontsReady["Wait for document.fonts.ready & inject Inter"] --> CanvasRender["Render 1920x1080 Fixed Canvas"]
+    CanvasRender --> HeaderSection["Mirrored Center-Stacked Team Scores & VS Circle"]
+    CanvasRender --> StatsCard["Clean 3-Column Match Statistics (No Dotted Artifacts)"]
+    CanvasRender --> TableCards["4 Fixed-Layout Tables (Batting & Bowling)"]
+    TableCards --> PillCenter["Team Pills (4px 12px, centered, line-height 1.2)"]
+    TableCards --> ValueStyle["Dark Slate Values (Bold Runs, Same Color)"]
+    CanvasRender --> Html2Canvas["html2canvas (2x UHD Capture)"]
+    Html2Canvas --> BlobExport["Download PNG / MediaStore Gallery"]
 ```
 
 ---
 
 ## Chunks
 
-- [x] **Chunk 1: Top Navigation Bar Cleanup & Theme Toggle Visibility in Home.jsx**
-  - Remove `{managerUser && (...)}` Offline Manager badge from the header in `src/pages/Home.jsx`.
-  - Ensure header layout has proper flex spacing so the theme toggle icon is never clipped on mobile screens.
-  - Verification: Run lint / vitest tests.
+- [x] **Chunk 1: Pixel-Perfect Canvas Architecture in MatchSummaryImageGenerator.jsx**
+  - Implement font pre-loading (`document.fonts.ready`), Inter font stack, and non-breaking space preservation.
+  - Re-architect Batting and Bowling table cards with fixed table layout, identical explicit column widths, 12px padding, centered numeric tabular-nums, left-aligned player, and centered team pills.
+  - Apply uniform dark slate values, bold only Runs in same color.
+  - Mirror team headers (team name, score, overs centered over each other), center VS circle, un-cramp date pill.
+  - Standardize 3-column Match Statistics card with fixed widths and remove all dotted/dashed artifacts.
+  - Enforce minimum font sizes and 40px consistent row heights across all rows (filled & empty).
+  - Verification: Vitest unit tests (110/110 passed).
 
-- [x] **Chunk 2: Match Summary Oval/Pill Text Centering & Export Scorecard Button**
-  - Standardize text alignment across all pill/oval elements in `src/components/MatchSummaryImageGenerator.jsx`:
-    - TeamPillBadge in tables: remove hardcoded `translateY`, use pure flexbox centering.
-    - Date pill: flexbox centering with `display: flex; align-items: center; justify-content: center;`.
-    - VS circular badge: perfect center alignment.
-    - Winner result banner: flexbox centering with balanced padding and icon spacing.
-    - Match Statistics team pills: flexbox centering with `min-height`, `border-radius: 999px`, and `line-height: 1`.
-    - Top Performer points & performance pills: flexbox alignment.
-  - In `src/pages/MatchSummary.jsx` and `src/pages/Scorecard.jsx`:
-    - Format Export Scorecard button as a balanced pill with centered icon and label.
-    - Verify export scorecard generator includes match details, date, teams, scores, result, and full batting/bowling statistics for both innings.
-  - Verification: Run 110/110 Vitest tests and check build.
+- [x] **Chunk 2: Screen Alignment in MatchSummary.jsx & Regression Verification**
+  - Align on-screen `MatchSummary.jsx` elements to match the polished layout and centering.
+  - Run full test suite (110 tests) and verify production Vite build.
 
-- [x] **Chunk 3: Version 1.2 Build & GitHub Release Publication**
-  - Update version identifiers to `1.2` (versionCode `2`).
-  - Rebuild web assets and compile debug APK via `gradlew assembleDebug`.
-  - Create and publish GitHub Release `v1.2` with `SmartCricket.apk` using GitHub API.
-  - Verification: Verify GitHub Releases API returns `v1.2` with asset `SmartCricket.apk`.
+- [x] **Chunk 3: Build, Deploy to Firebase Hosting & Provide Full Copy-Paste Code**
+  - Run `npm run build` and deploy to Firebase Hosting (`smartcricket-c79b5.web.app`).
+  - Compile Android APK with Gradle and sync.
+  - Update git repository and output complete copy-paste code.
