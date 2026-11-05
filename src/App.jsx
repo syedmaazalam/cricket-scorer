@@ -7,6 +7,7 @@ import Live from './pages/Live.jsx';
 import MatchSummary from './pages/MatchSummary.jsx';
 import DeveloperDashboard from './pages/DeveloperDashboard.jsx';
 import UpdateNotificationBanner from './components/UpdateNotificationBanner.jsx';
+import { TopProgressBar } from './components/ui/LoadingPrimitives.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 
@@ -77,6 +78,13 @@ export default function App() {
   const [isManager, setIsManager] = useState(initial.isManager);
   const [previousPage, setPreviousPage] = useState('home');
   const [viewedMatchState, setViewedMatchState] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    setIsNavigating(true);
+    const timer = setTimeout(() => setIsNavigating(false), 280);
+    return () => clearTimeout(timer);
+  }, [page]);
 
   // Persist state across refresh so match is never lost
   useEffect(() => {
@@ -264,6 +272,9 @@ export default function App() {
     >
       {/* Real-time In-App Update Notification Banner */}
       <UpdateNotificationBanner />
+
+      {/* Zero-Lag Route Transition Progress Bar */}
+      <TopProgressBar active={isNavigating} />
 
       {/* Ambient background SVG layer */}
       <div className="bgfx" aria-hidden="true">

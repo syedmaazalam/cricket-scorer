@@ -12,6 +12,7 @@ import SquadModal from '../components/SquadModal.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
+import { SkeletonBox, SkeletonCard, SkeletonTable } from '../components/ui/LoadingPrimitives.jsx';
 
 // Team crest shield component matching redesign prototype
 function TeamCrest({ name, color }) {
@@ -49,21 +50,55 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
     return (
       <div
         style={{ color: 'var(--t1)' }}
-        className="w-full max-w-5xl mx-auto px-4 md:px-6 py-8 select-none"
+        className="w-full max-w-5xl mx-auto px-4 md:px-6 py-6 select-none"
       >
         <header className="top flex items-center justify-between pb-3">
           <button onClick={onBack} className="ib" aria-label="Back">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <h2 className="h2">Full Scorecard</h2>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin shrink-0"
+              style={{ borderColor: 'var(--pri)', borderTopColor: 'transparent' }}
+            />
+            <span className="mu text-xs font-bold">Loading live scorecard...</span>
+          </div>
           <ThemeToggle />
         </header>
-        <div className="flex flex-col items-center justify-center p-12 text-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--pri)', borderTopColor: 'transparent' }}
-          />
-          <span className="mu" style={{ fontSize: '13px', fontWeight: 600 }}>Loading live scorecard...</span>
+
+        {/* Shimmer Skeleton Scorecard Layout */}
+        <div className="flex flex-col gap-4 mt-2">
+          {/* Match Overview Header Skeleton */}
+          <div className="card p-5 rounded-2xl border border-[var(--bd)] bg-[var(--card)] flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <SkeletonBox className="w-12 h-14 rounded-xl" />
+                <div className="flex flex-col gap-2">
+                  <SkeletonBox className="w-24 h-5 rounded-lg" />
+                  <SkeletonBox className="w-32 h-7 rounded-lg" />
+                </div>
+              </div>
+              <SkeletonBox className="w-12 h-12 rounded-full" />
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end gap-2">
+                  <SkeletonBox className="w-24 h-5 rounded-lg" />
+                  <SkeletonBox className="w-32 h-7 rounded-lg" />
+                </div>
+                <SkeletonBox className="w-12 h-14 rounded-xl" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 pt-3 border-t border-[var(--bd)]">
+              <SkeletonBox className="h-12 rounded-xl" />
+              <SkeletonBox className="h-12 rounded-xl" />
+              <SkeletonBox className="h-12 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Batting Table Skeleton */}
+          <SkeletonTable rows={4} cols={6} />
+
+          {/* Bowling Table Skeleton */}
+          <SkeletonTable rows={3} cols={5} />
         </div>
       </div>
     );

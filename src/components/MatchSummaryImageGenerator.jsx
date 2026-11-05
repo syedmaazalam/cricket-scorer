@@ -4,6 +4,7 @@ import { Download, Share2, X, Image as ImageIcon, Sparkles, Loader2, Trophy } fr
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
+import { ButtonSpinner } from './ui/LoadingPrimitives.jsx';
 
 // Preserve non-breaking spaces across canvas text rendering
 function toNbsp(str) {
@@ -344,6 +345,8 @@ export default function MatchSummaryImageGenerator({
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
   const [dataUrlString, setDataUrlString] = useState(null);
   const [capturedCanvas, setCapturedCanvas] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Extract Teams & Innings safely
   const teams = matchState?.teams || [];
@@ -502,6 +505,7 @@ export default function MatchSummaryImageGenerator({
   const fileName = `MatchSummary_${team1Name.replace(/\s+/g, '_')}_vs_${team2Name.replace(/\s+/g, '_')}.png`;
 
   const handleDownload = async () => {
+    setIsDownloading(true);
     try {
       const target = dataUrlString || capturedCanvas || canvasRef.current;
       if (!target) return;
@@ -509,10 +513,13 @@ export default function MatchSummaryImageGenerator({
     } catch (err) {
       console.error('Download export failed:', err);
       alert('Could not save scorecard image: ' + (err.message || ''));
+    } finally {
+      setIsDownloading(false);
     }
   };
 
   const handleShare = async () => {
+    setIsSharing(true);
     try {
       const target = dataUrlString || capturedCanvas || canvasRef.current;
       if (!target) return;
@@ -520,6 +527,8 @@ export default function MatchSummaryImageGenerator({
     } catch (err) {
       console.error('Share export failed:', err);
       alert('Could not share scorecard image: ' + (err.message || ''));
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -585,20 +594,20 @@ export default function MatchSummaryImageGenerator({
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               onClick={handleDownload}
-              disabled={isGenerating || !generatedImageUrl}
+              disabled={isGenerating || !generatedImageUrl || isDownloading}
               className="btn p s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
             >
-              <Download className="w-4 h-4" />
-              <span>Download Scorecard PNG</span>
+              {isDownloading ? <ButtonSpinner className="w-4 h-4 text-white" /> : <Download className="w-4 h-4" />}
+              <span>{isDownloading ? 'Saving PNG...' : 'Download Scorecard PNG'}</span>
             </button>
 
             <button
               onClick={handleShare}
-              disabled={isGenerating || !generatedImageUrl}
+              disabled={isGenerating || !generatedImageUrl || isSharing}
               className="btn s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
             >
-              <Share2 className="w-4 h-4" />
-              <span>Share Scorecard</span>
+              {isSharing ? <ButtonSpinner className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              <span>{isSharing ? 'Sharing...' : 'Share Scorecard'}</span>
             </button>
           </div>
         </div>

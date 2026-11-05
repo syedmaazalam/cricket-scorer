@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   History,
@@ -17,20 +17,38 @@ import {
   ChevronRight,
   ArrowLeft,
   Sparkles,
-  Tv
+  Tv,
+  RefreshCw
 } from 'lucide-react';
 import { getAllLocalMatches } from '../store/localDb.js';
 import { searchMatches, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import AuthModal from '../components/AuthModal.jsx';
+import {
+  PullToRefreshIndicator,
+  SkeletonCard,
+  SkeletonBox
+} from '../components/ui/LoadingPrimitives.jsx';
 
 export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDeveloper }) {
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [localMatches, setLocalMatches] = useState([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [streamVisibleCount, setStreamVisibleCount] = useState(8);
+  const [isStreamLoadingMore, setIsStreamLoadingMore] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
+
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+  const listContainerRef = useRef(null);
+  const streamListContainerRef = useRef(null);
 
   const [managerUser, setManagerUser] = useState(() => {
     try {
@@ -60,17 +78,100 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
     } catch (_) {}
   }, [managerUser]);
 
-  useEffect(() => {
-    async function loadMatches() {
-      try {
-        const matches = await getAllLocalMatches();
-        setLocalMatches(matches);
-      } catch (e) {
-        console.warn('Could not load local matches:', e);
-      }
+  const loadMatches = async (showSkeleton = false) => {
+    if (showSkeleton) setIsLoadingMatches(true);
+    try {
+      const matches = await getAllLocalMatches();
+      setLocalMatches(matches || []);
+    } catch (e) {
+      console.warn('Could not load local matches:', e);
+    } finally {
+      if (showSkeleton) setIsLoadingMatches(false);
     }
-    loadMatches();
+  };
+
+  useEffect(() => {
+    loadMatches(true);
   }, []);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await loadMatches(false);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }, 350);
+    }
+  };
+
+  const handleTouchStart = (e) => {
+    const el = listContainerRef.current;
+    if (el && el.scrollTop <= 0) {
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    } else {
+      isPulling.current = false;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isPulling.current) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      const dist = Math.min(diff * 0.45, 90);
+      setPullDistance(dist);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullDistance >= 55) {
+      await handleRefresh();
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  useEffect(() => {
+    setVisibleCount(8);
+  }, [searchInput]);
+
+  const handleListScroll = (e) => {
+    const el = e.currentTarget;
+    if (
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 50 &&
+      visibleCount < filteredLocalMatches.length &&
+      !isLoadingMore
+    ) {
+      setIsLoadingMore(true);
+      setTimeout(() => {
+        setVisibleCount((prev) => Math.min(prev + 6, filteredLocalMatches.length));
+        setIsLoadingMore(false);
+      }, 200);
+    }
+  };
+
+  const handleStreamListScroll = (e) => {
+    const el = e.currentTarget;
+    if (
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 50 &&
+      streamVisibleCount < localMatches.length &&
+      !isStreamLoadingMore
+    ) {
+      setIsStreamLoadingMore(true);
+      setTimeout(() => {
+        setStreamVisibleCount((prev) => Math.min(prev + 6, localMatches.length));
+        setIsStreamLoadingMore(false);
+      }, 200);
+    }
+  };
 
   // Real-time instant search as user types
   useEffect(() => {
@@ -175,6 +276,9 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
     const c = (m.code || '').toLowerCase();
     return t1.includes(clean) || t2.includes(clean) || c.includes(clean);
   });
+
+  const displayedMatches = filteredLocalMatches.slice(0, visibleCount);
+  const displayedStreamMatches = localMatches.slice(0, streamVisibleCount);
 
   return (
     <div
@@ -449,10 +553,34 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                 <History className="w-4 h-4 text-[#22C55E]" />
                 <span>PREVIOUS MATCHES ON THIS DEVICE</span>
               </div>
-              <span>{filteredLocalMatches.length} found</span>
+              <div className="flex items-center gap-2">
+                <span>{filteredLocalMatches.length} found</span>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  title="Refresh matches"
+                  className="p-1 rounded hover:bg-[var(--well)] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                  aria-label="Refresh matches"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#22C55E]' : ''}`} />
+                </button>
+              </div>
             </div>
 
-            {filteredLocalMatches.length === 0 ? (
+            {/* Pull to refresh visual indicator */}
+            <PullToRefreshIndicator
+              pullDistance={pullDistance}
+              threshold={55}
+              isRefreshing={isRefreshing}
+            />
+
+            {isLoadingMatches ? (
+              <div className="flex flex-col gap-2.5 w-full">
+                <SkeletonCard lines={2} />
+                <SkeletonCard lines={2} />
+              </div>
+            ) : filteredLocalMatches.length === 0 ? (
               <div
                 style={{
                   backgroundColor: 'var(--card)',
@@ -466,8 +594,15 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   : 'No previous matches found on this device. Tap "Create New Match" to get started!'}
               </div>
             ) : (
-              <div className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1">
-                {filteredLocalMatches.map((m) => {
+              <div
+                ref={listContainerRef}
+                onScroll={handleListScroll}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1"
+              >
+                {displayedMatches.map((m) => {
                   const teamA = m.teams?.[0]?.name || 'Team 1';
                   const teamB = m.teams?.[1]?.name || 'Team 2';
                   const scoreDerived = deriveMatchDisplayScore(m);
@@ -572,6 +707,20 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                     </div>
                   );
                 })}
+
+                {/* Infinite Scroll Trigger Indicator */}
+                {visibleCount < filteredLocalMatches.length && (
+                  <div className="py-3 flex items-center justify-center gap-2 text-xs text-[var(--muted)]">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" />
+                    <span>Loading more matches...</span>
+                  </div>
+                )}
+
+                {visibleCount >= filteredLocalMatches.length && filteredLocalMatches.length > 8 && (
+                  <div className="py-2 text-center text-[10px] text-[var(--muted)] font-medium">
+                    All {filteredLocalMatches.length} matches loaded
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -688,7 +837,12 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
               <span>MATCHES AVAILABLE TO STREAM</span>
             </div>
 
-            {localMatches.length === 0 ? (
+            {isLoadingMatches ? (
+              <div className="flex flex-col gap-2.5 w-full">
+                <SkeletonCard lines={2} />
+                <SkeletonCard lines={2} />
+              </div>
+            ) : localMatches.length === 0 ? (
               <div
                 style={{
                   backgroundColor: 'var(--card)',
@@ -700,8 +854,12 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                 No active matches found. Enter a 6-character match code above to watch live!
               </div>
             ) : (
-              <div className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1">
-                {localMatches.map((m) => {
+              <div
+                ref={streamListContainerRef}
+                onScroll={handleStreamListScroll}
+                className="flex flex-col gap-2.5 max-h-[460px] overflow-y-auto w-full pr-1"
+              >
+                {displayedStreamMatches.map((m) => {
                   const teamA = m.teams?.[0]?.name || 'Team 1';
                   const teamB = m.teams?.[1]?.name || 'Team 2';
                   const scoreDerived = deriveMatchDisplayScore(m);
@@ -775,6 +933,20 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                     </div>
                   );
                 })}
+
+                {/* Stream infinite scroll loading indicator */}
+                {streamVisibleCount < localMatches.length && (
+                  <div className="py-3 flex items-center justify-center gap-2 text-xs text-[var(--muted)]">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" />
+                    <span>Loading more matches...</span>
+                  </div>
+                )}
+
+                {streamVisibleCount >= localMatches.length && localMatches.length > 8 && (
+                  <div className="py-2 text-center text-[10px] text-[var(--muted)] font-medium">
+                    All {localMatches.length} matches loaded
+                  </div>
+                )}
               </div>
             )}
           </div>

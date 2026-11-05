@@ -679,6 +679,46 @@ body {
 }
 
 /* =========================================================================
+   ZERO-LAG LOADERS & SKELETON ANIMATIONS
+   ========================================================================= */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--well) 80%, transparent) 0%,
+    color-mix(in srgb, var(--well) 95%, #fff 15%) 50%,
+    color-mix(in srgb, var(--well) 80%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes topProgressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(25%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.top-progress-indeterminate {
+  animation: topProgressIndeterminate 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* =========================================================================
    TABLES & STATS
    ========================================================================= */
 
