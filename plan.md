@@ -42,7 +42,7 @@ flowchart TD
   - Verify zero interference with existing navigation headers, modals, or scoring controls.
   - Verification: Run 110/110 Vitest tests and production Vite build.
 
-- [ ] **Chunk 3: Sync Android, Compile APK, and Update GitHub**
+- [x] **Chunk 3: Sync Android, Compile APK, and Update GitHub**
   - Synchronize web assets via `npx cap sync android`.
   - Compile Android APK with `gradlew assembleDebug`.
   - Update `SmartCricket.apk` and upload to GitHub Release v1.0.
