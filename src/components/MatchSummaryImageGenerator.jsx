@@ -53,7 +53,7 @@ function ShieldBadge({ name, color, isSecondary = false }) {
 function TeamPillBadge({ teamName, isNavy }) {
   if (!teamName) return null;
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
       <span
         style={{
           display: 'inline-flex',
@@ -69,10 +69,11 @@ function TeamPillBadge({ teamName, isNavy }) {
           color: isNavy ? '#FFFFFF' : '#1D5CFF',
           boxShadow: '0 1px 3px rgba(11,31,59,0.06)',
           whiteSpace: 'nowrap',
-          lineHeight: '1'
+          lineHeight: 1,
+          boxSizing: 'border-box'
         }}
       >
-        <span style={{ display: 'inline-block', transform: 'translateY(-2px)' }}>{teamName}</span>
+        {teamName}
       </span>
     </div>
   );
@@ -531,19 +532,19 @@ export default function MatchSummaryImageGenerator({
             <button
               onClick={handleDownload}
               disabled={isGenerating || !generatedImageUrl}
-              className="btn p s flex-1 sm:flex-none flex items-center justify-center gap-1.5 h-10 px-5 rounded-xl font-bold text-xs"
+              className="btn p s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
             >
               <Download className="w-4 h-4" />
-              <span>Download PNG</span>
+              <span>Download Scorecard PNG</span>
             </button>
 
             <button
               onClick={handleShare}
               disabled={isGenerating || !generatedImageUrl}
-              className="btn s flex-1 sm:flex-none flex items-center justify-center gap-1.5 h-10 px-5 rounded-xl font-bold text-xs"
+              className="btn s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
             >
               <Share2 className="w-4 h-4" />
-              <span>Share</span>
+              <span>Share Scorecard</span>
             </button>
           </div>
         </div>
@@ -656,19 +657,22 @@ export default function MatchSummaryImageGenerator({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              justifyContent: 'center',
+              gap: '10px',
               backgroundColor: '#FFFFFF',
               border: '1.5px solid #DBEAFE',
               borderRadius: '999px',
-              padding: '12px 24px',
-              boxShadow: '0 4px 14px rgba(11,31,59,0.04)'
+              padding: '10px 24px',
+              boxShadow: '0 4px 14px rgba(11,31,59,0.04)',
+              boxSizing: 'border-box',
+              lineHeight: 1
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ flexShrink: 0 }}>
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F3B', display: 'inline-block', transform: 'translateY(-2px)' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F3B', lineHeight: 1 }}>
               {datePillText}
             </span>
           </div>
@@ -723,7 +727,10 @@ export default function MatchSummaryImageGenerator({
                   fontSize: '20px',
                   fontWeight: 900,
                   color: '#2563EB',
-                  boxShadow: '0 0 20px rgba(37,99,235,0.18)'
+                  boxShadow: '0 0 20px rgba(37,99,235,0.18)',
+                  lineHeight: 1,
+                  boxSizing: 'border-box',
+                  flexShrink: 0
                 }}
               >
                 VS
@@ -759,9 +766,12 @@ export default function MatchSummaryImageGenerator({
                   padding: '10px 36px',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '12px',
                   border: '1.5px solid rgba(255,255,255,0.22)',
-                  boxShadow: '0 6px 20px rgba(11,31,59,0.2)'
+                  boxShadow: '0 6px 20px rgba(11,31,59,0.2)',
+                  boxSizing: 'border-box',
+                  lineHeight: 1
                 }}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -772,7 +782,7 @@ export default function MatchSummaryImageGenerator({
                   <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="#FBBF24" fillOpacity="0.3" />
                 </svg>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em', display: 'inline-block', transform: 'translateY(-2px)' }}>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em', lineHeight: 1 }}>
                   {resultText}
                 </span>
               </div>
@@ -812,26 +822,42 @@ export default function MatchSummaryImageGenerator({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   backgroundColor: '#071938',
                   color: '#FFFFFF',
                   borderRadius: '999px',
-                  padding: '6px 0',
-                  textAlign: 'center',
+                  height: '32px',
+                  padding: '0 16px',
                   fontWeight: 800,
-                  fontSize: '15px'
+                  fontSize: '15px',
+                  lineHeight: 1,
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {team1Name}
               </div>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   backgroundColor: '#DBEAFE',
                   color: '#1D5CFF',
                   borderRadius: '999px',
-                  padding: '6px 0',
-                  textAlign: 'center',
+                  height: '32px',
+                  padding: '0 16px',
                   fontWeight: 800,
-                  fontSize: '15px'
+                  fontSize: '15px',
+                  lineHeight: 1,
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {team2Name}
@@ -913,12 +939,19 @@ export default function MatchSummaryImageGenerator({
                   </span>
                   <span
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       backgroundColor: '#FEF3C7',
                       color: '#B45309',
-                      padding: '2px 8px',
+                      height: '24px',
+                      padding: '0 12px',
                       borderRadius: '999px',
                       fontSize: '12px',
-                      fontWeight: 800
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      boxSizing: 'border-box',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     {topPerformer.totalPoints} Points
@@ -935,13 +968,47 @@ export default function MatchSummaryImageGenerator({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {topPerformer.batting?.runs > 0 && (
-                <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', padding: '6px 14px', borderRadius: '12px', fontSize: '14px', color: '#166534', fontWeight: 700 }}>
-                  Batting: <strong>{topPerformer.batting.runs}</strong> ({topPerformer.batting.balls}b, {topPerformer.batting.fours}x4, {topPerformer.batting.sixes}x6)
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#F0FDF4',
+                    border: '1.5px solid #BBF7D0',
+                    height: '32px',
+                    padding: '0 16px',
+                    borderRadius: '999px',
+                    fontSize: '14px',
+                    color: '#166534',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    boxSizing: 'border-box',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span>Batting: <strong>{topPerformer.batting.runs}</strong> ({topPerformer.batting.balls}b, {topPerformer.batting.fours}x4, {topPerformer.batting.sixes}x6)</span>
                 </div>
               )}
               {topPerformer.bowling?.legalBalls > 0 && (
-                <div style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', padding: '6px 14px', borderRadius: '12px', fontSize: '14px', color: '#1E40AF', fontWeight: 700 }}>
-                  Bowling: <strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded} ({formatOvers(topPerformer.bowling.legalBalls)} ov)
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#EFF6FF',
+                    border: '1.5px solid #BFDBFE',
+                    height: '32px',
+                    padding: '0 16px',
+                    borderRadius: '999px',
+                    fontSize: '14px',
+                    color: '#1E40AF',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    boxSizing: 'border-box',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span>Bowling: <strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded} ({formatOvers(topPerformer.bowling.legalBalls)} ov)</span>
                 </div>
               )}
             </div>

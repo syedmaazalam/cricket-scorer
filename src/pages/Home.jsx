@@ -217,24 +217,9 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
               </button>
             </div>
           )}
-
-          {/* Manager logged in status badge */}
-          {managerUser && (
-            <div
-              style={{
-                backgroundColor: 'var(--green-15)',
-                color: 'var(--primary)',
-                borderColor: 'var(--border)'
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="truncate max-w-[130px]">{managerUser.name || 'Manager'}</span>
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 pr-1 sm:pr-0">
           {!managerUser && activePortal === 'choose' && (
             <button
               onClick={() => setIsAuthModalOpen(true)}

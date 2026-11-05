@@ -507,11 +507,11 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="btn p s shrink-0 flex items-center gap-1.5 h-9 px-3.5 rounded-xl m-0"
-            title="Export Match Summary Image"
+            className="btn p s shrink-0 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full m-0 font-bold text-xs"
+            title="Export Scorecard"
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
-            <span className="text-xs font-bold">Export</span>
+            <span className="truncate">Export Scorecard</span>
           </button>
         </div>
       </div>

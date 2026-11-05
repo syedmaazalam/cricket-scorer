@@ -3,8 +3,8 @@ import { Bell, ArrowDownToLine, X, AlertTriangle, Sparkles, ExternalLink } from 
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config.js';
 
-export const CURRENT_APP_VERSION = '1.0';
-export const CURRENT_APP_VERSION_CODE = 1;
+export const CURRENT_APP_VERSION = '1.2';
+export const CURRENT_APP_VERSION_CODE = 2;
 
 export default function UpdateNotificationBanner() {
   const [updateInfo, setUpdateInfo] = useState(null);

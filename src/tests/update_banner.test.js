@@ -15,12 +15,12 @@ describe('UpdateNotificationBanner Unit Tests', () => {
   });
 
   it('declares current application version constants correctly', () => {
-    expect(CURRENT_APP_VERSION).toBe('1.0');
-    expect(CURRENT_APP_VERSION_CODE).toBe(1);
+    expect(CURRENT_APP_VERSION).toBe('1.2');
+    expect(CURRENT_APP_VERSION_CODE).toBe(2);
   });
 
   it('respects dismissal in localStorage for specified version', () => {
-    const versionKey = 'dismissed_update_1.1';
+    const versionKey = 'dismissed_update_1.2';
     expect(localStorage.getItem(versionKey)).toBeNull();
     localStorage.setItem(versionKey, 'true');
     expect(localStorage.getItem(versionKey)).toBe('true');
@@ -28,8 +28,8 @@ describe('UpdateNotificationBanner Unit Tests', () => {
 
   it('evaluates version comparison arithmetic accurately', () => {
     const isNewerCode = (remote, current) => remote > current;
-    expect(isNewerCode(2, CURRENT_APP_VERSION_CODE)).toBe(true);
+    expect(isNewerCode(3, CURRENT_APP_VERSION_CODE)).toBe(true);
+    expect(isNewerCode(2, CURRENT_APP_VERSION_CODE)).toBe(false);
     expect(isNewerCode(1, CURRENT_APP_VERSION_CODE)).toBe(false);
-    expect(isNewerCode(0, CURRENT_APP_VERSION_CODE)).toBe(false);
   });
 });
