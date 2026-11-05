@@ -27,7 +27,8 @@ import AuthModal from '../components/AuthModal.jsx';
 import {
   PullToRefreshIndicator,
   SkeletonCard,
-  SkeletonBox
+  SkeletonBox,
+  SegmentedCapsuleSpinner
 } from '../components/ui/LoadingPrimitives.jsx';
 
 export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDeveloper }) {
@@ -732,50 +733,51 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
       {/* ========================================================================= */}
       {activePortal === 'stream' && (
         <div className="flex flex-col gap-5 mt-1 animate-in fade-in duration-200">
-          {/* Real-Time Live Match Search Card */}
+          {/* Real-Time Live Match Search Card matching user reference image */}
           <div
             style={{
               backgroundColor: 'var(--card)',
               borderColor: 'var(--border)'
             }}
-            className="app-card w-full p-4 sm:p-5 flex flex-col gap-2.5 shadow-sm rounded-2xl border"
+            className="app-card w-full p-5 sm:p-6 flex flex-col gap-3.5 shadow-md rounded-3xl border"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#3B82F6]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#1E6BFF]" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#1E6BFF]">
                   LIVE MATCH STREAM &amp; SEARCH
                 </span>
               </div>
-              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--muted)' }}>
                 Zero sign in required
               </span>
             </div>
 
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-[var(--muted)]" />
+              <Search className="w-4 h-4 absolute left-4 top-3.5 text-[#3B82F6]" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search team name, player, or 6-char match code..."
                 style={{
-                  backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
+                  backgroundColor: 'color-mix(in srgb, #3B82F6 10%, var(--card))',
+                  borderColor: 'color-mix(in srgb, #3B82F6 26%, var(--bd))',
                   color: 'var(--text)'
                 }}
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#3B82F6] transition-all"
+                className="w-full pl-11 pr-4 py-3 rounded-2xl border text-xs sm:text-sm font-medium focus:outline-none focus:border-[#1E6BFF] transition-all"
                 autoFocus
               />
-              {isSearching && (
-                <Loader2 className="w-4 h-4 animate-spin absolute right-3.5 top-3 text-[#3B82F6]" />
-              )}
             </div>
 
-            {/* Found Live Stream Matches */}
-            {searchResults.length > 0 && (
-              <div className="mt-1 flex flex-col gap-2 pt-2 border-t border-[var(--bd)]">
-                <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--muted)' }}>
+            {/* When Searching: Show centered 10-petal segmented capsule spinner */}
+            {isSearching ? (
+              <div className="py-12 sm:py-16 flex flex-col items-center justify-center animate-in fade-in duration-150">
+                <SegmentedCapsuleSpinner size={64} />
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="mt-1 flex flex-col gap-2 pt-2 border-t border-[var(--bd)] animate-in fade-in duration-150">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--muted)' }}>
                   Search Results ({searchResults.length}):
                 </span>
                 <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
@@ -794,13 +796,13 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                           backgroundColor: 'var(--card-alt)',
                           borderColor: 'var(--border)'
                         }}
-                        className="w-full p-3.5 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[#3B82F6] transition-all"
+                        className="w-full p-3.5 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[#1E6BFF] transition-all"
                       >
                         <div className="flex flex-col">
                           <div className="font-bold text-xs flex items-center gap-2" style={{ color: 'var(--text)' }}>
                             <span>{t1} vs {t2}</span>
                             {code && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[#3B82F6]">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[#1E6BFF]">
                                 #{code}
                               </span>
                             )}
@@ -814,10 +816,10 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                           type="button"
                           onClick={() => onWatchLive(code || m.matchId)}
                           style={{
-                            backgroundColor: '#3B82F6',
+                            backgroundColor: '#1E6BFF',
                             color: '#FFFFFF'
                           }}
-                          className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:bg-blue-600 transition-all shadow-sm"
+                          className="text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 hover:bg-blue-700 transition-all shadow-sm"
                         >
                           <Radio className="w-3.5 h-3.5" />
                           <span>Watch</span>
@@ -827,7 +829,11 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   })}
                 </div>
               </div>
-            )}
+            ) : searchInput.trim() ? (
+              <div className="text-center py-8 text-xs text-[var(--muted)] border-t border-[var(--bd)] mt-1 animate-in fade-in duration-150">
+                No active matches found matching "{searchInput}".
+              </div>
+            ) : null}
           </div>
 
           {/* Directory of Matches Available to Stream */}

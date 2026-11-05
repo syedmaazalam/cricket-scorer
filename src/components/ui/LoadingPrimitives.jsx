@@ -153,3 +153,110 @@ export function PullToRefreshIndicator({ pullDistance = 0, threshold = 60, isRef
     </div>
   );
 }
+
+/**
+ * 10-Petal Radial Blue Capsule Spinner matching user reference image
+ */
+export function SegmentedCapsuleSpinner({ size = 64, className = '' }) {
+  // 10 radial pill capsules at 36-degree intervals
+  const petals = [
+    { angle: 0, opacity: 0.65, color: '#93C5FD' },
+    { angle: 36, opacity: 1.0, color: '#1E6BFF' },   // Brightest electric blue highlight
+    { angle: 72, opacity: 0.85, color: '#3B82F6' },
+    { angle: 108, opacity: 0.70, color: '#60A5FA' },
+    { angle: 144, opacity: 0.55, color: '#93C5FD' },
+    { angle: 180, opacity: 0.45, color: '#BFDBFE' },
+    { angle: 216, opacity: 0.35, color: '#DBEAFE' },
+    { angle: 252, opacity: 0.25, color: '#EFF6FF' },
+    { angle: 288, opacity: 0.35, color: '#DBEAFE' },
+    { angle: 324, opacity: 0.50, color: '#BFDBFE' },
+  ];
+
+  return (
+    <div
+      role="status"
+      aria-label="Searching matches..."
+      className={`inline-flex items-center justify-center shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox="0 0 100 100"
+        width={size}
+        height={size}
+        className="animate-spin"
+        style={{ animationDuration: '0.85s' }}
+      >
+        {petals.map((p, i) => (
+          <rect
+            key={i}
+            x="43.5"
+            y="7"
+            width="13"
+            height="27"
+            rx="6.5"
+            ry="6.5"
+            fill={p.color}
+            opacity={p.opacity}
+            transform={`rotate(${p.angle} 50 50)`}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Shimmering Tab Shift Skeleton Placeholder
+ */
+export function TabSkeleton({ tab = 'score' }) {
+  if (tab === 'scorecard') {
+    return (
+      <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 py-1">
+        <SkeletonTable rows={4} cols={6} />
+        <SkeletonTable rows={3} cols={6} />
+      </div>
+    );
+  }
+
+  if (tab === 'teams') {
+    return (
+      <div className="w-full flex flex-col gap-3.5 animate-in fade-in duration-150 py-1">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+      </div>
+    );
+  }
+
+  if (tab === 'settings') {
+    return (
+      <div className="w-full flex flex-col gap-3 animate-in fade-in duration-150 py-1">
+        <SkeletonBox className="w-full h-14 rounded-2xl" />
+        <SkeletonBox className="w-full h-14 rounded-2xl" />
+        <SkeletonBox className="w-full h-14 rounded-2xl" />
+      </div>
+    );
+  }
+
+  // Default 'score' tab overview skeleton
+  return (
+    <div className="w-full flex flex-col gap-3.5 animate-in fade-in duration-150 py-1">
+      <div className="p-4 rounded-2xl border border-[var(--bd)] bg-[var(--card)] flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <SkeletonBox className="w-1/3 h-5 rounded-lg" />
+          <SkeletonBox className="w-16 h-6 rounded-full" />
+        </div>
+        <div className="flex items-baseline justify-between py-2">
+          <SkeletonBox className="w-28 h-10 rounded-xl" />
+          <SkeletonBox className="w-20 h-7 rounded-xl" />
+        </div>
+        <SkeletonBox className="w-full h-2.5 rounded-full" />
+        <div className="flex justify-between pt-1">
+          <SkeletonBox className="w-20 h-4 rounded" />
+          <SkeletonBox className="w-24 h-4 rounded" />
+        </div>
+      </div>
+      <SkeletonCard lines={2} />
+      <SkeletonCard lines={2} />
+    </div>
+  );
+}

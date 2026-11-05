@@ -20,6 +20,7 @@ import MoreMenuModal from '../components/MoreMenuModal.jsx';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
 import Settings from './Settings.jsx';
+import { TabSkeleton } from '../components/ui/LoadingPrimitives.jsx';
 
 export default function Live({
   matchCodeOrId,
@@ -39,11 +40,21 @@ export default function Live({
   const [activeAnimation, setActiveAnimation] = useState(null);
   const [abdullahEvent, setAbdullahEvent] = useState(null);
   const [activeTab, setActiveTab] = useState('score');
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isDevChatOpen, setIsDevChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const prevBallCountRef = useRef(null);
   const lastSeenDevMsgCountRef = useRef(0);
+
+  const handleSelectTab = (tab) => {
+    if (tab === activeTab) return;
+    setIsTabTransitioning(true);
+    setActiveTab(tab);
+    setTimeout(() => {
+      setIsTabTransitioning(false);
+    }, 220);
+  };
 
   // Fallback internal listener if parent did not stream matchState
   const { matchState: fallbackState, scorerOfflineInfo: fallbackOffline } = useMatch(
@@ -432,16 +443,22 @@ export default function Live({
         </div>
       )}
 
-      {/* Main Tab Routing */}
-      {activeTab === 'score' && (
-        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 py-3 flex-1 pb-20 items-start">
-          {/* Left Column on Desktop: Score Card, Batters, Bowler */}
-          <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
-            {/* Main Score Card */}
-            <div className="glass-hero card p-4 sm:p-5 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
-              <span className="text-[var(--text)]">
-                {currentInnings.battingTeam || 'Batting Team'} · Innings {curInnIndex + 1}
+      {/* Main Tab Routing with Zero-Lag Shimmer Skeleton Transition */}
+      {isTabTransitioning ? (
+        <div className="w-full flex-1 py-3 pb-20">
+          <TabSkeleton tab={activeTab} />
+        </div>
+      ) : (
+        <>
+          {activeTab === 'score' && (
+            <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 py-3 flex-1 pb-20 items-start">
+              {/* Left Column on Desktop: Score Card, Batters, Bowler */}
+              <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
+                {/* Main Score Card */}
+                <div className="glass-hero card p-4 sm:p-5 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider pb-1">
+                  <span className="text-[var(--text)]">
+                    {currentInnings.battingTeam || 'Batting Team'} · Innings {curInnIndex + 1}
               </span>
               <span className="text-[var(--pri)] font-extrabold">
                 vs {currentInnings.bowlingTeam || 'Bowling Team'}
@@ -784,6 +801,8 @@ export default function Live({
           <MatchSummary matchState={matchState} onBack={() => setActiveTab('score')} />
         </div>
       )}
+        </>
+      )}
 
       {/* Floating Spectator Live Score Animation (2-second duration) */}
       <ScoreAnimation animationData={activeAnimation} />
@@ -868,7 +887,7 @@ export default function Live({
       {/* Persistent Bottom Navigation Bar */}
       <BottomNavBar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         isMoreOpen={isMorePopupOpen}
         onToggleMore={() => setIsMorePopupOpen(!isMorePopupOpen)}
       />

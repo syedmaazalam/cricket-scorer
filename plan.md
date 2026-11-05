@@ -47,3 +47,9 @@ flowchart TD
   - Add button loaders and match skeleton to `smartcricket-website`.
   - Build and deploy both web targets to Firebase Hosting (`smartcricket-c79b5` and `smartcricket-website`).
   - Sync Capacitor, assemble Android APK, and update GitHub Release v1.2 asset.
+
+- [x] **Chunk 5: Segmented Capsule Spinner, Match Search UI & Bottom Nav Skeleton Transitions**
+  - Implement 10-petal `SegmentedCapsuleSpinner` in `src/components/ui/LoadingPrimitives.jsx` matching user uploaded images.
+  - Upgrade match search interface in `src/pages/Home.jsx` with light blue pill input and centered capsule spinner.
+  - Implement tab shifting skeleton animation in `src/pages/Live.jsx` and `src/pages/Scoring.jsx` on bottom navigation panel changes.
+  - Verification: Run Vitest tests (119/119 passed), compile production build, and deploy to Firebase Hosting.

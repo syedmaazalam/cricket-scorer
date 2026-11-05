@@ -48,6 +48,7 @@ import OverthrowModal from '../components/OverthrowModal.jsx';
 import EditBallModal from '../components/EditBallModal.jsx';
 import MoreMenuModal from '../components/MoreMenuModal.jsx';
 import { subscribeMatchMessages } from '../firebase/matches.js';
+import { TabSkeleton } from '../components/ui/LoadingPrimitives.jsx';
 import Scorecard from './Scorecard.jsx';
 import MatchSummary from './MatchSummary.jsx';
 import Settings from './Settings.jsx';
@@ -88,7 +89,17 @@ export default function Scoring({
   const [isActionLogsOpen, setIsActionLogsOpen] = useState(false);
   const [isMorePopupOpen, setIsMorePopupOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('score');
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handleSelectTab = (tab) => {
+    if (tab === activeTab) return;
+    setIsTabTransitioning(true);
+    setActiveTab(tab);
+    setTimeout(() => {
+      setIsTabTransitioning(false);
+    }, 220);
+  };
   const [scoreAnimationData, setScoreAnimationData] = useState(null);
   const [abdullahEvent, setAbdullahEvent] = useState(null);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -728,13 +739,19 @@ export default function Scoring({
         </div>
       )}
 
-      {/* Main Content by Tab */}
-      {activeTab === 'score' && (
-        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 py-2 flex-1 w-full min-w-0 items-start">
-          {/* Left Column on Desktop: Score Card, Batters, Bowler, RunPad */}
-          <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
-            {/* Main Score Card */}
-            <section className="glass-hero card">
+      {/* Main Content by Tab with Tab Shift Shimmer Skeleton */}
+      {isTabTransitioning ? (
+        <div className="w-full flex-1 py-2">
+          <TabSkeleton tab={activeTab} />
+        </div>
+      ) : (
+        <>
+          {activeTab === 'score' && (
+            <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 py-2 flex-1 w-full min-w-0 items-start">
+              {/* Left Column on Desktop: Score Card, Batters, Bowler, RunPad */}
+              <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
+                {/* Main Score Card */}
+                <section className="glass-hero card">
               <div className="row bt">
                 <span className="lbl truncate">
                   {currentInnings.battingTeam || 'Batting Team'} · Inn {curInnIndex + 1}
@@ -1198,6 +1215,8 @@ export default function Scoring({
           <MatchSummary matchState={matchState} onBack={() => setActiveTab('score')} />
         </div>
       )}
+        </>
+      )}
 
       {/* Modals */}
       {/* 1. Batter Career & Detailed Breakdown Modal */}
@@ -1447,7 +1466,7 @@ export default function Scoring({
       {/* Persistent Bottom Navigation Bar */}
       <BottomNavBar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         isMoreOpen={isMorePopupOpen}
         onToggleMore={() => setIsMorePopupOpen(!isMorePopupOpen)}
       />

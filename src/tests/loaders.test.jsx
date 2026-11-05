@@ -8,7 +8,9 @@ import {
   SkeletonCard,
   SkeletonTable,
   PulseDot,
-  PullToRefreshIndicator
+  PullToRefreshIndicator,
+  SegmentedCapsuleSpinner,
+  TabSkeleton
 } from '../components/ui/LoadingPrimitives.jsx';
 
 describe('LoadingPrimitives Component Unit Tests', () => {
@@ -61,5 +63,29 @@ describe('LoadingPrimitives Component Unit Tests', () => {
     const refreshingHtml = renderToString(<PullToRefreshIndicator pullDistance={0} threshold={60} isRefreshing={true} />);
     expect(refreshingHtml).toContain('Refreshing matches...');
     expect(refreshingHtml).toContain('animate-spin');
+  });
+
+  it('SegmentedCapsuleSpinner renders 10-petal radial SVG capsules with electric blue highlight', () => {
+    const html = renderToString(<SegmentedCapsuleSpinner size={64} />);
+    expect(html).toContain('viewBox="0 0 100 100"');
+    expect(html).toContain('animate-spin');
+    expect(html).toContain('#1E6BFF'); // Electric blue highlight on petal 1
+    // Confirm 10 rect capsules are present
+    const rectCount = (html.match(/<rect/g) || []).length;
+    expect(rectCount).toBe(10);
+  });
+
+  it('TabSkeleton renders appropriate shimmer placeholders for score, scorecard, teams and settings', () => {
+    const scoreSkeleton = renderToString(<TabSkeleton tab="score" />);
+    expect(scoreSkeleton).toContain('skeleton-shimmer');
+
+    const scorecardSkeleton = renderToString(<TabSkeleton tab="scorecard" />);
+    expect(scorecardSkeleton).toContain('skeleton-shimmer');
+
+    const teamsSkeleton = renderToString(<TabSkeleton tab="teams" />);
+    expect(teamsSkeleton).toContain('skeleton-shimmer');
+
+    const settingsSkeleton = renderToString(<TabSkeleton tab="settings" />);
+    expect(settingsSkeleton).toContain('skeleton-shimmer');
   });
 });
