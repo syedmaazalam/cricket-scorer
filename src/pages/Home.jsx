@@ -235,29 +235,18 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
         </div>
 
         <div className="flex items-center gap-2">
-          {managerUser ? (
+          {!managerUser && activePortal === 'choose' && (
             <button
-              onClick={handleLogoutManager}
-              title="Sign Out Manager"
-              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-              className="p-2 rounded-xl border hover:text-[var(--red)] transition-all"
+              onClick={() => setIsAuthModalOpen(true)}
+              style={{
+                backgroundColor: 'transparent',
+                borderColor: 'var(--border)',
+                color: 'var(--text)'
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold border hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              Manager Sign In
             </button>
-          ) : (
-            activePortal === 'choose' && (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                style={{
-                  backgroundColor: 'transparent',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)'
-                }}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold border hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
-              >
-                Manager Sign In
-              </button>
-            )
           )}
           <ThemeToggle />
         </div>
@@ -820,10 +809,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
         className="mt-auto pt-6 pb-2 text-xs border-t flex flex-col sm:flex-row items-center justify-between gap-2"
       >
         <span>
-          {"© 2026 SmartCricket · Developed by "}
-          <span className="font-semibold" style={{ color: 'var(--text)' }}>
-            Syed Maaz Alam
-          </span>
+          © 2026 SmartCricket · All rights reserved
         </span>
         <button
           onClick={onOpenDeveloper}

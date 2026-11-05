@@ -68,10 +68,11 @@ function TeamPillBadge({ teamName, isNavy }) {
           backgroundColor: isNavy ? '#071938' : '#DBEAFE',
           color: isNavy ? '#FFFFFF' : '#1D5CFF',
           boxShadow: '0 1px 3px rgba(11,31,59,0.06)',
-          whiteSpace: 'nowrap'
+          whiteSpace: 'nowrap',
+          lineHeight: '1'
         }}
       >
-        {teamName}
+        <span style={{ display: 'inline-block', transform: 'translateY(-2px)' }}>{teamName}</span>
       </span>
     </div>
   );
@@ -293,6 +294,8 @@ export default function MatchSummaryImageGenerator({
   const canvasRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+  const [dataUrlString, setDataUrlString] = useState(null);
+  const [capturedCanvas, setCapturedCanvas] = useState(null);
   const [copied, setCopied] = useState(false);
   const [imageBlob, setImageBlob] = useState(null);
 
@@ -402,8 +405,8 @@ export default function MatchSummaryImageGenerator({
         const element = canvasRef.current;
         if (!element) return;
 
-        const exportRes = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_export_res') || '1920') : '1920';
-        const exportScale = exportRes === '1080' ? (1080 / 1920) : 1;
+        const exportRes = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_export_res') || '4k') : '4k';
+        const exportScale = exportRes === '1080' ? 1 : 2; // scale: 2 produces 3840x2160 true 4K UHD
 
         const canvas = await html2canvas(element, {
           width: 1920,
@@ -416,6 +419,10 @@ export default function MatchSummaryImageGenerator({
           windowWidth: 1920,
           windowHeight: 1080
         });
+
+        const dUrl = canvas.toDataURL('image/png');
+        setDataUrlString(dUrl);
+        setCapturedCanvas(canvas);
 
         canvas.toBlob((blob) => {
           if (!blob) return;
@@ -440,22 +447,24 @@ export default function MatchSummaryImageGenerator({
   const fileName = `MatchSummary_${team1Name.replace(/\s+/g, '_')}_vs_${team2Name.replace(/\s+/g, '_')}.png`;
 
   const handleDownload = async () => {
-    if (!canvasRef.current) return;
     try {
-      await exportAndSaveImage(canvasRef.current, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
+      const target = dataUrlString || capturedCanvas || canvasRef.current;
+      if (!target) return;
+      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
     } catch (err) {
       console.error('Download export failed:', err);
-      alert('Could not save scorecard image.');
+      alert('Could not save scorecard image: ' + (err.message || ''));
     }
   };
 
   const handleShare = async () => {
-    if (!canvasRef.current) return;
     try {
-      await exportAndSaveImage(canvasRef.current, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
+      const target = dataUrlString || capturedCanvas || canvasRef.current;
+      if (!target) return;
+      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
     } catch (err) {
       console.error('Share export failed:', err);
-      alert('Could not share scorecard image.');
+      alert('Could not share scorecard image: ' + (err.message || ''));
     }
   };
 
@@ -477,7 +486,7 @@ export default function MatchSummaryImageGenerator({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-[var(--t1)]">
-                Match Summary Image (1920 × 1080)
+                Match Summary Image (4K UHD 3840 × 2160)
               </h2>
               <p className="text-xs text-[var(--t2)] font-medium">
                 High-resolution standalone infographic blueprint
@@ -499,7 +508,7 @@ export default function MatchSummaryImageGenerator({
           {isGenerating ? (
             <div className="flex flex-col items-center gap-3 text-[var(--t2)]">
               <Loader2 className="w-8 h-8 animate-spin text-[var(--pri)]" />
-              <span className="text-xs font-bold">Rendering 1920 × 1080 match summary...</span>
+              <span className="text-xs font-bold">Rendering 4K UHD match summary...</span>
             </div>
           ) : generatedImageUrl ? (
             <img
@@ -659,7 +668,7 @@ export default function MatchSummaryImageGenerator({
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F3B' }}>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F3B', display: 'inline-block', transform: 'translateY(-2px)' }}>
               {datePillText}
             </span>
           </div>
@@ -763,7 +772,7 @@ export default function MatchSummaryImageGenerator({
                   <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="#FBBF24" fillOpacity="0.3" />
                 </svg>
-                <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.01em', display: 'inline-block', transform: 'translateY(-2px)' }}>
                   {resultText}
                 </span>
               </div>
@@ -995,7 +1004,7 @@ export default function MatchSummaryImageGenerator({
             }}
           >
             <span>SmartCricket live cricket scoring and match analytics</span>
-            <span>Developed by Syed Maaz Alam</span>
+            <span>Official Match Report</span>
           </div>
         )}
       </div>

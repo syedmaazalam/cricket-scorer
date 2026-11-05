@@ -11,6 +11,30 @@ import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 
 export default function App() {
   const getInitialRouting = () => {
+    if (typeof window !== 'undefined') {
+      const bridgeCode = window.ScorecardBridge?.getPendingDeepLink?.();
+      const pendingCode = bridgeCode || window.__pendingDeepLink;
+      if (pendingCode) {
+        return {
+          page: 'live',
+          matchId: null,
+          liveCode: pendingCode.trim().toUpperCase(),
+          isManager: false
+        };
+      }
+
+      const path = window.location.pathname || '';
+      const pathMatch = path.match(/\/(?:match|m)\/([^/?#]+)/i);
+      if (pathMatch && pathMatch[1]) {
+        return {
+          page: 'live',
+          matchId: null,
+          liveCode: pathMatch[1].trim().toUpperCase(),
+          isManager: false
+        };
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('dev') === 'true') {
       return {
@@ -60,6 +84,40 @@ export default function App() {
     if (liveCodeOrId) localStorage.setItem('cricket_live_code', liveCodeOrId);
     localStorage.setItem('cricket_is_manager', isManager ? 'true' : 'false');
   }, [page, activeMatchId, liveCodeOrId, isManager]);
+
+  // Handle incoming Android deep links (cold launch or runtime resume)
+  useEffect(() => {
+    const handleIncomingMatchCode = (code) => {
+      if (!code) return;
+      const cleanCode = code.trim().toUpperCase();
+      setIsManager(false);
+      setLiveCodeOrId(cleanCode);
+      setActiveMatchId(cleanCode);
+      setPage('live');
+    };
+
+    window.handleDeepLink = handleIncomingMatchCode;
+
+    const onCustomDeepLink = (event) => {
+      const code = event?.detail?.matchCode;
+      if (code) handleIncomingMatchCode(code);
+    };
+    window.addEventListener('smartcricket:deeplink', onCustomDeepLink);
+
+    // Also check if native bridge has a queued deep link code
+    if (window.ScorecardBridge?.getPendingDeepLink) {
+      const nativeCode = window.ScorecardBridge.getPendingDeepLink();
+      if (nativeCode) handleIncomingMatchCode(nativeCode);
+    } else if (window.__pendingDeepLink) {
+      handleIncomingMatchCode(window.__pendingDeepLink);
+      window.__pendingDeepLink = null;
+    }
+
+    return () => {
+      window.removeEventListener('smartcricket:deeplink', onCustomDeepLink);
+      delete window.handleDeepLink;
+    };
+  }, []);
 
   // Eagerly resolve match code to matchId for live spectator
   useEffect(() => {

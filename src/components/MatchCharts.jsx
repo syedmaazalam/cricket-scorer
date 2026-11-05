@@ -98,6 +98,51 @@ export default function MatchCharts({ matchState, initialChart = 'runs' }) {
     ? allOversData.slice(0, activeTooltipOver.overIndex).reduce((sum, o) => sum + (o.wickets || 0), 0)
     : 0;
 
+  // Derive real ball-by-ball deliveries for activeTooltipOver
+  const overDeliveries = (() => {
+    if (!activeTooltipOver || !activeTooltipOver.hasData) return [];
+    // 1. Try directly from activeTooltipOver.balls if populated
+    if (activeTooltipOver.balls && activeTooltipOver.balls.length > 0) {
+      return activeTooltipOver.balls.map((b, idx) => {
+        if (typeof b === 'object' && b !== null) return b;
+        const str = String(b).trim();
+        const isWicket = str === 'W' || str.startsWith('W');
+        const isWide = str.includes('wd') || str.includes('wide');
+        const isNb = str.includes('nb') || str.includes('no_ball');
+        const runsMatch = str.match(/\d+/);
+        const runs = runsMatch ? parseInt(runsMatch[0], 10) : 0;
+        return {
+          ballIndex: idx,
+          runs,
+          isWicket,
+          extraType: isWide ? 'wide' : isNb ? 'no_ball' : null,
+          shortLabel: str
+        };
+      });
+    }
+
+    // 2. Derive directly from currentInn.balls
+    if (currentInn?.balls && currentInn.balls.length > 0) {
+      const targetOver = activeTooltipOver.overIndex;
+      let legalCount = 0;
+      const ballsInThisOver = [];
+      for (const b of currentInn.balls) {
+        const overOfBall = Math.floor(legalCount / 6) + 1;
+        if (overOfBall === targetOver) {
+          ballsInThisOver.push(b);
+        } else if (overOfBall > targetOver) {
+          break;
+        }
+        if (b.isLegal) {
+          legalCount++;
+        }
+      }
+      return ballsInThisOver;
+    }
+
+    return [];
+  })();
+
   // --- Worm / Line Chart Data Builder ---
   const buildLineChartData = (innings) => {
     if (!innings || !innings.balls) return [];
@@ -299,60 +344,110 @@ export default function MatchCharts({ matchState, initialChart = 'runs' }) {
               backgroundColor: 'color-mix(in srgb, var(--well) 70%, transparent)',
               borderColor: 'var(--bda)'
             }}
-            className="rounded-xl border p-2.5 transition-all duration-200 shadow-sm"
+            className="rounded-2xl border p-2.5 transition-all duration-200 shadow-sm flex flex-col gap-2"
           >
             {activeTooltipOver && activeTooltipOver.hasData ? (
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded-md bg-[var(--pri)] text-white text-[10px] font-black uppercase tracking-wider">
-                      Over {activeTooltipOver.overIndex}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  {/* Left: OVER badge & Team Name */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      style={{
+                        backgroundColor: '#3B82F6',
+                        color: '#FFFFFF'
+                      }}
+                      className="px-2.5 py-1 rounded-xl text-[11px] font-black tracking-wide shrink-0 shadow-sm flex items-center justify-center leading-none"
+                    >
+                      OVER {activeTooltipOver.overIndex}
+                    </div>
+                    <span className="text-xs font-bold truncate max-w-[140px] sm:max-w-[200px]" style={{ color: 'var(--t1)' }}>
+                      {currentInn?.battingTeam || (selectedInnings === 0 ? 'Team 1' : 'Team 2')}
                     </span>
-                    {activeTooltipOver.bowler && (
-                      <span className="text-xs font-bold truncate max-w-[150px]" style={{ color: 'var(--t1)' }}>
-                        {activeTooltipOver.bowler}
-                      </span>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-mono">
-                    <span className="font-extrabold text-[var(--pri)]">+{activeTooltipOver.runs} r</span>
+
+                  {/* Right: Run count, Wicket badge, Total score */}
+                  <div className="flex items-center gap-2 text-xs font-mono ml-auto shrink-0">
+                    <div className="flex items-center gap-0.5 font-extrabold text-[var(--pri)]">
+                      <span>+{activeTooltipOver.runs}</span>
+                      <span className="text-[10px] opacity-80">↗</span>
+                    </div>
+
+                    <span className="text-[var(--bda)]">|</span>
+
                     {activeTooltipOver.wickets > 0 && (
-                      <span className="px-1.5 py-0.5 rounded bg-[var(--bad)] text-white text-[10px] font-black">
-                        {activeTooltipOver.wickets}W
-                      </span>
+                      <>
+                        <span
+                          style={{ backgroundColor: '#DC2626' }}
+                          className="px-2 py-0.5 rounded-lg text-white text-[10px] font-black shrink-0 tracking-wide"
+                        >
+                          {activeTooltipOver.wickets}W
+                        </span>
+                        <span className="text-[var(--bda)]">|</span>
+                      </>
                     )}
-                    <span className="text-[var(--t2)] text-[11px]">
+
+                    <span className="text-[var(--t2)] text-[11px] font-medium font-sans">
                       (Total {cumulativeRuns}/{cumulativeWickets})
                     </span>
                   </div>
                 </div>
 
-                {/* Ball by ball sequence dots if available */}
-                {activeTooltipOver.balls && activeTooltipOver.balls.length > 0 && (
-                  <div className="flex items-center gap-1 pt-0.5 overflow-x-auto">
-                    <span className="text-[10px] font-semibold text-[var(--t3)] mr-0.5">Balls:</span>
-                    {activeTooltipOver.balls.map((b, bIdx) => (
-                      <span
-                        key={bIdx}
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                          b.isWicket
-                            ? 'bg-[var(--bad)] text-white'
-                            : b.runs === 4 || b.runs === 6
-                            ? 'bg-[var(--pri)] text-white'
-                            : b.extraType
-                            ? 'bg-[var(--warn)] text-black'
-                            : 'bg-[var(--bd)] text-[var(--t1)]'
-                        }`}
-                      >
-                        {b.isWicket ? 'W' : b.extraType ? (b.extraType === 'wide' ? 'wd' : 'nb') : (b.runs || 0)}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* Ball by ball sequence dots */}
+                <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto min-h-[22px]">
+                  <span className="text-[11px] font-semibold text-[var(--t2)] shrink-0">Balls:</span>
+                  {overDeliveries.length > 0 ? (
+                    <div className="flex items-center gap-1.5 flex-nowrap">
+                      {overDeliveries.map((b, bIdx) => {
+                        const isWicket = Boolean(b.isWicket);
+                        const isBoundary = b.runs === 4 || b.runs === 6;
+                        const isExtra = Boolean(b.extraType);
+                        const ballLabel = isWicket
+                          ? 'W'
+                          : isExtra
+                          ? (b.extraType === 'wide' ? (b.runs > 0 ? `${b.runs}wd` : 'wd') : b.extraType === 'no_ball' ? (b.runs > 0 ? `${b.runs}nb` : 'nb') : (b.shortLabel || 'ex'))
+                          : String(b.runs != null ? b.runs : 0);
+
+                        return (
+                          <span
+                            key={b.ballIndex != null ? b.ballIndex : bIdx}
+                            style={{
+                              backgroundColor: isWicket
+                                ? '#DC2626'
+                                : isBoundary
+                                ? '#2563EB'
+                                : isExtra
+                                ? '#F59E0B'
+                                : b.runs > 0
+                                ? 'var(--well)'
+                                : 'color-mix(in srgb, var(--card) 85%, transparent)',
+                              borderColor: isWicket
+                                ? '#EF4444'
+                                : isBoundary
+                                ? '#3B82F6'
+                                : isExtra
+                                ? '#FBBF24'
+                                : 'var(--bd)',
+                              color: isWicket || isBoundary
+                                ? '#FFFFFF'
+                                : isExtra
+                                ? '#000000'
+                                : 'var(--t1)'
+                            }}
+                            className="w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs leading-none"
+                          >
+                            {ballLabel}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-[var(--t2)] italic">Ball data unavailable</span>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="text-center text-xs text-[var(--t2)] py-0.5">
-                Hover or tap any over bar to inspect bowler, runs, wickets, and cumulative score
+              <div className="text-center text-xs text-[var(--t2)] py-1">
+                Hover or tap any over bar to inspect runs, wickets, and ball sequence
               </div>
             )}
           </div>

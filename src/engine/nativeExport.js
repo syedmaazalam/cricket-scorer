@@ -1,14 +1,36 @@
+import html2canvas from 'html2canvas';
+
 /**
  * Robust image export helper for both Android APK (native WebView bridge) and Web browsers.
+ * Accepts a base64/dataUrl string, an HTMLCanvasElement, or an HTMLElement (e.g. div).
  * Inside the APK, window.ScorecardBridge writes the image directly to device storage (Gallery/Pictures)
- * and opens the Android native share/save dialog.
+ * and opens the Android native share sheet.
  */
-export async function exportAndSaveImage(canvasOrDataUrl, fileName, title = 'Match Scorecard') {
+export async function exportAndSaveImage(target, fileName, title = 'Match Scorecard') {
   try {
-    const dataUrl =
-      typeof canvasOrDataUrl === 'string'
-        ? canvasOrDataUrl
-        : canvasOrDataUrl.toDataURL('image/png');
+    let dataUrl = null;
+
+    if (typeof target === 'string') {
+      dataUrl = target;
+    } else if (target && typeof target.toDataURL === 'function') {
+      dataUrl = target.toDataURL('image/png');
+    } else if (target && (target instanceof HTMLElement || target.nodeType === 1)) {
+      // If a DOM element was passed, render it into a canvas first
+      const renderedCanvas = await html2canvas(target, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 1,
+        backgroundColor: '#F0F7FF',
+        logging: false
+      });
+      dataUrl = renderedCanvas.toDataURL('image/png');
+    } else {
+      throw new Error('Unsupported image target for export');
+    }
+
+    if (!dataUrl || !dataUrl.startsWith('data:image')) {
+      throw new Error('Invalid image data generated');
+    }
 
     // 1. Check if running inside Android APK with our native bridge
     if (typeof window !== 'undefined' && window.ScorecardBridge?.saveImage) {
@@ -31,7 +53,7 @@ export async function exportAndSaveImage(canvasOrDataUrl, fileName, title = 'Mat
           return { success: true, method: 'share' };
         }
       } catch (shareErr) {
-        // Fall through to download anchor
+        // User cancelled or share unhandled, fall through to download anchor
       }
     }
 
@@ -48,3 +70,4 @@ export async function exportAndSaveImage(canvasOrDataUrl, fileName, title = 'Mat
     throw err;
   }
 }
+

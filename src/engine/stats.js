@@ -245,7 +245,25 @@ export function computeInningsStats(inningsData) {
 
     // 5. Over Summaries tracking
     currentOver.bowler = ball.bowler || currentOver.bowler;
-    currentOver.balls.push(ball.shortLabel || (runs + (extraType ? ` (${extraType})` : '')));
+    const deliveryShortLabel = ball.shortLabel || (isWicket ? 'W' : extraType === 'wide' ? 'wd' : extraType === 'no_ball' ? 'nb' : extraType ? String(extraType) : String(runs || 0));
+    currentOver.balls.push({
+      ballIndex: ball.ballIndex != null ? ball.ballIndex : idx,
+      runs: Number(runs || 0),
+      extraRuns: Number(ball.extraRuns || 0),
+      ballTotalRuns: Number(ballTotalRuns || 0),
+      isWicket: Boolean(isWicket),
+      extraType: extraType || null,
+      isLegal: Boolean(isLegal),
+      bowler: ball.bowler || currentOver.bowler || '',
+      striker: ball.striker || '',
+      nonStriker: ball.nonStriker || '',
+      shortLabel: deliveryShortLabel,
+      scoreAtBall: ball.scoreAtBall,
+      wicket: ball.wicket || null,
+      toString() {
+        return deliveryShortLabel;
+      }
+    });
     currentOver.runs += ballTotalRuns;
     if (bowlerRunsThisBall > 0) currentOver.isMaiden = false;
     if (isWicket) currentOver.wickets += 1;

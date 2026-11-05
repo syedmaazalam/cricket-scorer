@@ -24,6 +24,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep Links: Android App Links (HTTPS) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="smartcricket-website.web.app" android:pathPrefix="/match" />
+                <data android:scheme="https" android:host="smartcricket-website.web.app" android:pathPrefix="/m" />
+                <data android:scheme="https" android:host="smartcricket-c79b5.web.app" android:pathPrefix="/match" />
+                <data android:scheme="https" android:host="smartcricket-c79b5.web.app" android:pathPrefix="/m" />
+            </intent-filter>
+
+            <!-- Deep Links: Custom Protocol Scheme (smartcricket://) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="smartcricket" />
+            </intent-filter>
+
         </activity>
 
         <provider

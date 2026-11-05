@@ -304,7 +304,7 @@ export default function Live({
   return (
     <div className="min-h-screen flex flex-col justify-start w-full max-w-lg lg:max-w-6xl mx-auto px-1 sm:px-3 lg:pl-28 lg:pr-8 pb-24 select-none safe-top text-[var(--text)]">
       {/* 1. Top Header */}
-      <header className="top flex items-center justify-between gap-2">
+      <header className="w-full flex items-center justify-between gap-2 py-2 shrink-0 relative z-30">
         {/* Left: Brand title on desktop, Back button & Match Code & Live */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="hidden lg:flex items-center gap-1.5 mr-2 font-serif font-black text-lg text-[var(--pri)] tracking-tight">
@@ -358,7 +358,7 @@ export default function Live({
           )}
 
           {/* Three-dots menu for Share & Theme */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="ib"
@@ -369,26 +369,40 @@ export default function Live({
             </button>
 
             {isMenuOpen && (
-              <div className="card absolute right-0 top-12 z-50 min-w-[170px] p-2 shadow-2xl flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-150">
-                <button
-                  onClick={() => {
-                    handleShare();
-                    setIsMenuOpen(false);
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsMenuOpen(false)}
+                  aria-hidden="true"
+                />
+                <div
+                  style={{
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--bd)',
+                    color: 'var(--t1)'
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold transition-colors text-left text-[var(--text)]"
+                  className="absolute right-0 top-11 z-50 min-w-[180px] p-2 rounded-2xl border shadow-2xl flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
                 >
-                  <span className="flex items-center gap-2">
-                    <Share2 className="w-3.5 h-3.5 text-[var(--ok)]" />
-                    <span>Share Match</span>
-                  </span>
-                  {copied && <Check className="w-3.5 h-3.5 text-[var(--ok)]" />}
-                </button>
+                  <button
+                    onClick={() => {
+                      handleShare();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold transition-colors text-left text-[var(--text)]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Share2 className="w-3.5 h-3.5 text-[var(--ok)]" />
+                      <span>Share Match</span>
+                    </span>
+                    {copied && <Check className="w-3.5 h-3.5 text-[var(--ok)]" />}
+                  </button>
 
-                <div className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold text-[var(--text)]">
-                  <span>Theme</span>
-                  <ThemeToggle />
+                  <div className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 text-xs font-semibold text-[var(--text)]">
+                    <span>Theme</span>
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -705,7 +719,7 @@ export default function Live({
                       key={i}
                       style={{
                         backgroundColor: b.isWicket
-                          ? 'var(--danger)'
+                          ? '#DC2626'
                           : b.runs === 6
                           ? 'var(--pri)'
                           : b.runs === 4
@@ -715,12 +729,16 @@ export default function Live({
                           : b.runs > 0
                           ? 'var(--ball-run-bg)'
                           : 'var(--well)',
-                        color: b.runs === 0 && !b.extraType && !b.isWicket
+                        color: b.isWicket
+                          ? '#FFFFFF'
+                          : b.runs === 0 && !b.extraType && !b.isWicket
                           ? 'var(--muted)'
                           : b.runs > 0 && !b.extraType && !b.isWicket
                           ? 'var(--ball-run-text)'
                           : '#FFFFFF',
-                        borderColor: b.runs > 0 && !b.extraType && !b.isWicket
+                        borderColor: b.isWicket
+                          ? '#EF4444'
+                          : b.runs > 0 && !b.extraType && !b.isWicket
                           ? 'var(--ball-run-border)'
                           : 'var(--b)'
                       }}
@@ -824,10 +842,7 @@ export default function Live({
 
       {/* Footer Branding */}
       <footer className="mt-8 pt-4 pb-24 text-center text-xs border-t border-[var(--b)] text-[var(--muted)] leading-normal">
-        {"© 2026 SmartCricket · Developed by "}
-        <span className="font-bold text-[var(--text)]">
-          Syed Maaz Alam
-        </span>
+        © 2026 SmartCricket · Live Spectator Console
       </footer>
 
       {/* Pointing System Criteria Modal */}

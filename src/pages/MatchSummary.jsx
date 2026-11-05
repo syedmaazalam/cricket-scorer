@@ -450,7 +450,7 @@ export default function MatchSummary({ matchState, onBack }) {
 
         {/* Footer Attribution */}
         <p className="foot">
-          © 2026 SmartCricket · Developed by <b>Syed Maaz Alam</b>
+          © 2026 SmartCricket · Match Summary &amp; Analytics
         </p>
       </div>
 

@@ -202,7 +202,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
       const canvas = await html2canvas(element, {
         backgroundColor: isDark ? '#021024' : '#F0F7FF',
-        scale: 2,
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         logging: false,
@@ -228,7 +228,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
             }
 
             if (node.children.length === 0 && node.textContent && node.textContent.trim().length > 0) {
-              node.style.lineHeight = '1.4';
+              node.style.lineHeight = '1.3';
+              node.style.transform = 'translateY(-1.5px)';
               if (node.parentElement) {
                 node.parentElement.style.overflow = 'visible';
               }
@@ -692,7 +693,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
         {/* Footer Attribution */}
         <p className="foot">
-          © 2026 SmartCricket · Developed by <b>Syed Maaz Alam</b>
+          © 2026 SmartCricket · Official Match Scorecard
         </p>
       </div>
 

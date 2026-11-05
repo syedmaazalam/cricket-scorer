@@ -267,7 +267,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                 <User className="w-4 h-4 absolute left-3 top-3" style={{ color: 'var(--muted)' }} />
                 <input
                   type="text"
-                  placeholder="e.g. Syed Maaz Alam"
+                  placeholder="e.g. Scorer Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{

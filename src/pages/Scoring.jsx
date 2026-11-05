@@ -217,31 +217,64 @@ export default function Scoring({
   const progressPercent = Math.min(100, Math.round((currentInnings.legalBalls / Math.max(1, totalBallsAllowed)) * 100));
   const runsNeeded = matchState.target ? Math.max(0, matchState.target - currentInnings.score) : null;
 
-  // Filter current over balls only (including legal, wides, and no-balls)
-  const currentOverBalls = (() => {
+  // Filter current over balls accurately (only deliveries strictly in this over)
+  const currentOverData = (() => {
     const balls = currentInnings.balls || [];
-    if (balls.length === 0) return [];
-
-    let targetLegalThreshold;
-    if (matchState.needsBowlerChange && currentInnings.legalBalls > 0 && currentInnings.legalBalls % 6 === 0) {
-      targetLegalThreshold = currentInnings.legalBalls - 6;
-    } else {
-      targetLegalThreshold = Math.floor(currentInnings.legalBalls / 6) * 6;
+    if (balls.length === 0) {
+      return {
+        overNumber: 1,
+        balls: [],
+        legalCount: 0,
+        runs: 0,
+        wickets: 0
+      };
     }
 
-    let legalCount = 0;
+    let targetStartLegal;
+    let targetEndLegal;
+
+    if (matchState.needsBowlerChange && currentInnings.legalBalls > 0 && currentInnings.legalBalls % 6 === 0) {
+      targetStartLegal = currentInnings.legalBalls - 6;
+      targetEndLegal = currentInnings.legalBalls;
+    } else {
+      targetStartLegal = Math.floor(currentInnings.legalBalls / 6) * 6;
+      targetEndLegal = targetStartLegal + 6;
+    }
+
+    const overNumber = Math.floor(targetStartLegal / 6) + 1;
+    let runningLegal = 0;
     const overBalls = [];
 
     for (const b of balls) {
-      if (legalCount >= targetLegalThreshold) {
+      const legalBefore = runningLegal;
+      if (b.isLegal) {
+        runningLegal++;
+      }
+      if (legalBefore >= targetStartLegal && legalBefore < targetEndLegal) {
         overBalls.push(b);
       }
-      if (b.isLegal) {
-        legalCount++;
-      }
     }
-    return overBalls;
+
+    const overRuns = overBalls.reduce((acc, b) => {
+      const runsBat = Number(b.runs) || 0;
+      const exRuns = Number(b.extraRuns) || 0;
+      const penalty = (b.extraType === 'wide' || b.extraType === 'no_ball') ? 1 : 0;
+      return acc + runsBat + exRuns + penalty;
+    }, 0);
+
+    const overWickets = overBalls.filter((b) => b.isWicket).length;
+    const overLegalCount = overBalls.filter((b) => b.isLegal).length;
+
+    return {
+      overNumber,
+      balls: overBalls,
+      legalCount: overLegalCount,
+      runs: overRuns,
+      wickets: overWickets
+    };
   })();
+
+  const currentOverBalls = currentOverData.balls;
 
   const shareUrl = getShareUrl('watch', matchState.code || '');
 
@@ -533,14 +566,20 @@ export default function Scoring({
 
           {/* More Dropdown Menu */}
           {isMenuOpen && (
-            <div
-              style={{
-                backgroundColor: 'var(--card)',
-                borderColor: 'var(--bd)',
-                color: 'var(--t1)'
-              }}
-              className="absolute right-0 top-12 z-50 w-56 rounded-2xl border shadow-2xl p-1.5 flex flex-col gap-1 text-xs font-bold animate-in fade-in zoom-in-95 duration-150"
-            >
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsMenuOpen(false)}
+                aria-hidden="true"
+              />
+              <div
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--bd)',
+                  color: 'var(--t1)'
+                }}
+                className="absolute right-0 top-12 z-50 w-56 rounded-2xl border shadow-2xl p-1.5 flex flex-col gap-1 text-xs font-bold animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl"
+              >
               {onOpenSummary && (
                 <button
                   onClick={() => {
@@ -656,7 +695,8 @@ export default function Scoring({
                 <ThemeToggle />
               </div>
             </div>
-          )}
+          </>
+        )}
         </div>
       </header>
 
@@ -1058,7 +1098,9 @@ export default function Scoring({
             {/* Ball Strip: Current Over's Deliveries */}
             <section className="card">
               <div className="row bt">
-                <span className="lbl">CURRENT OVER ({formatOvers(currentInnings.legalBalls)} OV):</span>
+                <span className="lbl font-bold">
+                  OVER {currentOverData.overNumber} ({currentOverData.legalCount}/6 balls • {currentOverData.runs} run{currentOverData.runs === 1 ? '' : 's'}{currentOverData.wickets > 0 ? ` • ${currentOverData.wickets} wkt${currentOverData.wickets > 1 ? 's' : ''}` : ''}):
+                </span>
                 <span className="pill">{currentOverBalls.length} ball{currentOverBalls.length === 1 ? '' : 's'}</span>
               </div>
 
@@ -1077,7 +1119,7 @@ export default function Scoring({
                       title={`Click to edit ball ${b.shortLabel || b.runs}`}
                       style={{
                         backgroundColor: b.isWicket
-                          ? 'var(--bad)'
+                          ? '#DC2626'
                           : b.runs === 6
                           ? 'var(--purple)'
                           : b.runs === 4
@@ -1087,16 +1129,20 @@ export default function Scoring({
                           : b.runs > 0
                           ? 'var(--ball-run-bg)'
                           : 'var(--well)',
-                        color: b.runs === 0 && !b.extraType && !b.isWicket
+                        color: b.isWicket
+                          ? '#FFFFFF'
+                          : b.runs === 0 && !b.extraType
                           ? 'var(--t2)'
-                          : b.runs > 0 && !b.extraType && !b.isWicket
+                          : b.runs > 0 && !b.extraType
                           ? 'var(--ball-run-text)'
                           : '#FFFFFF',
-                        borderColor: b.runs > 0 && !b.extraType && !b.isWicket
+                        borderColor: b.isWicket
+                          ? '#EF4444'
+                          : b.runs > 0 && !b.extraType
                           ? 'var(--bda)'
                           : 'var(--bd)'
                       }}
-                      className="bl cursor-pointer hover:scale-110 active:scale-90 transition-transform"
+                      className="bl cursor-pointer hover:scale-110 active:scale-90 transition-transform font-black"
                     >
                       {b.shortLabel}
                     </button>
