@@ -6,6 +6,7 @@ import Scorecard from './pages/Scorecard.jsx';
 import Live from './pages/Live.jsx';
 import MatchSummary from './pages/MatchSummary.jsx';
 import DeveloperDashboard from './pages/DeveloperDashboard.jsx';
+import UpdateNotificationBanner from './components/UpdateNotificationBanner.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 
@@ -261,6 +262,9 @@ export default function App() {
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
       className="min-h-screen font-sans transition-colors relative"
     >
+      {/* Real-time In-App Update Notification Banner */}
+      <UpdateNotificationBanner />
+
       {/* Ambient background SVG layer */}
       <div className="bgfx" aria-hidden="true">
         <svg viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">

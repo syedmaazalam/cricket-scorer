@@ -218,5 +218,46 @@ public class MainActivity extends BridgeActivity {
             pendingDeepLinkCode = null;
             return code != null ? code : "";
         }
+
+        @JavascriptInterface
+        public void notifyAppUpdate(String title, String message, String apkUrl) {
+            runOnUiThread(() -> showSystemNotification(title, message, apkUrl));
+        }
+    }
+
+    public void showSystemNotification(String title, String message, String url) {
+        try {
+            android.app.NotificationManager manager = (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            String channelId = "smartcricket_updates";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                    channelId,
+                    "SmartCricket Updates",
+                    android.app.NotificationManager.IMPORTANCE_HIGH
+                );
+                channel.setDescription("Notifications about new versions and match broadcasts");
+                manager.createNotificationChannel(channel);
+            }
+
+            String targetUrl = (url != null && !url.isEmpty()) ? url : "https://github.com/syedmaazalam/cricket-scorer/releases/download/v1.0/SmartCricket.apk";
+            Intent downloadIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
+            android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
+                this,
+                0,
+                downloadIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? android.app.PendingIntent.FLAG_IMMUTABLE : 0)
+            );
+
+            androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title != null ? title : "SmartCricket Update Available")
+                .setContentText(message != null ? message : "A new version of SmartCricket is ready to install.")
+                .setStyle(new androidx.core.app.NotificationCompat.BigTextStyle().bigText(message))
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+            manager.notify(101, builder.build());
+        } catch (Exception ignored) {}
     }
 }
