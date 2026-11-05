@@ -1,12 +1,14 @@
-# Implementation Plan: Bowler Assignment & Mid-Over Correction
+# Implementation Plan: Home Screen Overhaul, Scorecard Header Polish & v1.3 Release
 
 ## Overview
-Address critical scoring workflow vulnerabilities where incorrect bowlers can be locked into match scorecards:
-1. **Prevent Silent Bowler Auto-Default**: Mandatory blocking modal at over completion, disabling scoring keypad until confirmed with no fallback to squad[0].
-2. **Mid-Over & Pre-Ball Bowler Changes**: Clickable bowler chip with full-over reassignment (fix mistake) vs split-over (injury/disqualification).
-3. **Bowler Dropdown in Edit Ball Score**: Turn static bowler text in `EditBallModal.jsx` into an editable fielding squad dropdown.
-4. **Cross-Over Undo**: Allow Undo at `X.0` overs to seamlessly reopen the previous over and revert the over-end transition.
-*Note: Local development & verification only. Do not deploy to web.*
+1. **Scorecard Header Polish**: Remove the "Teams" (Squads `<Users>`) button from the top bar of `Scorecard.jsx`.
+2. **Home Screen Overhaul**:
+   - Align layout exactly with the user's uploaded reference UI (`media_1793918050275_46e5212b.jpg`).
+   - Remove the separate "Matches available to stream" and "Previous matches on this device" external cards.
+   - Display matches directly under the search bar within the search card.
+   - Add the glowing green top switch/pill button `[ 👁 View the Matches > ]` that toggles showing matches under the search bar.
+3. **Version Bump**: Update app version to `1.3.0` (versionCode 3) across `package.json`, `UpdateNotificationBanner.jsx`, and `android/app/build.gradle`.
+4. **Deploy to Website**: Run tests, production Vite build, and deploy to Firebase Hosting.
 
 ---
 
@@ -14,49 +16,51 @@ Address critical scoring workflow vulnerabilities where incorrect bowlers can be
 
 ```mermaid
 flowchart TD
-    subgraph Engine_And_State["Engine & Reducer"]
-        E1["CHANGE_BOWLER: pre-ball swap vs mid-over reassignment vs split over"]
-        E2["REOPEN_OVER / Undo: Cross-over boundary restoration from X.0 to (X-1).5"]
-        E3["CORRECTION / EDIT_BALL: Dynamic bowler field mutation"]
+    subgraph Scorecard_Header["Scorecard.jsx"]
+        S1["Remove Users/Squads Button from top action bar"]
+        S2["Keep Share, Full Summary, Export Scorecard"]
     end
-    subgraph UI_Components["UI & Modals"]
-        U1["Scoring.jsx: Mandatory blocking BowlerModal, keypad disabled when unselected"]
-        U2["Scoring.jsx: Clickable bowler chip & mid-over change dialog"]
-        U3["EditBallModal.jsx: Editable bowler select dropdown"]
+    subgraph Home_Redesign["Home.jsx"]
+        H1["Top Bar: Back Button, Glowing 'View the Matches' Switch Pill, ThemeToggle"]
+        H2["Brand Identity: Glowing Bat Logo, SmartCricket Title & Subtitle"]
+        H3["Create New Match CTA: Green Gradient Button"]
+        H4["Unified Search Card: 'SEARCH ON THIS DEVICE' header + Search Input + Matches List"]
+        H5["Remove separate stream and previous match blocks"]
     end
-    Engine_And_State --> UI_Components
+    subgraph Release_Deployment["Release & Hosting"]
+        R1["Bump Version to 1.3 / versionCode 3"]
+        R2["Verify full Vitest test suite & oxlint"]
+        R3["Vite production build"]
+        R4["Firebase deploy --only hosting"]
+    end
+    Scorecard_Header --> Home_Redesign --> Release_Deployment
 ```
 
 ---
 
 ## Chunks
 
-- [x] **Chunk 1: Engine & Store Support for Mid-Over Bowler Change & Cross-Over Undo**
-  - Update `src/engine/reducer.js` to handle `CHANGE_BOWLER` with `mode: 'reassign_over' | 'split_over'` and clean pre-ball swaps.
-  - Ensure `undoLastEvent` and `REOPEN_PREVIOUS_OVER` cleanly rewind across over transitions (`X.0` to `X-1.5`) restoring previous bowler and striker state.
-  - Ensure `CORRECTION` event supports changing `bowler` on historical ball deliveries.
-  - Verification: Vitest tests in `src/tests/bowler_assignment_and_undo.test.js`.
+- [x] **Chunk 1: Scorecard Top Bar Polish (Remove Teams Button)**
+  - In `src/pages/Scorecard.jsx`, remove the `<Users className="w-4 h-4" />` squads button from the top navigation action bar.
+  - Verify with tests in `src/tests/developer_console_and_scores.test.js` / `src/tests/ui_modals_and_dialogs.test.jsx`.
 
-- [x] **Chunk 2: Prevent Silent Bowler Auto-Default & Mandatory Modal**
-  - In `src/pages/Scoring.jsx`, eliminate any silent default bowler assignment (e.g. `bowlers[0]`).
-  - Disable RunPad keypad and keyboard scoring shortcuts whenever `needsBowlerChange` is true or bowler is unset.
-  - Make `BowlerModal` persistent/non-dismissible until a valid bowler is explicitly selected.
-  - Verification: Vitest component tests.
+- [x] **Chunk 2: Home Screen Overhaul (Matches Under Search Bar & Top Switch)**
+  - In `src/pages/Home.jsx`, implement the exact UI from the screenshot:
+    - Glowing top switch `[ 👁 View the Matches > ]` to toggle matches visibility under the search bar.
+    - Brand header and vibrant "Create New Match" CTA.
+    - Unified search card with `SEARCH ON THIS DEVICE`, `{count} on device`, search input, and matches list directly underneath.
+    - Remove old split portals and separate external stream/previous match blocks.
+  - Verify with Vitest UI tests in `src/tests/ui_home_and_search_flows.test.jsx`.
 
-- [x] **Chunk 3: Mid-Over & Pre-Ball Bowler Change UI in Scoring Screen**
-  - In `src/pages/Scoring.jsx`, make the active bowler badge/card clickable with a "Change Bowler" option.
-  - If 0 balls in over: direct bowler swap with zero stat impact.
-  - If 1–5 balls in over: present selection modal:
-    - *Full Over Reassignment*: Reassign all balls in active over to new bowler (fix scorer mistake).
-    - *Split Over*: Retain injured/disqualified bowler's balls and bring in replacement for remaining deliveries.
-  - Verification: Vitest UI simulation tests.
+- [x] **Chunk 3: Update Version to 1.3.0 (Code 3)**
+  - Update `package.json` to `"1.3.0"`.
+  - Update `src/components/UpdateNotificationBanner.jsx` to `CURRENT_APP_VERSION = '1.3'` and `CURRENT_APP_VERSION_CODE = 3`.
+  - Update `android/app/build.gradle` to `versionCode 3` and `versionName "1.3"`.
+  - Update `src/tests/update_banner.test.js` to match v1.3.
 
-- [x] **Chunk 4: Bowler Dropdown in EditBallModal**
-  - In `src/components/EditBallModal.jsx`, replace read-only bowler text with an interactive `<select>` dropdown populated from `bowlingSquad`.
-  - Pass updated `bowler` in `onSaveBall` callback so historical ball events reflect the true bowler.
-  - Verification: Vitest tests for `EditBallModal`.
-
-- [x] **Chunk 5: Full Suite Verification & Build (NO Web Deploy)**
-  - Run all Vitest test suites (150+ tests).
-  - Run oxlint and compile production Vite build.
-  - Commit changes locally (NO deploy to Firebase Hosting).
+- [x] **Chunk 4: Full Suite Verification, Build & Firebase Web Deployment**
+  - Run full Vitest suite (all 160+ tests).
+  - Run `oxlint`.
+  - Run `npm run build` (`vite build`).
+  - Deploy to Firebase Hosting (`firebase deploy --only hosting`).
+  - Update graphify knowledge graph (`graphify update .`).

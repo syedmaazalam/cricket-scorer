@@ -523,15 +523,6 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
         <div className="flex items-center gap-1.5 shrink-0 pr-1">
           <button
-            onClick={() => setIsSquadModalOpen(true)}
-            className="ib shrink-0"
-            title="Squads & Player List"
-            aria-label="Squads"
-          >
-            <Users className="w-4 h-4" />
-          </button>
-
-          <button
             onClick={handleShare}
             title="Share Scorecard Link"
             className="ib shrink-0"

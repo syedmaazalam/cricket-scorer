@@ -312,21 +312,19 @@ describe('Regression Tests: All User Reported Fixes', () => {
 
     const homeCode = fs.readFileSync(path.resolve(__dirname, '../pages/Home.jsx'), 'utf-8');
 
-    // 1. First screen displays formal question cards:
-    expect(homeCode).toContain('Do you want to create a match?');
-    expect(homeCode).toContain('Do you want to stream a match?');
+    // 1. Unified screen with View the Matches switch and Create New Match:
+    expect(homeCode).toContain('View the Matches');
+    expect(homeCode).toContain('Create New Match');
+    expect(homeCode).toContain('SEARCH ON THIS DEVICE');
 
-    // 2. Stream pathway does not require manager login
-    expect(homeCode).toContain('handleSelectStreamMatch');
-    expect(homeCode).toContain("setActivePortal('stream')");
+    // 2. Stream and Score pathways available on match cards
+    expect(homeCode).toContain('onWatchLive');
+    expect(homeCode).toContain('onResumeMatch');
 
-    // 3. Create pathway prompts manager login and persists forever
-    expect(homeCode).toContain('handleSelectCreateMatch');
-    expect(homeCode).toContain('setIsAuthModalOpen(true)');
+    // 3. Manager persistence supported
     expect(homeCode).toContain('cricket_manager_user');
 
-    // 4. In Create mode: previous matches search, resume, and new match button
-    expect(homeCode).toContain('Create New Match');
+    // 4. Matches search and local matches filtering
     expect(homeCode).toContain('filteredLocalMatches');
     expect(homeCode).toContain('onResumeMatch');
   });
