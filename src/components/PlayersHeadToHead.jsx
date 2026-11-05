@@ -101,109 +101,117 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
   return (
     <div className="w-full flex flex-col gap-3.5 sm:gap-4 select-none px-0">
       <div className="w-full flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 items-start">
-        {/* 1. Head-to-Head Comparison Card Matching Blueprint (media_1793793018216_dd96f4b8.jpg) */}
-        <section
-          className="card glass-card w-full lg:col-span-5 rounded-2xl p-5 border shadow-sm"
-          style={{
-            background: 'var(--card)',
-            borderColor: 'var(--bd)'
-          }}
-        >
-          {/* Header Row with Cyan Crossed Bats Icon */}
-          <div className="flex flex-col gap-1 mb-4">
-            <div className="flex items-center gap-2">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <path d="m14 2 8 8-4 4-8-8 4-4Z" />
-                <path d="m2 14 8 8 4-4-8-8-4 4Z" />
-                <circle cx="18" cy="18" r="2" />
-              </svg>
-              <h3 className="font-extrabold text-lg tracking-tight" style={{ color: 'var(--t1)' }}>Head to head comparison</h3>
+        {/* Left Column on Desktop: Head-to-Head Comparison Card & Over Comparison Chart */}
+        <div className="flex flex-col gap-3.5 sm:gap-4 w-full min-w-0 lg:col-span-5">
+          {/* 1. Head-to-Head Comparison Card Matching Blueprint (media_1793793018216_dd96f4b8.jpg) */}
+          <section
+            className="card glass-card w-full rounded-2xl p-5 border shadow-sm"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--bd)'
+            }}
+          >
+            {/* Header Row with Cyan Crossed Bats Icon */}
+            <div className="flex flex-col gap-1 mb-4">
+              <div className="flex items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="m14 2 8 8-4 4-8-8 4-4Z" />
+                  <path d="m2 14 8 8 4-4-8-8-4 4Z" />
+                  <circle cx="18" cy="18" r="2" />
+                </svg>
+                <h3 className="font-extrabold text-lg tracking-tight" style={{ color: 'var(--t1)' }}>Head to head comparison</h3>
+              </div>
+              <span className="text-xs font-medium pl-8" style={{ color: 'var(--t2)' }}>Match overview</span>
             </div>
-            <span className="text-xs font-medium pl-8" style={{ color: 'var(--t2)' }}>Match overview</span>
+
+            {/* Side-by-Side Team Score Cards */}
+            <div className="grid grid-cols-2 gap-3 my-4">
+              <div
+                className="p-4 rounded-2xl text-center"
+                style={{
+                  background: 'var(--well)',
+                  border: '1.5px solid var(--bd)',
+                  boxShadow: 'var(--card-shadow)'
+                }}
+              >
+                <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team1.name}</div>
+                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
+                  {inn1.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn1.wickets}</span>
+                </div>
+                <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn1.legalBalls)} ov</div>
+              </div>
+
+              <div
+                className="p-4 rounded-2xl text-center"
+                style={{
+                  background: 'var(--well)',
+                  border: '1.5px solid var(--bd)',
+                  boxShadow: 'var(--card-shadow)'
+                }}
+              >
+                <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team2.name}</div>
+                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
+                  {inn2.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn2.wickets}</span>
+                </div>
+                <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn2.legalBalls)} ov</div>
+              </div>
+            </div>
+
+            {/* Match Statistics Table */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between pb-2 mb-1">
+                <h4 className="text-sm font-extrabold" style={{ color: 'var(--t1)' }}>Match statistics</h4>
+                <div className="flex items-center gap-5 text-xs font-extrabold tracking-wider uppercase" style={{ color: 'var(--t2)' }}>
+                  <span className="w-14 text-right truncate">{(team1.name || 'ALPHA').slice(0, 6)}</span>
+                  <span className="w-14 text-right truncate">{(team2.name || 'BRAVO').slice(0, 6)}</span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-[var(--bd)]">
+                {/* Run rate (CRR) */}
+                <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                  <span className="font-medium" style={{ color: 'var(--t2)' }}>Run rate (CRR)</span>
+                  <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                    <span className="w-14 text-right">{t1CRR}</span>
+                    <span className="w-14 text-right">{t2CRR}</span>
+                  </div>
+                </div>
+
+                {/* Boundaries (4s / 6s) */}
+                <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                  <span className="font-medium" style={{ color: 'var(--t2)' }}>Boundaries (4s / 6s)</span>
+                  <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                    <span className="w-14 text-right">{t1Boundaries}</span>
+                    <span className="w-14 text-right">{t2Boundaries}</span>
+                  </div>
+                </div>
+
+                {/* Dot balls */}
+                <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                  <span className="font-medium" style={{ color: 'var(--t2)' }}>Dot balls</span>
+                  <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                    <span className="w-14 text-right">{t1Dots}</span>
+                    <span className="w-14 text-right">{t2Dots}</span>
+                  </div>
+                </div>
+
+                {/* Extras conceded */}
+                <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                  <span className="font-medium" style={{ color: 'var(--t2)' }}>Extras conceded</span>
+                  <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
+                    <span className="w-14 text-right">{stats1.extras?.total || 0}</span>
+                    <span className="w-14 text-right">{stats2.extras?.total || 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Over Comparison Chart (Under Head to Head comparison on Desktop) */}
+          <div className="hidden lg:block w-full">
+            <MatchCharts matchState={matchState} initialChart="runs" />
           </div>
-
-          {/* Side-by-Side Team Score Cards */}
-          <div className="grid grid-cols-2 gap-3 my-4">
-            <div
-              className="p-4 rounded-2xl text-center"
-              style={{
-                background: 'var(--well)',
-                border: '1.5px solid var(--bd)',
-                boxShadow: 'var(--card-shadow)'
-              }}
-            >
-              <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team1.name}</div>
-              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
-                {inn1.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn1.wickets}</span>
-              </div>
-              <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn1.legalBalls)} ov</div>
-            </div>
-
-            <div
-              className="p-4 rounded-2xl text-center"
-              style={{
-                background: 'var(--well)',
-                border: '1.5px solid var(--bd)',
-                boxShadow: 'var(--card-shadow)'
-              }}
-            >
-              <div className="text-sm font-semibold truncate" style={{ color: 'var(--t2)' }}>{team2.name}</div>
-              <div className="text-3xl sm:text-4xl font-extrabold tracking-tight my-1.5 font-mono" style={{ color: 'var(--t1)' }}>
-                {inn2.score}<span className="font-normal text-2xl" style={{ color: 'var(--t2)' }}>/{inn2.wickets}</span>
-              </div>
-              <div className="text-xs font-mono" style={{ color: 'var(--t2)' }}>{formatOvers(inn2.legalBalls)} ov</div>
-            </div>
-          </div>
-
-          {/* Match Statistics Table */}
-          <div className="mt-5">
-            <div className="flex items-center justify-between pb-2 mb-1">
-              <h4 className="text-sm font-extrabold" style={{ color: 'var(--t1)' }}>Match statistics</h4>
-              <div className="flex items-center gap-5 text-xs font-extrabold tracking-wider uppercase" style={{ color: 'var(--t2)' }}>
-                <span className="w-14 text-right truncate">{(team1.name || 'ALPHA').slice(0, 6)}</span>
-                <span className="w-14 text-right truncate">{(team2.name || 'BRAVO').slice(0, 6)}</span>
-              </div>
-            </div>
-
-            <div className="divide-y divide-[var(--bd)]">
-              {/* Run rate (CRR) */}
-              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium" style={{ color: 'var(--t2)' }}>Run rate (CRR)</span>
-                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
-                  <span className="w-14 text-right">{t1CRR}</span>
-                  <span className="w-14 text-right">{t2CRR}</span>
-                </div>
-              </div>
-
-              {/* Boundaries (4s / 6s) */}
-              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium" style={{ color: 'var(--t2)' }}>Boundaries (4s / 6s)</span>
-                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
-                  <span className="w-14 text-right">{t1Boundaries}</span>
-                  <span className="w-14 text-right">{t2Boundaries}</span>
-                </div>
-              </div>
-
-              {/* Dot balls */}
-              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium" style={{ color: 'var(--t2)' }}>Dot balls</span>
-                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
-                  <span className="w-14 text-right">{t1Dots}</span>
-                  <span className="w-14 text-right">{t2Dots}</span>
-                </div>
-              </div>
-
-              {/* Extras conceded */}
-              <div className="py-2.5 flex items-center justify-between text-xs sm:text-sm">
-                <span className="font-medium" style={{ color: 'var(--t2)' }}>Extras conceded</span>
-                <div className="flex items-center gap-5 font-bold font-mono" style={{ color: 'var(--t1)' }}>
-                  <span className="w-14 text-right">{stats1.extras?.total || 0}</span>
-                  <span className="w-14 text-right">{stats2.extras?.total || 0}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        </div>
 
         {/* Right Column on Desktop: Squad Tabs & Player Blocks */}
         <div className="flex flex-col gap-3.5 w-full min-w-0 lg:col-span-7">
@@ -396,13 +404,10 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
         </div>
       </div>
 
-      {/* 4. Worm Graph at the End of the Teams Section with Constrained Responsive Width */}
-      <div className="w-full mt-4 pt-4 border-t border-[var(--bd)] flex flex-col items-center">
-        <div className="text-xs font-bold text-[var(--t2)] uppercase tracking-wider mb-2">
-          Match Worm Chart
-        </div>
+      {/* 4. Over Comparison Chart at the End on Mobile (Hidden on Desktop since it is under Head to Head) */}
+      <div className="w-full mt-4 pt-4 border-t border-[var(--bd)] flex flex-col items-center lg:hidden">
         <div className="w-full max-w-md mx-auto px-0.5 sm:px-0">
-          <MatchCharts matchState={matchState} initialChart="worm" />
+          <MatchCharts matchState={matchState} initialChart="runs" />
         </div>
       </div>
     </div>

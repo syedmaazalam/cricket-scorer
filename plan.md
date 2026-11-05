@@ -48,3 +48,8 @@ flowchart TD
   - Run `npm run build` and deploy to Firebase Hosting (`smartcricket-c79b5.web.app`).
   - Compile Android APK with Gradle and sync.
   - Update git repository and output complete copy-paste code.
+
+- [x] **Chunk 4: Bring Over Comparison Chart Under Head to Head Comparison on Desktop**
+  - In `src/components/PlayersHeadToHead.jsx`, nest the Over Comparison chart (`MatchCharts`) inside the left desktop column directly below the Head-to-Head Comparison card.
+  - Maintain clean responsive layout on mobile.
+  - Run verification tests, build Vite client, and deploy updates.
