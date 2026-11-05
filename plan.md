@@ -51,7 +51,7 @@ flowchart TD
     - Verify export scorecard generator includes match details, date, teams, scores, result, and full batting/bowling statistics for both innings.
   - Verification: Run 110/110 Vitest tests and check build.
 
-- [ ] **Chunk 3: Version 1.2 Build & GitHub Release Publication**
+- [x] **Chunk 3: Version 1.2 Build & GitHub Release Publication**
   - Update version identifiers to `1.2` (versionCode `2`).
   - Rebuild web assets and compile debug APK via `gradlew assembleDebug`.
   - Create and publish GitHub Release `v1.2` with `SmartCricket.apk` using GitHub API.
