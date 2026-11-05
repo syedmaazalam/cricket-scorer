@@ -14,6 +14,7 @@ import {
   Sparkles,
   Award
 } from 'lucide-react';
+import { CURRENT_APP_VERSION } from '../components/UpdateNotificationBanner.jsx';
 
 function Switch({ checked, onChange, ariaLabel }) {
   return (
@@ -224,26 +225,27 @@ export default function Settings({ onBack }) {
       const res = await fetch('https://api.github.com/repos/syedmaazalam/cricket-scorer/releases/latest');
       if (res.ok) {
         const release = await res.json();
-        const latestTag = release.tag_name || 'v1.0';
-        const isLatest = latestTag === 'v1.0' || latestTag === '1.0';
+        const latestTag = release.tag_name || `v${CURRENT_APP_VERSION}`;
+        const cleanTag = latestTag.replace(/^v/i, '').trim();
+        const isLatest = cleanTag === CURRENT_APP_VERSION || cleanTag <= CURRENT_APP_VERSION;
         setUpdateStatus({
           isLatest,
           latestVersion: latestTag,
-          apkUrl: release.assets?.[0]?.browser_download_url || 'https://github.com/syedmaazalam/cricket-scorer/releases/download/v1.0/SmartCricket.apk',
+          apkUrl: release.assets?.[0]?.browser_download_url || `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`,
           publishedAt: release.published_at ? new Date(release.published_at).toLocaleDateString() : 'November 2026'
         });
       } else {
         setUpdateStatus({
           isLatest: true,
-          latestVersion: 'v1.0',
-          apkUrl: 'https://github.com/syedmaazalam/cricket-scorer/releases/download/v1.0/SmartCricket.apk'
+          latestVersion: `v${CURRENT_APP_VERSION}`,
+          apkUrl: `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`
         });
       }
     } catch (err) {
       setUpdateStatus({
         isLatest: true,
-        latestVersion: 'v1.0',
-        apkUrl: 'https://github.com/syedmaazalam/cricket-scorer/releases/download/v1.0/SmartCricket.apk'
+        latestVersion: `v${CURRENT_APP_VERSION}`,
+        apkUrl: `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`
       });
     } finally {
       setCheckingUpdate(false);
@@ -598,7 +600,7 @@ export default function Settings({ onBack }) {
         >
           <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--well)]/50 border border-[var(--bd)] pt-1">
             <span className="text-xs font-bold text-[var(--t2)]">App Version</span>
-            <span className="text-xs font-mono font-bold text-[var(--t1)]">v1.0 (Build 2026.11)</span>
+            <span className="text-xs font-mono font-bold text-[var(--t1)]">v{CURRENT_APP_VERSION} (Build 2026.11)</span>
           </div>
 
           <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--well)]/50 border border-[var(--bd)]">
@@ -651,7 +653,7 @@ export default function Settings({ onBack }) {
               <span className="text-[11px] text-[var(--t2)]">Official Android release</span>
             </div>
             <span className="px-2.5 py-1 rounded-lg bg-[var(--well)] border border-[var(--bd)] text-xs font-mono font-bold text-[var(--pri)]">
-              v1.0
+              v{CURRENT_APP_VERSION}
             </span>
           </div>
 
@@ -682,7 +684,7 @@ export default function Settings({ onBack }) {
                 <span>{checkingUpdate ? 'Checking Server...' : 'Check for Updates'}</span>
               </button>
               <a
-                href="https://github.com/syedmaazalam/cricket-scorer/releases/download/v1.0/SmartCricket.apk"
+                href={`https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn s flex-1 text-xs font-bold flex items-center justify-center gap-2 bg-[var(--well)] hover:bg-[var(--bd)] text-[var(--t1)]"
