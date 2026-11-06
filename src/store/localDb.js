@@ -242,16 +242,31 @@ export async function deleteMatchLocally(matchId) {
   try {
     localStorage.removeItem(`cricket_events_${matchId}`);
     localStorage.removeItem(`cricket_match_${matchId}`);
+    localStorage.removeItem(`cricket_snapshot_${matchId}`);
+    localStorage.removeItem(`cricket_action_logs_${matchId}`);
+
     const db = await openDb();
     const tx = db.transaction(['matches', 'events'], 'readwrite');
-    tx.objectStore('matches').delete(matchId);
+    const matchStore = tx.objectStore('matches');
+    
+    // Also remove by match code if present in record
+    const getReq = matchStore.get(matchId);
+    getReq.onsuccess = () => {
+      if (getReq.result?.code) {
+        localStorage.removeItem(`cricket_snapshot_${getReq.result.code}`);
+      }
+      matchStore.delete(matchId);
+    };
+
     const eventStore = tx.objectStore('events');
     const index = eventStore.index('matchId');
     const req = index.getAllKeys(matchId);
     req.onsuccess = () => {
       (req.result || []).forEach(k => eventStore.delete(k));
     };
-  } catch (e) {}
+  } catch (e) {
+    console.warn('deleteMatchLocally error:', e);
+  }
 }
 
 /**
@@ -261,19 +276,30 @@ export async function deleteAllMatchesLocally() {
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(k => {
-      if (k.startsWith('cricket_events_') || k.startsWith('cricket_match_')) {
+      if (
+        k.startsWith('cricket_events_') ||
+        k.startsWith('cricket_match_') ||
+        k.startsWith('cricket_snapshot_') ||
+        k.startsWith('cricket_action_logs_')
+      ) {
         localStorage.removeItem(k);
       }
     });
+    localStorage.removeItem('cricket_active_match_id');
+    localStorage.removeItem('cricket_live_code');
+
     const db = await openDb();
     const tx = db.transaction(['matches', 'events'], 'readwrite');
     tx.objectStore('matches').clear();
     tx.objectStore('events').clear();
-  } catch (e) {}
+  } catch (e) {
+    console.warn('deleteAllMatchesLocally error:', e);
+  }
 }
 
 /**
  * Lists all matches stored locally, sorted by most recently updated.
+ * Automatically deduplicates matches sharing the same match code or ID.
  */
 export async function getAllLocalMatches() {
   try {
@@ -285,7 +311,26 @@ export async function getAllLocalMatches() {
       req.onsuccess = () => {
         const list = req.result || [];
         list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        resolve(list);
+
+        // Deduplicate matches so duplicate matches with the same 6-char code never show twice
+        const seenCodes = new Set();
+        const seenIds = new Set();
+        const deduplicated = [];
+
+        for (const m of list) {
+          if (!m) continue;
+          const mid = m.matchId || m.id;
+          const code = m.code ? String(m.code).trim().toUpperCase() : null;
+
+          if (mid && seenIds.has(mid)) continue;
+          if (code && seenCodes.has(code)) continue;
+
+          if (mid) seenIds.add(mid);
+          if (code) seenCodes.add(code);
+          deduplicated.push(m);
+        }
+
+        resolve(deduplicated);
       };
       req.onerror = () => resolve([]);
     });

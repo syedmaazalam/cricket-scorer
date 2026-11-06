@@ -17,7 +17,7 @@ describe('AuthModal Unit Tests: Duplicate Protection, OTP Verification & Forgot 
     expect(html).toContain('Sign In');
     expect(html).toContain('Email Address');
     expect(html).toContain('Password');
-    expect(html).toContain('Continue &amp; Send Verification OTP');
+    expect(html).toContain('Create Manager Account');
     expect(html).toContain('Continue Offline without Login');
   });
 

@@ -183,25 +183,40 @@ export async function createMatchInCloud(matchId, matchData) {
  */
 export async function findMatchByCode(code) {
   if (!code) return null;
-  const cleanCode = (code || '').trim().toUpperCase();
+  const rawId = (code || '').trim();
+  const cleanCode = rawId.toUpperCase();
   try {
-    const q = query(collection(db, 'matches'), where('code', '==', cleanCode));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const matchDoc = snap.docs[0];
-      return {
-        matchId: matchDoc.id,
-        ...matchDoc.data()
-      };
+    // 1. If exactly 6 chars, query Firestore matches collection by 'code' field
+    if (cleanCode.length === 6) {
+      const q = query(collection(db, 'matches'), where('code', '==', cleanCode));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const matchDoc = snap.docs[0];
+        return {
+          matchId: matchDoc.id,
+          ...matchDoc.data()
+        };
+      }
     }
 
-    // Direct document fetch fallback if code was already a matchId
-    const directDocRef = doc(db, 'matches', cleanCode);
+    // 2. Direct document fetch fallback using exact rawId (preserving case)
+    const directDocRef = doc(db, 'matches', rawId);
     const directDoc = await getDoc(directDocRef);
     if (directDoc.exists()) {
       return {
         matchId: directDoc.id,
         ...directDoc.data()
+      };
+    }
+
+    // 3. Fallback query by code if not 6 characters
+    const qFallback = query(collection(db, 'matches'), where('code', '==', cleanCode));
+    const snapFallback = await getDocs(qFallback);
+    if (!snapFallback.empty) {
+      const matchDoc = snapFallback.docs[0];
+      return {
+        matchId: matchDoc.id,
+        ...matchDoc.data()
       };
     }
   } catch (err) {

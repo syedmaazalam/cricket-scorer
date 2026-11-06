@@ -95,7 +95,14 @@ export default function Live({
   useEffect(() => {
     async function resolve() {
       if (!matchCodeOrId) return;
-      const clean = matchCodeOrId.trim().toUpperCase();
+      const raw = matchCodeOrId.trim();
+      const isFullMatchId = raw.startsWith('match_') || raw.length > 6;
+      if (isFullMatchId) {
+        setResolvedMatchId(raw);
+        onMatchResolved?.(raw, null);
+        return;
+      }
+      const clean = raw.toUpperCase();
       try {
         const matchData = await findMatchByCode(clean);
         if (matchData) {

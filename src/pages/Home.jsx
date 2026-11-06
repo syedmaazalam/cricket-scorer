@@ -185,13 +185,17 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
 
         const map = new Map();
         [...cloudMatches, ...localFiltered].forEach((m) => {
-          const key = m.matchId || m.id || m.code;
-          if (key && !map.has(key)) {
-            map.set(key, m);
-          }
+          const codeKey = m.code ? `code_${String(m.code).trim().toUpperCase()}` : null;
+          const idKey = m.matchId || m.id;
+          if (codeKey && map.has(codeKey)) return;
+          if (idKey && map.has(idKey)) return;
+
+          if (codeKey) map.set(codeKey, m);
+          if (idKey) map.set(idKey, m);
         });
 
-        setSearchResults(Array.from(map.values()));
+        const uniqueResults = Array.from(new Set(map.values()));
+        setSearchResults(uniqueResults);
       } catch (err) {
         console.warn('Real-time search error:', err);
       } finally {
@@ -683,7 +687,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onWatchLive(code || m.matchId);
+                                onWatchLive(m.matchId, code);
                               }}
                               style={{
                                 backgroundColor: 'var(--card)',
@@ -776,7 +780,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                     return (
                       <div
                         key={m.matchId || m.code}
-                        onClick={() => onWatchLive(code || m.matchId)}
+                        onClick={() => onWatchLive(m.matchId, code)}
                         style={{
                           backgroundColor: 'var(--card-alt)',
                           borderColor: 'var(--border)'
@@ -799,7 +803,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
 
                         <button
                           type="button"
-                          onClick={() => onWatchLive(code || m.matchId)}
+                          onClick={() => onWatchLive(m.matchId, code)}
                           style={{
                             backgroundColor: '#1E6BFF',
                             color: '#FFFFFF'
@@ -860,7 +864,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   return (
                     <div
                       key={m.matchId}
-                      onClick={() => onWatchLive(code || m.matchId)}
+                      onClick={() => onWatchLive(m.matchId, code)}
                       style={{
                         backgroundColor: 'var(--card)',
                         borderColor: 'var(--border)'
@@ -909,7 +913,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onWatchLive(code || m.matchId);
+                            onWatchLive(m.matchId, code);
                           }}
                           style={{
                             backgroundColor: '#3B82F6',

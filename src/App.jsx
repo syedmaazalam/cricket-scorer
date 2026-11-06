@@ -10,6 +10,7 @@ import UpdateNotificationBanner from './components/UpdateNotificationBanner.jsx'
 import { TopProgressBar } from './components/ui/LoadingPrimitives.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
+import { getMatchSnapshot } from './store/localDb.js';
 
 export default function App() {
   const getInitialRouting = () => {
@@ -214,24 +215,49 @@ export default function App() {
     setPage('scoring');
   };
 
-  const handleWatchLive = async (code) => {
-    const cleanCode = (code || '').trim().toUpperCase();
+  const handleWatchLive = async (targetIdOrCode, targetCode = null) => {
+    const rawTarget = (targetIdOrCode || '').trim();
+    const isFullMatchId = rawTarget.startsWith('match_') || rawTarget.length > 6;
+    const cleanCode = (targetCode || (isFullMatchId ? '' : rawTarget)).trim().toUpperCase();
+    const effectiveMatchId = isFullMatchId ? rawTarget : null;
+
     setIsManager(false);
     localStorage.setItem('cricket_is_manager', 'false');
-    setLiveCodeOrId(cleanCode);
-    localStorage.setItem('cricket_live_code', cleanCode);
+
+    if (cleanCode) {
+      setLiveCodeOrId(cleanCode);
+      localStorage.setItem('cricket_live_code', cleanCode);
+    } else {
+      setLiveCodeOrId(rawTarget);
+    }
+
+    if (effectiveMatchId) {
+      setActiveMatchId(effectiveMatchId);
+      localStorage.setItem('cricket_active_match_id', effectiveMatchId);
+    } else {
+      setActiveMatchId(cleanCode || rawTarget);
+    }
+
     setPage('live');
 
-    try {
-      const matchData = await findMatchByCode(cleanCode);
-      if (matchData?.matchId) {
-        setActiveMatchId(matchData.matchId);
-        localStorage.setItem('cricket_active_match_id', matchData.matchId);
-      } else {
-        setActiveMatchId(cleanCode);
+    // Eagerly resolve if we only had a 6-char code
+    if (!effectiveMatchId && cleanCode) {
+      try {
+        const localSnap = await getMatchSnapshot(cleanCode);
+        if (localSnap?.matchId) {
+          setActiveMatchId(localSnap.matchId);
+          localStorage.setItem('cricket_active_match_id', localSnap.matchId);
+          return;
+        }
+
+        const matchData = await findMatchByCode(cleanCode);
+        if (matchData?.matchId) {
+          setActiveMatchId(matchData.matchId);
+          localStorage.setItem('cricket_active_match_id', matchData.matchId);
+        }
+      } catch (e) {
+        console.warn('Could not resolve match code:', e);
       }
-    } catch (e) {
-      setActiveMatchId(cleanCode);
     }
   };
 

@@ -14,7 +14,13 @@ import {
   subscribeSyncStatus,
   getDeviceId
 } from './sync.js';
-import { subscribeToMatchDoc, subscribeToMatchEvents, updateMatchHeartbeat, saveActionLogToCloud } from '../firebase/matches.js';
+import {
+  subscribeToMatchDoc,
+  subscribeToMatchEvents,
+  updateMatchHeartbeat,
+  saveActionLogToCloud,
+  findMatchByCode
+} from '../firebase/matches.js';
 
 export function useMatch(matchId, isViewerMode = false) {
   const [matchState, setMatchState] = useState(() => createInitialMatchState());
@@ -85,72 +91,102 @@ export function useMatch(matchId, isViewerMode = false) {
   useEffect(() => {
     if (!matchId) return;
 
-    const unsubEvents = subscribeToMatchEvents(matchId, async (cloudEvents) => {
-      if (!cloudEvents || cloudEvents.length === 0) return;
+    let unsubEvents = () => {};
+    let unsubDoc = () => {};
+    let heartbeatTimer = null;
+    let offlineCheckInterval = null;
+    let isCancelled = false;
 
-      if (isViewerMode) {
-        const replayed = replayEvents(cloudEvents);
-        stateRef.current = replayed;
-        setMatchState(replayed);
-      } else {
-        // Scorer mode: sync any events missing locally
-        for (const ev of cloudEvents) {
-          await saveEventLocally(ev, true);
+    async function initSubscription() {
+      let activeTargetId = matchId;
+      if (matchId.length === 6) {
+        // Resolve 6-char code to true matchId
+        const localSnap = await getMatchSnapshot(matchId);
+        if (localSnap?.matchId) {
+          activeTargetId = localSnap.matchId;
+        } else {
+          try {
+            const cloudMatch = await findMatchByCode(matchId);
+            if (cloudMatch?.matchId) {
+              activeTargetId = cloudMatch.matchId;
+            }
+          } catch (e) {}
         }
-        // If local state is missing progress (e.g. reopened match or reload), restore full state
-        const currentCount = (stateRef.current?.events || []).length;
-        if (currentCount < cloudEvents.length) {
+      }
+
+      if (isCancelled) return;
+
+      unsubEvents = subscribeToMatchEvents(activeTargetId, async (cloudEvents) => {
+        if (!cloudEvents || cloudEvents.length === 0) return;
+
+        if (isViewerMode) {
           const replayed = replayEvents(cloudEvents);
           stateRef.current = replayed;
           setMatchState(replayed);
-          saveMatchSnapshot(matchId, replayed).catch(() => {});
+        } else {
+          // Scorer mode: sync any events missing locally
+          for (const ev of cloudEvents) {
+            await saveEventLocally(ev, true);
+          }
+          // If local state is missing progress (e.g. reopened match or reload), restore full state
+          const currentCount = (stateRef.current?.events || []).length;
+          if (currentCount < cloudEvents.length) {
+            const replayed = replayEvents(cloudEvents);
+            stateRef.current = replayed;
+            setMatchState(replayed);
+            saveMatchSnapshot(activeTargetId, replayed).catch(() => {});
+          }
         }
-      }
-    });
+      });
 
-    // Scorer Heartbeat Writer: scorer device writes lastSeen every 10 seconds while app is open
-    let heartbeatTimer = null;
-    if (!isViewerMode) {
-      updateMatchHeartbeat(matchId);
-      heartbeatTimer = setInterval(() => {
-        updateMatchHeartbeat(matchId);
-      }, 10000);
+      // Scorer Heartbeat Writer: scorer device writes lastSeen every 10 seconds while app is open
+      if (!isViewerMode) {
+        updateMatchHeartbeat(activeTargetId);
+        heartbeatTimer = setInterval(() => {
+          updateMatchHeartbeat(activeTargetId);
+        }, 10000);
+      }
+
+      // Viewer offline check: show only if lastSeen is older than 45s and match is not finished
+      let lastDocData = null;
+      const evaluateOffline = () => {
+        if (!isViewerMode || !lastDocData) {
+          setScorerOfflineInfo(null);
+          return;
+        }
+        if (lastDocData.status === 'completed') {
+          setScorerOfflineInfo(null);
+          return;
+        }
+        const lastSeen = lastDocData.lastSeen || lastDocData.updatedAt || 0;
+        const now = Date.now();
+        if (lastSeen > 0 && (now - lastSeen > 45000)) {
+          const d = new Date(lastSeen);
+          const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          setScorerOfflineInfo(`Scorer offline - last update ${timeStr}`);
+        } else {
+          setScorerOfflineInfo(null);
+        }
+      };
+
+      unsubDoc = subscribeToMatchDoc(activeTargetId, (docData) => {
+        if (docData && isViewerMode) {
+          lastDocData = docData;
+          evaluateOffline();
+        }
+      });
+
+      if (isViewerMode) {
+        offlineCheckInterval = setInterval(evaluateOffline, 5000);
+      }
     }
 
-    // Viewer offline check: show only if lastSeen is older than 45s and match is not finished
-    let lastDocData = null;
-    const evaluateOffline = () => {
-      if (!isViewerMode || !lastDocData) {
-        setScorerOfflineInfo(null);
-        return;
-      }
-      if (lastDocData.status === 'completed') {
-        setScorerOfflineInfo(null);
-        return;
-      }
-      const lastSeen = lastDocData.lastSeen || lastDocData.updatedAt || 0;
-      const now = Date.now();
-      if (lastSeen > 0 && (now - lastSeen > 45000)) {
-        const d = new Date(lastSeen);
-        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        setScorerOfflineInfo(`Scorer offline - last update ${timeStr}`);
-      } else {
-        setScorerOfflineInfo(null);
-      }
-    };
-
-    const unsubDoc = subscribeToMatchDoc(matchId, (docData) => {
-      if (docData && isViewerMode) {
-        lastDocData = docData;
-        evaluateOffline();
-      }
-    });
-
-    const offlineCheckInterval = isViewerMode ? setInterval(evaluateOffline, 5000) : null;
+    initSubscription();
 
     return () => {
-      unsubEvents();
-      unsubDoc();
+      isCancelled = true;
+      if (typeof unsubEvents === 'function') unsubEvents();
+      if (typeof unsubDoc === 'function') unsubDoc();
       if (heartbeatTimer) clearInterval(heartbeatTimer);
       if (offlineCheckInterval) clearInterval(offlineCheckInterval);
     };

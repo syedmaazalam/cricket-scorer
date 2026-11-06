@@ -25,6 +25,9 @@ import { saveManagerProfileToCloud } from '../firebase/matches.js';
 import { saveManagerLocally, getAllLocalManagers } from '../store/localDb.js';
 import { sendVerificationEmailOtp } from '../services/emailService.js';
 
+// Toggle for 6-digit OTP verification: turned off per user request, can be re-enabled later.
+export const ENABLE_OTP_VERIFICATION = false;
+
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   // Steps: 'form' | 'otp' | 'forgot_password' | 'forgot_otp'
   const [authStep, setAuthStep] = useState('form');
@@ -138,6 +141,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         setLoading(false);
       }
 
+      // When OTP verification is turned off, directly register and activate account
+      if (!ENABLE_OTP_VERIFICATION) {
+        await executeDirectRegistration(cleanName, cleanEmail, cleanPassword);
+        return;
+      }
+
       // Generate 6-digit OTP, send to user's Gmail, and proceed to verification step
       const code = createSixDigitOtp();
       setGeneratedOtp(code);
@@ -216,6 +225,67 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       onClose();
     } catch (err) {
       setError(err.message || 'Authentication failed. Please check credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Direct Registration (used when OTP verification is turned off)
+  const executeDirectRegistration = async (cleanName, cleanEmail, cleanPassword) => {
+    try {
+      setLoading(true);
+      const auth = getAuth();
+      let managerData = null;
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        if (cleanName) {
+          await updateProfile(cred.user, { displayName: cleanName }).catch(() => {});
+        }
+        managerData = {
+          uid: cred.user.uid,
+          name: cleanName || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          password: cleanPassword,
+          emailVerified: true,
+          createdAt: Date.now(),
+          lastActive: Date.now()
+        };
+      } catch (fbErr) {
+        const code = fbErr.code || '';
+        if (code === 'auth/email-already-in-use') {
+          setError('This email is already registered. Please switch to Sign In.');
+          setLoading(false);
+          return;
+        } else if (code === 'auth/weak-password') {
+          setError('Password should be at least 6 characters.');
+          setLoading(false);
+          return;
+        } else {
+          // Cloud fallback with verified local UID
+          const localUid = 'mgr_' + Math.random().toString(36).substring(2, 9);
+          managerData = {
+            uid: localUid,
+            name: cleanName || cleanEmail.split('@')[0],
+            email: cleanEmail,
+            password: cleanPassword,
+            emailVerified: true,
+            createdAt: Date.now(),
+            lastActive: Date.now()
+          };
+        }
+      }
+
+      await saveManagerLocally(managerData);
+      await saveManagerProfileToCloud(managerData);
+
+      localStorage.setItem('cricket_manager_user', JSON.stringify(managerData));
+      localStorage.setItem('cricket_is_manager', 'true');
+
+      onSuccess(managerData);
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -336,6 +406,25 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
     try {
       setLoading(true);
+
+      // Trigger official Firebase reset email if supported
+      try {
+        const auth = getAuth();
+        await sendPasswordResetEmail(auth, cleanEmail);
+      } catch (err) {
+        // Non-blocking
+      }
+
+      // If OTP is disabled, proceed straight to set new password without blocking user
+      if (!ENABLE_OTP_VERIFICATION) {
+        setForgotOtpInput('DIRECT');
+        setNewPassword('');
+        setConfirmPassword('');
+        setSuccessMsg(`Enter your new password below for ${cleanEmail}`);
+        setAuthStep('forgot_otp');
+        return;
+      }
+
       const code = createSixDigitOtp();
       setGeneratedResetOtp(code);
       setResendCooldown(45);
@@ -348,14 +437,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         otp: code,
         type: 'password_reset'
       });
-
-      // Also trigger official Firebase reset email if supported
-      try {
-        const auth = getAuth();
-        await sendPasswordResetEmail(auth, cleanEmail);
-      } catch (err) {
-        // Non-blocking
-      }
 
       setSuccessMsg(`Password reset code has been sent to ${cleanEmail}`);
       setAuthStep('forgot_otp');
@@ -376,14 +457,16 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     const cleanConfirm = confirmPassword.trim();
     const cleanEmail = forgotEmail.trim().toLowerCase();
 
-    if (!cleanOtp) {
-      setError('Please enter the 6-digit verification code.');
-      return;
-    }
+    if (ENABLE_OTP_VERIFICATION) {
+      if (!cleanOtp) {
+        setError('Please enter the 6-digit verification code.');
+        return;
+      }
 
-    if (cleanOtp !== generatedResetOtp) {
-      setError('Invalid verification code. Please check and try again.');
-      return;
+      if (cleanOtp !== generatedResetOtp) {
+        setError('Invalid verification code. Please check and try again.');
+        return;
+      }
     }
 
     if (!cleanPass || cleanPass.length < 6) {
@@ -630,7 +713,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               {loading ? (
                 <span className="animate-pulse">Checking credentials...</span>
               ) : isRegister ? (
-                <span>Continue &amp; Send Verification OTP</span>
+                <span>{ENABLE_OTP_VERIFICATION ? 'Continue & Send Verification OTP' : 'Create Manager Account'}</span>
               ) : (
                 <span>Sign In as Manager</span>
               )}
@@ -859,7 +942,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               {loading ? (
                 <span className="animate-pulse">Generating Reset Code...</span>
               ) : (
-                <span>Send 6-Digit Reset Code</span>
+                <span>{ENABLE_OTP_VERIFICATION ? 'Send 6-Digit Reset Code' : 'Continue to Reset Password'}</span>
               )}
             </button>
           </form>
@@ -882,7 +965,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               <span>Back to Email Step</span>
             </button>
 
-            {/* Professional Reset Email Dispatched Banner (No OTP shown in app) */}
+            {/* Reset Banner */}
             <div
               style={{
                 backgroundColor: 'rgba(34, 197, 94, 0.08)',
@@ -897,7 +980,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               <div className="text-xs">
                 <div className="font-bold text-[#22C55E] text-xs">Reset Code Sent to Gmail</div>
                 <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                  Dispatched to <strong style={{ color: 'var(--text)' }}>{forgotEmail}</strong>. Check inbox &amp; spam.
+                  {ENABLE_OTP_VERIFICATION ? (
+                    <>Dispatched to <strong style={{ color: 'var(--text)' }}>{forgotEmail}</strong>. Check inbox &amp; spam.</>
+                  ) : (
+                    <>Enter your new password below for <strong style={{ color: 'var(--text)' }}>{forgotEmail}</strong></>
+                  )}
                 </div>
               </div>
             </div>
@@ -916,25 +1003,27 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               </div>
             )}
 
-            <div>
-              <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
-                6-Digit Reset Code
-              </label>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="000000"
-                value={forgotOtpInput}
-                onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
-                style={{
-                  backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)'
-                }}
-                className="w-full py-2.5 px-3 rounded-xl border text-base font-mono font-bold tracking-widest text-center focus:outline-none focus:border-[#22C55E]"
-                autoFocus
-              />
-            </div>
+            {ENABLE_OTP_VERIFICATION && (
+              <div>
+                <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>
+                  6-Digit Reset Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={forgotOtpInput}
+                  onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
+                  style={{
+                    backgroundColor: 'var(--card-alt)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)'
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl border text-base font-mono font-bold tracking-widest text-center focus:outline-none focus:border-[#22C55E]"
+                  autoFocus
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-[11px] font-semibold uppercase mb-1" style={{ color: 'var(--muted)' }}>

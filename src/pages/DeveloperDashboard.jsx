@@ -39,6 +39,7 @@ import {
   getAllManagersFromCloud,
   saveUploadedMatchToCloud,
   deleteMatchFromCloud,
+  deleteAllMatchesFromCloud,
   setMatchInactive,
   deriveMatchDisplayScore,
   getMatchStatusMeta,
@@ -53,7 +54,9 @@ import {
   saveMatchSnapshot,
   saveEventLocally,
   getEventsForMatch,
-  updateManagerLocally
+  updateManagerLocally,
+  deleteMatchLocally,
+  deleteAllMatchesLocally
 } from '../store/localDb.js';
 import { replayEvents } from '../engine/reducer.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -168,6 +171,8 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [watchAndChatMatch, setWatchAndChatMatch] = useState(null);
   const [deletingMatch, setDeletingMatch] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleSoftDelete = async (m) => {
     if (!m) return;
@@ -175,21 +180,52 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     if (!targetId) return;
     try {
       setIsDeleting(true);
-      await setMatchInactive(targetId);
+      // 1. Remove from local IndexedDB and localStorage
+      await deleteMatchLocally(targetId);
+
+      // 2. Set inactive or delete in Cloud Firestore
+      try {
+        await deleteMatchFromCloud(targetId);
+      } catch (cloudErr) {
+        await setMatchInactive(targetId).catch(() => {});
+      }
+
       setMatches((prev) =>
-        prev.map((item) =>
-          (item.matchId === targetId || item.id === targetId)
-            ? { ...item, status: 'inactive' }
-            : item
-        )
+        prev.filter((item) => item.matchId !== targetId && item.id !== targetId)
       );
-      showToast(`Match "${m.teams?.[0]?.name || 'Team 1'} vs ${m.teams?.[1]?.name || 'Team 2'}" soft-deleted (status: inactive).`);
+      showToast(`Match "${m.teams?.[0]?.name || 'Team 1'} vs ${m.teams?.[1]?.name || 'Team 2'}" deleted successfully.`);
       setDeletingMatch(null);
     } catch (err) {
-      console.warn('Soft-delete failed:', err);
-      showToast('Failed to soft-delete match.');
+      console.warn('Delete failed:', err);
+      showToast('Failed to delete match.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAllMatches = async () => {
+    try {
+      setIsDeletingAll(true);
+      // 1. Purge all local matches, events, and snapshots from IndexedDB and localStorage
+      await deleteAllMatchesLocally();
+
+      // 2. Purge all matches from Cloud Firestore
+      try {
+        await deleteAllMatchesFromCloud();
+      } catch (cloudErr) {
+        console.warn('Cloud delete-all notice:', cloudErr);
+      }
+
+      // 3. Clear developer matches state
+      setMatches([]);
+      setSelectedManagerMatch({});
+      setIsDeleteAllModalOpen(false);
+      showToast('All previous matches have been permanently deleted.');
+    } catch (err) {
+      console.error('Delete all matches error:', err);
+      showToast('Failed to delete all matches. Please try again.');
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -1611,6 +1647,23 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                     </option>
                   ))}
                 </select>
+
+                {/* Delete All Previous Matches Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteAllModalOpen(true)}
+                  disabled={matches.length === 0}
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                    color: '#EF4444'
+                  }}
+                  className="px-3 py-2 rounded-lg border text-xs font-bold flex items-center gap-1.5 hover:bg-red-500 hover:text-white transition-all cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm ml-auto"
+                  title="Delete all previous matches from local device and cloud database"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete All Matches</span>
+                </button>
               </div>
             </div>
 
@@ -2045,6 +2098,56 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
               >
                 {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 <span>{isDeleting ? 'Deleting...' : 'Confirm'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Previous Matches Confirmation Modal */}
+      {isDeleteAllModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div
+            style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+            className="w-full max-w-sm rounded-2xl border p-5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center shrink-0 text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white m-0">Delete All Matches?</h3>
+                <span className="text-[11px] text-red-400 font-medium">Permanent Cleanup &amp; Purge</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/30 border border-red-500/20 text-xs text-slate-300">
+              <p className="text-xs text-red-300 m-0 font-semibold mb-1">
+                Are you sure you want to delete all previous matches?
+              </p>
+              <p className="text-[11px] text-slate-400 m-0 leading-relaxed">
+                This will delete all matches from your local device (IndexedDB and cache) and remove matches from the cloud database. This will also clear all duplicate matches.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteAllModalOpen(false)}
+                disabled={isDeletingAll}
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+                className="flex-1 py-2 rounded-xl border text-xs font-semibold hover:text-white transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllMatches}
+                disabled={isDeletingAll}
+                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+              >
+                {isDeletingAll ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{isDeletingAll ? 'Purging...' : 'Delete All'}</span>
               </button>
             </div>
           </div>
