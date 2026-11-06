@@ -297,46 +297,23 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
               <span className="font-semibold text-xs">Portals</span>
             </button>
           )}
-
-          {/* Portal Switcher when not on choose screen */}
-          {activePortal !== 'choose' && (
-            <div className="seg" role="group">
-              <button
-                type="button"
-                onClick={handleSelectCreateMatch}
-                className={activePortal === 'create' ? 'on' : ''}
-              >
-                <Trophy className="w-3.5 h-3.5" />
-                <span>Create</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleSelectStreamMatch}
-                className={activePortal === 'stream' ? 'on' : ''}
-              >
-                <Radio className="w-3.5 h-3.5" />
-                <span>Stream</span>
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Center Pill Switch: "View the Matches" (shown in create portal) */}
+        {/* Center Pill Switch: "View the Matches" (shown in create portal) - High Contrast in Light & Dark Mode */}
         {activePortal === 'create' && (
           <button
             type="button"
             onClick={() => setShowMatches((prev) => !prev)}
-            style={{
-              backgroundColor: showMatches ? 'rgba(34, 197, 94, 0.15)' : 'var(--card)',
-              borderColor: '#22C55E',
-              boxShadow: '0 0 16px rgba(34, 197, 94, 0.45)'
-            }}
-            className="px-3.5 py-1 rounded-full border-2 flex items-center gap-1.5 text-xs font-bold text-white transition-all cursor-pointer active:scale-95 shrink-0"
+            className={`px-3.5 py-1.5 rounded-full border-2 transition-all cursor-pointer active:scale-95 shrink-0 flex items-center gap-1.5 text-xs font-extrabold shadow-sm ${
+              showMatches
+                ? 'bg-[#15803D] text-white border-[#15803D] dark:bg-emerald-500/25 dark:text-emerald-100 dark:border-[#22C55E] dark:shadow-[0_0_16px_rgba(34,197,94,0.45)]'
+                : 'bg-emerald-50 text-[#15803D] border-emerald-600 dark:bg-[var(--card)] dark:text-emerald-400 dark:border-[#22C55E]/60'
+            }`}
             title="Toggle view matches under search bar"
           >
-            <Eye className="w-3.5 h-3.5 text-[#22C55E]" />
-            <span className="text-[11px] sm:text-xs">View the Matches</span>
-            <ChevronRight className={`w-3 h-3 text-[#22C55E] transition-transform ${showMatches ? 'rotate-90' : ''}`} />
+            <Eye className={`w-3.5 h-3.5 ${showMatches ? 'text-white dark:text-[#22C55E]' : 'text-[#15803D] dark:text-[#22C55E]'}`} />
+            <span className="text-[11px] sm:text-xs tracking-tight">View the Matches</span>
+            <ChevronRight className={`w-3 h-3 transition-transform ${showMatches ? 'rotate-90 text-white dark:text-[#22C55E]' : 'text-[#15803D] dark:text-[#22C55E]'}`} />
           </button>
         )}
 
@@ -381,13 +358,9 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
             borderColor: '#22C55E',
             boxShadow: '0 0 24px rgba(34, 197, 94, 0.35), inset 0 0 12px rgba(34, 197, 94, 0.15)'
           }}
-          className="relative z-10 w-16 h-16 rounded-2xl border-2 flex items-center justify-center mb-2.5 transition-transform hover:scale-105 shadow-lg"
+          className="relative z-10 w-16 h-16 rounded-2xl border-2 flex items-center justify-center mb-2.5 transition-transform hover:scale-105 shadow-lg overflow-hidden"
         >
-          <svg className="w-8 h-8 text-[#22C55E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.5 2.5 19 7l-9.5 9.5-3.5.5.5-3.5Z" />
-            <path d="m14 8 2 2" />
-            <circle cx="5" cy="19" r="2" />
-          </svg>
+          <img src="/logo.png" alt="SmartCricket Logo" className="w-full h-full object-cover rounded-xl" />
         </div>
 
         <h1 className="relative z-10 text-3xl sm:text-4xl font-extrabold tracking-tight m-0" style={{ color: 'var(--text)' }}>
