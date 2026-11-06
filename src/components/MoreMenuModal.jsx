@@ -117,7 +117,7 @@ export default function MoreMenuModal({
     <div
       className="fixed inset-0 z-50 flex items-end lg:items-center justify-center select-none animate-in fade-in duration-200 px-2 pb-[80px] lg:pb-0"
       style={{
-        backgroundColor: 'rgba(5, 12, 36, 0.45)',
+        backgroundColor: 'rgba(5, 12, 36, 0.65)',
         backdropFilter: 'blur(20px) saturate(1.8)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.8)'
       }}
@@ -127,34 +127,32 @@ export default function MoreMenuModal({
       aria-label="More Options Menu"
     >
       <div
-        className="w-full max-w-[420px] lg:max-w-[500px] rounded-[28px] p-4 sm:p-6 transition-all animate-in slide-in-from-bottom-8 lg:slide-in-from-bottom-0 lg:zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto"
+        className="w-full max-w-[420px] lg:max-w-[500px] rounded-[28px] p-4 sm:p-6 transition-all animate-in slide-in-from-bottom-8 lg:slide-in-from-bottom-0 lg:zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto border shadow-2xl"
         style={{
-          background: 'linear-gradient(150deg, color-mix(in srgb, var(--card) 92%, transparent), color-mix(in srgb, var(--card) 80%, transparent))',
-          backdropFilter: 'blur(30px) saturate(1.8)',
-          WebkitBackdropFilter: 'blur(30px) saturate(1.8)',
-          border: '1px solid color-mix(in srgb, var(--t1) 12%, transparent)',
-          borderTopColor: 'color-mix(in srgb, #fff 75%, transparent)',
-          boxShadow: 'inset 0 1px 0 color-mix(in srgb, #fff 60%, transparent), 0 24px 60px -20px rgba(8, 20, 50, 0.45)'
+          backgroundColor: 'var(--card)',
+          borderColor: 'var(--border)',
+          color: 'var(--text)',
+          boxShadow: '0 24px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-[var(--bd)]">
+        <div className="flex items-center justify-between pb-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2.5">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              className="w-8 h-8 rounded-xl flex items-center justify-center border"
               style={{
-                background: 'color-mix(in srgb, var(--pri) 16%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--pri) 28%, transparent)'
+                backgroundColor: 'color-mix(in srgb, var(--pri) 16%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--pri) 28%, transparent)'
               }}
             >
               <LayoutGrid className="w-4 h-4 text-[var(--pri)]" strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-extrabold text-[var(--t1)] tracking-tight m-0">
+              <h2 className="text-base sm:text-lg font-extrabold tracking-tight m-0" style={{ color: 'var(--text)' }}>
                 {isViewer ? 'Match Options' : 'Scorer Controls & Tools'}
               </h2>
-              <p className="text-[11px] text-[var(--t2)] m-0">
+              <p className="text-[11px] m-0" style={{ color: 'var(--muted)' }}>
                 {isViewer ? 'Explore match details and squads' : 'Manage lineups, review undos, or correct balls'}
               </p>
             </div>
@@ -162,11 +160,11 @@ export default function MoreMenuModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0 border"
             style={{
-              background: 'linear-gradient(180deg, color-mix(in srgb, #fff 30%, transparent), color-mix(in srgb, var(--well) 70%, transparent))',
-              color: 'var(--t1)',
-              border: '1px solid var(--bd)'
+              backgroundColor: 'var(--card-alt)',
+              borderColor: 'var(--border)',
+              color: 'var(--text)'
             }}
             aria-label="Close"
           >
@@ -182,18 +180,19 @@ export default function MoreMenuModal({
               <button
                 key={item.id}
                 onClick={item.action}
-                className="group p-3 rounded-2xl flex flex-col items-center text-center cursor-pointer transition-all duration-150 active:scale-95 border hover:scale-[1.02]"
+                className="group p-3 rounded-2xl flex flex-col items-center text-center cursor-pointer transition-all duration-150 active:scale-95 border hover:scale-[1.02] hover:border-[var(--pri)]"
                 style={{
-                  background: 'linear-gradient(180deg, color-mix(in srgb, #fff 40%, var(--well)), color-mix(in srgb, var(--well) 85%, transparent))',
-                  borderColor: 'var(--bd)',
-                  borderTopColor: 'color-mix(in srgb, #fff 60%, transparent)',
-                  boxShadow: '0 2px 8px rgba(11, 31, 59, 0.05), inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent)'
+                  backgroundColor: 'var(--card-alt)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 mb-2 shrink-0"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 mb-2 shrink-0 border"
                   style={{
-                    background: `color-mix(in srgb, ${item.color} 14%, transparent)`
+                    backgroundColor: `color-mix(in srgb, ${item.color} 16%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${item.color} 30%, transparent)`
                   }}
                 >
                   <Icon
@@ -202,10 +201,10 @@ export default function MoreMenuModal({
                     strokeWidth={2.2}
                   />
                 </div>
-                <span className="text-xs font-bold leading-tight text-[var(--t1)]">
+                <span className="text-xs font-bold leading-tight" style={{ color: 'var(--text)' }}>
                   {item.label}
                 </span>
-                <span className="text-[10px] leading-tight text-[var(--t2)] mt-1 line-clamp-2">
+                <span className="text-[10px] leading-tight mt-1 line-clamp-2" style={{ color: 'var(--muted)' }}>
                   {item.description}
                 </span>
               </button>
@@ -218,32 +217,32 @@ export default function MoreMenuModal({
           onClick={() => handleAction(onOpenPointingCriteria)}
           className="w-full p-3 sm:p-3.5 rounded-2xl flex items-center justify-between cursor-pointer transition-all duration-150 active:scale-98 border hover:border-[var(--pri)]"
           style={{
-            background: 'linear-gradient(180deg, color-mix(in srgb, #fff 40%, var(--well)), color-mix(in srgb, var(--well) 85%, transparent))',
-            borderColor: 'var(--bd)',
-            borderTopColor: 'color-mix(in srgb, #fff 60%, transparent)',
-            boxShadow: '0 2px 8px rgba(11, 31, 59, 0.05), inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent)'
+            backgroundColor: 'var(--card-alt)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
           }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              className="w-8 h-8 rounded-xl flex items-center justify-center border shrink-0"
               style={{
-                background: 'color-mix(in srgb, #EC4899 14%, transparent)',
-                border: '1px solid color-mix(in srgb, #EC4899 25%, transparent)'
+                backgroundColor: 'color-mix(in srgb, #EC4899 16%, transparent)',
+                borderColor: 'color-mix(in srgb, #EC4899 30%, transparent)'
               }}
             >
               <TrendingUp className="w-4 h-4 text-[#EC4899]" strokeWidth={2.2} />
             </div>
             <div className="text-left">
-              <span className="text-xs sm:text-sm font-bold text-[var(--t1)] block">
+              <span className="text-xs sm:text-sm font-bold block" style={{ color: 'var(--text)' }}>
                 Pointing System Criteria
               </span>
-              <span className="text-[10px] text-[var(--t2)] block">
+              <span className="text-[10px] block" style={{ color: 'var(--muted)' }}>
                 Official POTM scoring formulas and calculation rules
               </span>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-[var(--t2)] shrink-0" />
+          <ChevronRight className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
         </button>
       </div>
     </div>

@@ -1470,11 +1470,16 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                                 <button
                                   type="button"
                                   onClick={() => setDeletingMatch(selectedMatchObj)}
-                                  style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-                                  className="py-1 px-2 rounded border text-[10px] flex items-center gap-1 hover:text-red-400 transition-colors"
-                                  title="Soft Delete"
+                                  style={{
+                                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                    borderColor: 'rgba(239, 68, 68, 0.35)',
+                                    color: '#EF4444'
+                                  }}
+                                  className="py-1 px-2 rounded border text-[10px] font-semibold flex items-center gap-1 hover:bg-red-500/20 active:scale-95 transition-all shrink-0"
+                                  title="Soft Delete Match"
                                 >
                                   <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
                                 </button>
                               </div>
                             </div>
@@ -1722,18 +1727,18 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                         </div>
                       </div>
 
-                      {/* Action Buttons: Watch & Chat, Open in App, Chat & Export JSON */}
-                      <div className="flex items-center gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                      {/* Action Buttons: Watch & Chat, Open in App, Chat, Export JSON & Delete (Responsive Layout) */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
                         <button
                           onClick={() => setWatchAndChatMatch(m)}
                           style={{
                             backgroundColor: '#22C55E',
                             color: '#FFFFFF'
                           }}
-                          className="flex-1 py-2 px-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 active:scale-98 transition-all shadow-sm"
+                          className="flex-1 min-w-[130px] py-2 px-2.5 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-98 transition-all shadow-sm shrink-0"
                           title="Watch match and chat with scorer simultaneously in developer section"
                         >
-                          <Radio className="w-3.5 h-3.5" />
+                          <Radio className="w-3.5 h-3.5 shrink-0" />
                           <span>Watch & Chat</span>
                         </button>
 
@@ -1744,10 +1749,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="flex-1 sm:flex-initial min-w-[70px] py-2 px-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Open match in scorer mode"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 text-[#22C55E]" />
+                          <ExternalLink className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
                           <span>Score</span>
                         </button>
 
@@ -1758,10 +1763,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="flex-1 sm:flex-initial min-w-[65px] py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Chat with Scorer"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           <span>Chat</span>
                         </button>
 
@@ -1772,10 +1777,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             borderColor: 'var(--border)',
                             color: 'var(--text)'
                           }}
-                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
+                          className="flex-1 sm:flex-initial min-w-[65px] py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:border-[#22C55E] active:scale-98 transition-all shadow-sm"
                           title="Export Full Match JSON"
                         >
-                          <Download className="w-3.5 h-3.5 text-[#22C55E]" />
+                          <Download className="w-3.5 h-3.5 text-[#22C55E] shrink-0" />
                           <span>JSON</span>
                         </button>
 
@@ -1783,14 +1788,14 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                           onClick={() => setDeletingMatch(m)}
                           disabled={m.status === 'inactive'}
                           style={{
-                            backgroundColor: m.status === 'inactive' ? 'var(--card)' : 'rgba(239, 68, 68, 0.1)',
-                            borderColor: m.status === 'inactive' ? 'var(--border)' : 'rgba(239, 68, 68, 0.3)',
+                            backgroundColor: m.status === 'inactive' ? 'var(--card)' : 'rgba(239, 68, 68, 0.12)',
+                            borderColor: m.status === 'inactive' ? 'var(--border)' : 'rgba(239, 68, 68, 0.4)',
                             color: m.status === 'inactive' ? 'var(--muted)' : '#EF4444'
                           }}
-                          className="py-2 px-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1 hover:bg-red-500/20 active:scale-98 transition-all shadow-sm"
+                          className="flex-1 sm:flex-initial min-w-[75px] py-2 px-2.5 rounded-lg border text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-500/25 active:scale-98 transition-all shadow-sm"
                           title={m.status === 'inactive' ? 'Match is already inactive (soft-deleted)' : 'Soft-delete match (sets status to inactive)'}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
                           <span>{m.status === 'inactive' ? 'Inactive' : 'Delete'}</span>
                         </button>
                       </div>

@@ -536,6 +536,15 @@ describe('Developer Console & Score Derivation Tests', () => {
       expect(liveCode).toContain('isDevAuthed');
       expect(watchStudioCode).toContain('Live Chat with Scorer');
     });
+
+    it('Verifies Developer Dashboard match action bar is responsive with visible Delete button', () => {
+      const devDashCode = fs.readFileSync(path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'), 'utf-8');
+      // Matches tab action bar uses flex-wrap and responsive sizing so Delete button is never cut off
+      expect(devDashCode).toContain('flex flex-wrap items-center gap-1.5 pt-2 border-t');
+      expect(devDashCode).toContain('Trash2');
+      expect(devDashCode).toContain('Delete');
+      expect(devDashCode).toContain('rgba(239, 68, 68');
+    });
   });
 
   // Test 6: Wicket Undo Fix, Developer Error Message, Overthrow Runs & Ball Score Editing
