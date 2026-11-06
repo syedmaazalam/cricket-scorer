@@ -7,9 +7,27 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.apk"
     ],
     "headers": [
+      {
+        "source": "/SmartCricket.bin",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment; filename=\"SmartCricket.apk\""
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
       {
         "source": "**",
         "headers": [
@@ -30,6 +48,14 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/SmartCricket.apk",
+        "destination": "/SmartCricket.bin"
+      },
+      {
+        "source": "/SmartCricket-v1.3.apk",
+        "destination": "/SmartCricket.bin"
+      },
       {
         "source": "**",
         "destination": "/index.html"
