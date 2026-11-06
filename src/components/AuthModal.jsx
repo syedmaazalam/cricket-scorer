@@ -12,10 +12,7 @@ import {
   KeyRound,
   ArrowLeft,
   CheckCircle2,
-  RefreshCw,
-  Copy,
-  Check,
-  Sparkles
+  RefreshCw
 } from 'lucide-react';
 import {
   getAuth,
@@ -26,6 +23,7 @@ import {
 } from 'firebase/auth';
 import { saveManagerProfileToCloud } from '../firebase/matches.js';
 import { saveManagerLocally, getAllLocalManagers } from '../store/localDb.js';
+import { sendVerificationEmailOtp } from '../services/emailService.js';
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
   // Steps: 'form' | 'otp' | 'forgot_password' | 'forgot_otp'
@@ -54,7 +52,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [successMsg, setSuccessMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [copiedOtp, setCopiedOtp] = useState(false);
 
   // Cooldown timer
   useEffect(() => {
@@ -141,12 +138,19 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         setLoading(false);
       }
 
-      // Generate 6-digit OTP and proceed to verification step
+      // Generate 6-digit OTP, send to user's Gmail, and proceed to verification step
       const code = createSixDigitOtp();
       setGeneratedOtp(code);
       setOtpExpiry(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
       setResendCooldown(45);
       setOtpInput('');
+      setSuccessMsg(`We've dispatched a 6-digit verification code to ${cleanEmail}`);
+      sendVerificationEmailOtp({
+        email: cleanEmail,
+        name: cleanName,
+        otp: code,
+        type: 'registration'
+      });
       setAuthStep('otp');
       return;
     }
@@ -307,8 +311,15 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     setGeneratedOtp(code);
     setOtpExpiry(Date.now() + 10 * 60 * 1000);
     setResendCooldown(45);
-    setSuccessMsg('A new 6-digit verification code has been generated!');
-    setTimeout(() => setSuccessMsg(null), 4000);
+    const cleanEmail = email.trim().toLowerCase();
+    sendVerificationEmailOtp({
+      email: cleanEmail,
+      name: name.trim(),
+      otp: code,
+      type: 'registration'
+    });
+    setSuccessMsg(`A new 6-digit verification code has been sent to ${cleanEmail}`);
+    setTimeout(() => setSuccessMsg(null), 5000);
   };
 
   // 3. Forgot Password: Step 1 (Request Reset Code)
@@ -325,9 +336,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
     try {
       setLoading(true);
-      const localMgrs = await getAllLocalManagers();
-      const found = localMgrs.find((m) => m.email?.trim().toLowerCase() === cleanEmail);
-
       const code = createSixDigitOtp();
       setGeneratedResetOtp(code);
       setResendCooldown(45);
@@ -335,14 +343,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       setNewPassword('');
       setConfirmPassword('');
 
+      sendVerificationEmailOtp({
+        email: cleanEmail,
+        otp: code,
+        type: 'password_reset'
+      });
+
       // Also trigger official Firebase reset email if supported
       try {
         const auth = getAuth();
         await sendPasswordResetEmail(auth, cleanEmail);
       } catch (err) {
-        // Non-blocking fallback to in-app OTP
+        // Non-blocking
       }
 
+      setSuccessMsg(`Password reset code has been sent to ${cleanEmail}`);
       setAuthStep('forgot_otp');
     } catch (err) {
       setError('Failed to initiate password reset. Please try again.');
@@ -410,12 +425,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
-  const handleCopyCodeBadge = (code) => {
-    if (!code) return;
-    navigator.clipboard?.writeText(code);
-    setCopiedOtp(true);
-    setTimeout(() => setCopiedOtp(false), 2000);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-md animate-fadeIn select-none">
@@ -666,33 +675,24 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               <span>Back to Edit Registration</span>
             </button>
 
-            {/* Interactive OTP Notification Banner with Auto-fill helper */}
+            {/* Professional Email Dispatched Banner (No OTP shown in app) */}
             <div
-              onClick={() => {
-                setOtpInput(generatedOtp);
-                handleCopyCodeBadge(generatedOtp);
-              }}
               style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                borderColor: '#22C55E',
+                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                borderColor: 'rgba(34, 197, 94, 0.3)',
                 color: 'var(--text)'
               }}
-              className="p-3 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-emerald-500/20 transition-all shadow-sm"
-              title="Click to copy and auto-fill OTP"
+              className="p-3.5 rounded-xl border flex items-center gap-3 shadow-sm"
             >
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#22C55E]" />
-                <div className="text-xs">
-                  <span className="font-semibold" style={{ color: 'var(--muted)' }}>OTP Verification Code: </span>
-                  <span className="font-mono font-extrabold text-sm text-[#22C55E] tracking-wider">
-                    {generatedOtp}
-                  </span>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Mail className="w-5 h-5 text-[#22C55E]" />
+              </div>
+              <div className="text-xs">
+                <div className="font-bold text-[#22C55E] text-xs">Verification Code Sent to Gmail</div>
+                <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                  Dispatched to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Check inbox &amp; spam.
                 </div>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#22C55E] text-white flex items-center gap-1">
-                {copiedOtp ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedOtp ? 'Copied' : 'Auto-fill'}</span>
-              </span>
             </div>
 
             <p className="text-xs text-[var(--muted)] leading-relaxed">
@@ -882,33 +882,24 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               <span>Back to Email Step</span>
             </button>
 
-            {/* Interactive Reset OTP helper badge */}
+            {/* Professional Reset Email Dispatched Banner (No OTP shown in app) */}
             <div
-              onClick={() => {
-                setForgotOtpInput(generatedResetOtp);
-                handleCopyCodeBadge(generatedResetOtp);
-              }}
               style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                borderColor: '#22C55E',
+                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                borderColor: 'rgba(34, 197, 94, 0.3)',
                 color: 'var(--text)'
               }}
-              className="p-3 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-emerald-500/20 transition-all shadow-sm"
-              title="Click to copy and auto-fill reset code"
+              className="p-3.5 rounded-xl border flex items-center gap-3 shadow-sm"
             >
-              <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-[#22C55E]" />
-                <div className="text-xs">
-                  <span className="font-semibold" style={{ color: 'var(--muted)' }}>Reset Code: </span>
-                  <span className="font-mono font-extrabold text-sm text-[#22C55E] tracking-wider">
-                    {generatedResetOtp}
-                  </span>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Mail className="w-5 h-5 text-[#22C55E]" />
+              </div>
+              <div className="text-xs">
+                <div className="font-bold text-[#22C55E] text-xs">Reset Code Sent to Gmail</div>
+                <div className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                  Dispatched to <strong style={{ color: 'var(--text)' }}>{forgotEmail}</strong>. Check inbox &amp; spam.
                 </div>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#22C55E] text-white flex items-center gap-1">
-                {copiedOtp ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedOtp ? 'Copied' : 'Auto-fill'}</span>
-              </span>
             </div>
 
             {error && (

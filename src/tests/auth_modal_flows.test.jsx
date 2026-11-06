@@ -48,11 +48,17 @@ describe('AuthModal Unit Tests: Duplicate Protection, OTP Verification & Forgot 
     expect(authCode).toContain('Verify Registration OTP');
     expect(authCode).toContain('Verify OTP &amp; Complete Registration');
     expect(authCode).toContain('Resend Code');
+    expect(authCode).toContain('sendVerificationEmailOtp');
+    expect(authCode).toContain('Verification Code Sent to Gmail');
+    // Ensure OTP is sent to user email and NOT revealed in the app
+    expect(authCode).not.toContain('OTP Verification Code:');
+    expect(authCode).not.toContain('Auto-fill');
 
     // 3. Forgot Password section
     expect(authCode).toContain('Forgot Password?');
     expect(authCode).toContain('Reset Manager Password');
     expect(authCode).toContain('Send 6-Digit Reset Code');
+    expect(authCode).toContain('Reset Code Sent to Gmail');
     expect(authCode).toContain('Save New Password &amp; Sign In');
   });
 });
