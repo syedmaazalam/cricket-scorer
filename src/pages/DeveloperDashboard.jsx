@@ -63,6 +63,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import DeveloperScorerChatModal from '../components/DeveloperScorerChatModal.jsx';
 import DeveloperWatchAndChatModal from '../components/DeveloperWatchAndChatModal.jsx';
 import { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
+import { registerModalHandler } from '../services/navigationManager.js';
 
 // Check developer authorization
 function checkIsDeveloper(user, idTokenResult) {
@@ -173,6 +174,18 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  useEffect(() => {
+    const hasModal = isDeleteAllModalOpen || Boolean(activeChatMatch) || Boolean(watchAndChatMatch);
+    if (!hasModal) return;
+
+    return registerModalHandler(() => {
+      if (isDeleteAllModalOpen) { setIsDeleteAllModalOpen(false); return true; }
+      if (activeChatMatch) { setActiveChatMatch(null); return true; }
+      if (watchAndChatMatch) { setWatchAndChatMatch(null); return true; }
+      return true;
+    });
+  }, [isDeleteAllModalOpen, activeChatMatch, watchAndChatMatch]);
 
   const handleSoftDelete = async (m) => {
     if (!m) return;

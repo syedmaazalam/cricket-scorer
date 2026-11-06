@@ -11,6 +11,15 @@ import { TopProgressBar } from './components/ui/LoadingPrimitives.jsx';
 import { useMatch } from './store/useMatch.js';
 import { createMatchInCloud, findMatchByCode } from './firebase/matches.js';
 import { getMatchSnapshot } from './store/localDb.js';
+import {
+  initNavigation,
+  pushScreen,
+  handleBackPress,
+  resetToHome,
+  subscribeToNavigation,
+  subscribeToExitToast,
+  initHardwareAndBrowserBack
+} from './services/navigationManager.js';
 
 export default function App() {
   const getInitialRouting = () => {
@@ -77,9 +86,9 @@ export default function App() {
   const [activeMatchId, setActiveMatchId] = useState(initial.matchId);
   const [liveCodeOrId, setLiveCodeOrId] = useState(initial.liveCode);
   const [isManager, setIsManager] = useState(initial.isManager);
-  const [previousPage, setPreviousPage] = useState('home');
   const [viewedMatchState, setViewedMatchState] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showExitToast, setShowExitToast] = useState(false);
 
   useEffect(() => {
     setIsNavigating(true);
@@ -95,6 +104,30 @@ export default function App() {
     localStorage.setItem('cricket_is_manager', isManager ? 'true' : 'false');
   }, [page, activeMatchId, liveCodeOrId, isManager]);
 
+  // Initialize navigation manager, hardware back listener and exit toast subscriber
+  useEffect(() => {
+    initNavigation(initial);
+    const cleanupHardware = initHardwareAndBrowserBack();
+    const unsubNav = subscribeToNavigation((currentScreen) => {
+      setPage(currentScreen.page);
+      setActiveMatchId(currentScreen.activeMatchId);
+      setLiveCodeOrId(currentScreen.liveCodeOrId);
+      setIsManager(currentScreen.isManager);
+      if (currentScreen.viewedMatchState !== undefined) {
+        setViewedMatchState(currentScreen.viewedMatchState);
+      }
+    });
+    const unsubToast = subscribeToExitToast((show) => {
+      setShowExitToast(show);
+    });
+
+    return () => {
+      cleanupHardware();
+      unsubNav();
+      unsubToast();
+    };
+  }, []);
+
   // Handle incoming Android deep links (cold launch or runtime resume)
   useEffect(() => {
     const handleIncomingMatchCode = (code) => {
@@ -103,7 +136,13 @@ export default function App() {
       setIsManager(false);
       setLiveCodeOrId(cleanCode);
       setActiveMatchId(cleanCode);
-      setPage('live');
+      pushScreen({
+        page: 'live',
+        activeMatchId: cleanCode,
+        liveCodeOrId: cleanCode,
+        isManager: false,
+        viewedMatchState: null
+      });
     };
 
     window.handleDeepLink = handleIncomingMatchCode;
@@ -204,7 +243,13 @@ export default function App() {
       updatedAt: Date.now()
     }).catch(err => console.warn('Cloud match creation fallback:', err));
 
-    setPage('scoring');
+    pushScreen({
+      page: 'scoring',
+      activeMatchId: matchId,
+      liveCodeOrId: code,
+      isManager: true,
+      viewedMatchState: null
+    });
   };
 
   const handleResumeMatch = (matchId) => {
@@ -212,7 +257,13 @@ export default function App() {
     localStorage.setItem('cricket_is_manager', 'true');
     setActiveMatchId(matchId);
     localStorage.setItem('cricket_active_match_id', matchId);
-    setPage('scoring');
+    pushScreen({
+      page: 'scoring',
+      activeMatchId: matchId,
+      liveCodeOrId,
+      isManager: true,
+      viewedMatchState: null
+    });
   };
 
   const handleWatchLive = async (targetIdOrCode, targetCode = null) => {
@@ -223,6 +274,9 @@ export default function App() {
 
     setIsManager(false);
     localStorage.setItem('cricket_is_manager', 'false');
+
+    const effectiveCode = cleanCode || rawTarget;
+    const effectiveId = effectiveMatchId || cleanCode || rawTarget;
 
     if (cleanCode) {
       setLiveCodeOrId(cleanCode);
@@ -235,10 +289,16 @@ export default function App() {
       setActiveMatchId(effectiveMatchId);
       localStorage.setItem('cricket_active_match_id', effectiveMatchId);
     } else {
-      setActiveMatchId(cleanCode || rawTarget);
+      setActiveMatchId(effectiveId);
     }
 
-    setPage('live');
+    pushScreen({
+      page: 'live',
+      activeMatchId: effectiveId,
+      liveCodeOrId: effectiveCode,
+      isManager: false,
+      viewedMatchState: null
+    });
 
     // Eagerly resolve if we only had a 6-char code
     if (!effectiveMatchId && cleanCode) {
@@ -262,19 +322,39 @@ export default function App() {
   };
 
   const handleOpenScorecard = (incomingState) => {
-    if (incomingState && (incomingState.code || incomingState.innings?.length > 0)) {
-      setViewedMatchState(incomingState);
+    const nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
+      ? incomingState
+      : viewedMatchState;
+    if (nextState) {
+      setViewedMatchState(nextState);
     }
-    setPreviousPage(page);
-    setPage('scorecard');
+    pushScreen({
+      page: 'scorecard',
+      activeMatchId,
+      liveCodeOrId,
+      isManager,
+      viewedMatchState: nextState
+    });
   };
 
   const handleOpenSummary = (incomingState) => {
-    if (incomingState && (incomingState.code || incomingState.innings?.length > 0)) {
-      setViewedMatchState(incomingState);
+    const nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
+      ? incomingState
+      : viewedMatchState;
+    if (nextState) {
+      setViewedMatchState(nextState);
     }
-    setPreviousPage(page);
-    setPage('summary');
+    pushScreen({
+      page: 'summary',
+      activeMatchId,
+      liveCodeOrId,
+      isManager,
+      viewedMatchState: nextState
+    });
+  };
+
+  const handleBack = () => {
+    handleBackPress();
   };
 
   const handleGoHome = () => {
@@ -283,7 +363,7 @@ export default function App() {
       window.history.pushState({ path: cleanUrl }, '', cleanUrl);
     }
     setViewedMatchState(null);
-    setPage('home');
+    resetToHome();
   };
 
   // Determine active match state for scorecard & summary
@@ -325,16 +405,16 @@ export default function App() {
       </div>
       {page === 'home' && (
         <Home
-          onNavigate={(p) => setPage(p)}
+          onNavigate={(p) => pushScreen({ page: p, activeMatchId, liveCodeOrId, isManager, viewedMatchState })}
           onResumeMatch={handleResumeMatch}
           onWatchLive={handleWatchLive}
-          onOpenDeveloper={() => setPage('developer')}
+          onOpenDeveloper={() => pushScreen({ page: 'developer', activeMatchId, liveCodeOrId, isManager, viewedMatchState })}
         />
       )}
 
       {page === 'developer' && (
         <DeveloperDashboard
-          onBack={handleGoHome}
+          onBack={handleBack}
           onOpenMatch={(target) => {
             const mid = typeof target === 'string' ? target : (target?.matchId || target?.code);
             const code = typeof target === 'string' && target.length === 6 ? target : (target?.code || null);
@@ -346,7 +426,13 @@ export default function App() {
               setLiveCodeOrId(code);
               localStorage.setItem('cricket_live_code', code);
             }
-            setPage('scoring');
+            pushScreen({
+              page: 'scoring',
+              activeMatchId: mid,
+              liveCodeOrId: code || liveCodeOrId,
+              isManager: true,
+              viewedMatchState: null
+            });
           }}
         />
       )}
@@ -354,7 +440,7 @@ export default function App() {
       {page === 'setup' && (
         <Setup
           onStartMatch={handleStartMatch}
-          onBack={handleGoHome}
+          onBack={handleBack}
         />
       )}
 
@@ -373,7 +459,7 @@ export default function App() {
           onAddBallToPreviousOver={addBallToPreviousOver}
           onReopenPreviousOver={reopenPreviousOver}
           onUndo={undo}
-          onNavigate={handleGoHome}
+          onNavigate={handleBack}
           onOpenScorecard={() => handleOpenScorecard(matchState)}
           onOpenSummary={() => handleOpenSummary(matchState)}
         />
@@ -382,9 +468,7 @@ export default function App() {
       {page === 'scorecard' && (
         <Scorecard
           matchState={effectiveScorecardState}
-          onBack={() => {
-            setPage(previousPage || (isManager ? 'scoring' : 'live'));
-          }}
+          onBack={handleBack}
           onOpenSummary={() => handleOpenSummary(effectiveScorecardState)}
         />
       )}
@@ -392,9 +476,7 @@ export default function App() {
       {page === 'summary' && (
         <MatchSummary
           matchState={effectiveScorecardState}
-          onBack={() => {
-            setPage(previousPage || 'home');
-          }}
+          onBack={handleBack}
         />
       )}
 
@@ -403,7 +485,7 @@ export default function App() {
           matchCodeOrId={liveCodeOrId}
           matchState={matchState}
           scorerOfflineInfo={scorerOfflineInfo}
-          onBack={handleGoHome}
+          onBack={handleBack}
           onOpenScorecard={handleOpenScorecard}
           onOpenSummary={handleOpenSummary}
           onMatchResolved={(id, code) => {
@@ -415,6 +497,31 @@ export default function App() {
             }
           }}
         />
+      )}
+
+      {/* Luxury double-back exit confirmation toast */}
+      {showExitToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.92)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: '0 20px 35px -10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(34, 197, 94, 0.15)'
+            }}
+            className="px-5 py-2.5 rounded-full flex items-center gap-2.5 text-white shadow-2xl"
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold tracking-wide text-slate-200">
+              Press back again to exit
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -56,6 +56,21 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        try {
+            WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+            if (webView != null) {
+                webView.post(() -> {
+                    String js = "try { if (window.handleHardwareBack) { window.handleHardwareBack(); } else { window.dispatchEvent(new CustomEvent('smartcricket:hardwareback')); } } catch(e) {}";
+                    webView.evaluateJavascript(js, null);
+                });
+                return;
+            }
+        } catch (Exception ignored) {}
+        super.onBackPressed();
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
@@ -222,6 +237,11 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void notifyAppUpdate(String title, String message, String apkUrl) {
             runOnUiThread(() -> showSystemNotification(title, message, apkUrl));
+        }
+
+        @JavascriptInterface
+        public void exitApp() {
+            runOnUiThread(() -> finish());
         }
     }
 

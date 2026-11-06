@@ -56,6 +56,7 @@ import Settings from './Settings.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets, checkBattingMilestone, checkBowlerHatTrick } from '../engine/rules.js';
 import { getShareUrl } from '../engine/constants.js';
+import { registerModalHandler } from '../services/navigationManager.js';
 
 export default function Scoring({
   matchState,
@@ -113,6 +114,40 @@ export default function Scoring({
   const hasGreetedAbdullahRef = useRef(new Set());
 
   const effectiveMatchId = matchState?.matchId || matchState?.code || matchState?.id || (typeof window !== 'undefined' ? localStorage.getItem('cricket_active_match_id') : null);
+
+  // Hardware/Browser back closes topmost open modal before leaving scoring screen
+  useEffect(() => {
+    const hasAnyModal = isWicketModalOpen || isOverthrowModalOpen || isEditBallModalOpen ||
+      isTimeDeclareOpen || isSquadModalOpen || isAddPrevOverBallOpen || Boolean(selectedBatterDetails) ||
+      isManualBreakOpen || isBreakModalOpen || isPointingCriteriaOpen || isActionLogsOpen ||
+      isMorePopupOpen || isMidOverModalOpen || isChangeBowlerModalOpen || isChatModalOpen;
+
+    if (!hasAnyModal) return;
+
+    return registerModalHandler(() => {
+      if (isWicketModalOpen) { setIsWicketModalOpen(false); return true; }
+      if (isOverthrowModalOpen) { setIsOverthrowModalOpen(false); return true; }
+      if (isEditBallModalOpen) { setIsEditBallModalOpen(false); setSelectedBallForEdit(null); return true; }
+      if (isTimeDeclareOpen) { setIsTimeDeclareOpen(false); return true; }
+      if (isSquadModalOpen) { setIsSquadModalOpen(false); return true; }
+      if (isAddPrevOverBallOpen) { setIsAddPrevOverBallOpen(false); return true; }
+      if (selectedBatterDetails) { setSelectedBatterDetails(null); return true; }
+      if (isManualBreakOpen) { setIsManualBreakOpen(false); return true; }
+      if (isBreakModalOpen) { setIsBreakModalOpen(false); return true; }
+      if (isPointingCriteriaOpen) { setIsPointingCriteriaOpen(false); return true; }
+      if (isActionLogsOpen) { setIsActionLogsOpen(false); return true; }
+      if (isMorePopupOpen) { setIsMorePopupOpen(false); return true; }
+      if (isMidOverModalOpen) { setIsMidOverModalOpen(false); return true; }
+      if (isChangeBowlerModalOpen) { setIsChangeBowlerModalOpen(false); return true; }
+      if (isChatModalOpen) { setIsChatModalOpen(false); return true; }
+      return true;
+    });
+  }, [
+    isWicketModalOpen, isOverthrowModalOpen, isEditBallModalOpen,
+    isTimeDeclareOpen, isSquadModalOpen, isAddPrevOverBallOpen, selectedBatterDetails,
+    isManualBreakOpen, isBreakModalOpen, isPointingCriteriaOpen, isActionLogsOpen,
+    isMorePopupOpen, isMidOverModalOpen, isChangeBowlerModalOpen, isChatModalOpen
+  ]);
 
   // Real-time Developer to Scorer chat subscription
   useEffect(() => {

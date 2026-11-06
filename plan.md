@@ -1,50 +1,47 @@
-# Implementation Plan: Turn Off OTP, Fix Match Streaming, and Admin Delete All Matches
+# Implementation Plan: Luxury Back-Button Navigation Stack & Exit Protection
 
-## Overview
-1. **Turn off OTP verification system (`src/components/AuthModal.jsx`)**:
-   - Temporarily disable the 6-digit OTP code gate for both Registration and Forgot Password.
-   - Allow direct manager registration (Firebase Auth + local manager fallback) so managers can register and immediately create/score matches.
-   - Simplify Forgot Password flow to direct password reset without blocking on undelivered OTP emails.
-2. **Fix Match Streaming (`src/App.jsx`, `src/store/useMatch.js`, `src/pages/Live.jsx`, `src/pages/Home.jsx`)**:
-   - Fix code-to-ID resolution when streaming: prevent upper-casing raw match IDs which broke document retrieval.
-   - In `useMatch.js`, resolve 6-character match codes to actual document IDs so spectator event streams connect to `matches/{matchId}/events` in real-time.
-   - Allow watching streams directly from the match list.
-3. **Admin Section: Delete All Previous Matches & Fix Duplicate Matches (`src/pages/DeveloperDashboard.jsx`, `src/store/localDb.js`, `src/firebase/matches.js`)**:
-   - Add a prominent "Delete All Matches" button with confirmation modal in the Developer/Admin Console Matches tab.
-   - Implement `deleteAllLocalMatches()` to wipe all local match snapshots and events from IndexedDB and localStorage.
-   - Deduplicate matches by match code in `getAllLocalMatches()` so identical duplicate matches never clutter the list.
-4. **Build, APK Compilation & Dual Deployment**:
-   - Run Vitest suite & lint checks.
-   - Rebuild web bundles, sync Capacitor Android, compile `SmartCricket.apk`.
-   - Deploy to `smartcricket-c79b5.web.app` and `smartcricket-website.web.app`.
+## Problem Statement
+Currently, pressing the back button (either UI back buttons, browser back, or Android hardware/gesture back) either forces the user straight to the Home screen (`handleGoHome`) or exits the app entirely. There is no hierarchical navigation history stack, modal back handling, or double-tap exit prevention as found in luxury mobile apps.
+
+## Target Architecture
+1. **Hierarchical Navigation History Stack (`src/services/navigationManager.js`)**:
+   - Manage screen history stack `[{ page, activeMatchId, liveCodeOrId, isManager, viewedMatchState }]`.
+   - Support `push(state)`, `pop()`, `canGoBack()`.
+   - Provide a priority modal/overlay back-handler registry (`registerModalHandler(fn)`) so active modals (e.g., bowler selection, auth, action logs, match celebration) close on back press instead of navigating away.
+   - Luxury double-tap exit protection: when on the root screen (`home`) with no open modals, pressing back displays a sleek *"Press back again to exit"* floating toast. Pressing again within 2000ms safely exits the app; otherwise it resets.
+2. **Android Hardware & Browser Integration**:
+   - Listen to `@capacitor/app` `App.addListener('backButton')`.
+   - Sync with `window.history` (`popstate`) for mobile browsers so swipe-back or browser back navigates the app stack instead of leaving the domain.
+   - Enhance `MainActivity.java` with `ScorecardBridge.exitApp()` and bridge coordination.
+3. **App Route Integration (`src/App.jsx`)**:
+   - Replace direct `handleGoHome` resets in `Setup`, `DeveloperDashboard`, `Live`, `Scorecard`, `MatchSummary`, and `Scoring` with unified `handleBack()`.
+   - Render the luxury exit toast banner.
 
 ---
 
 ## Chunks
 
-- [x] **Chunk 1: Turn Off OTP Verification System in `AuthModal.jsx`**
-  - Added `ENABLE_OTP_VERIFICATION = false` toggle.
-  - Implemented `executeDirectRegistration` to register and activate managers immediately on submit without requiring 6-digit OTP code entry.
-  - Simplified Forgot Password to direct reset without blocking on OTP delivery.
-  - Verified with Vitest `src/tests/auth_modal_flows.test.jsx` (3/3 tests passed, 0 oxlint errors).
+- [x] **Chunk 1: Centralized Navigation History & Modal Back Registry (`src/services/navigationManager.js` & tests)**
+  - Created `src/services/navigationManager.js` with deep stack management, duplicate prevention, LIFO modal handler registry, and 2-second double-back exit confirmation.
+  - Created `src/tests/navigation_manager.test.js` covering 9 comprehensive test cases (all passing).
+  - Verified 174/174 vitest tests pass and oxlint reports 0 errors.
 
-- [x] **Chunk 2: Fix Match Streaming Flow**
-  - In `src/App.jsx`, enhanced `handleWatchLive` to take `(targetIdOrCode, targetCode)` and preserve exact match ID casing while resolving 6-char codes from local snapshot and cloud.
-  - In `src/store/useMatch.js`, dynamically resolved 6-char codes to actual document IDs so spectator event streams connect to `matches/{resolvedId}/events` in real time.
-  - In `src/firebase/matches.js`, updated `findMatchByCode` to preserve case on direct match ID lookup.
-  - In `src/pages/Home.jsx` and `src/pages/Live.jsx`, updated watch stream handlers to pass exact IDs.
-  - Verified across all 165 test suites (165/165 passing).
+- [x] **Chunk 2: Native Android & Web PopState Integration (`MainActivity.java`, Capacitor & web bridge)**
+  - Enhanced `MainActivity.java` with `@JavascriptInterface public void exitApp()` on `ScorecardNativeBridge` and overridden `onBackPressed()` evaluating JS back events.
+  - Implemented lazy-loaded `@capacitor/app` `App.addListener('backButton')` with automatic fallback to native bridge.
+  - Integrated `popstate` browser history listener so web users don't exit to blank page on swipe-back or browser back.
+  - Verified with Vitest (10/10 tests passed).
 
-- [x] **Chunk 3: Admin Section - Delete All Matches & Deduplicate**
-  - Implemented `deleteAllMatchesLocally` to purge all local match records, events, snapshots, and action logs from IndexedDB and localStorage.
-  - Connected `deleteAllMatchesFromCloud` and added the "Delete All Matches" action button with confirmation modal in `src/pages/DeveloperDashboard.jsx`.
-  - Updated individual match delete to wipe local IndexedDB records immediately.
-  - Added automatic match code & ID deduplication to `getAllLocalMatches()` and `Home.jsx` search, preventing duplicate matches sharing the same code.
-  - Verified with Vitest (165/165 tests passing, 0 oxlint errors).
+- [x] **Chunk 3: Screen Navigation Flow & Luxury Exit Toast in `App.jsx`**
+  - Integrated `navigationManager` into `src/App.jsx` with full reactive subscriber updates.
+  - Replaced hardcoded `handleGoHome` resets in `Setup.jsx`, `DeveloperDashboard.jsx`, `Live.jsx`, `Scorecard.jsx`, `MatchSummary.jsx`, and `Scoring.jsx` with unified `handleBack()` popping the screen stack.
+  - Added modal back-handler hooks in `Home.jsx`, `Scoring.jsx`, and `DeveloperDashboard.jsx` so open modals close on back button press.
+  - Rendered a luxury glassmorphism floating bottom pill for *"Press back again to exit"* with pulse glow.
+  - Verified with Vitest (175/175 tests passed, 0 oxlint errors).
 
-- [x] **Chunk 4: Verification, APK Build & Dual Deploy**
-  - Ran Vitest suite (165/165 tests passing across 16 test files).
-  - Built production bundles for `cricket-scorer` and `smartcricket-website` with 0 errors.
-  - Synced Capacitor Android and compiled fresh debug APK via Gradle (`21.98 MB`).
-  - Deployed `cricket-scorer` to `https://smartcricket-c79b5.web.app` and `smartcricket-website` to `https://smartcricket-website.web.app`.
-  - Verified 200 OK responses and APK downloads on both production domains.
+- [ ] **Chunk 4: Android Build, APK Compilation & Dual Deployment**
+  - Build web bundle (`vite build`).
+  - Sync Capacitor Android (`npx cap sync android`).
+  - Compile Android debug APK via Gradle (`gradlew assembleDebug`).
+  - Deploy to Firebase Hosting (`smartcricket-c79b5.web.app` and `smartcricket-website.web.app`).
+  - Run `graphify update .`.

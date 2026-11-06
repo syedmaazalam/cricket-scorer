@@ -23,6 +23,7 @@ import { getAllLocalMatches } from '../store/localDb.js';
 import { searchMatches, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import AuthModal from '../components/AuthModal.jsx';
+import { useModalBackHandler } from '../services/navigationManager.js';
 import {
   PullToRefreshIndicator,
   SkeletonCard,
@@ -44,6 +45,8 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
   const [showMatches, setShowMatches] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
+
+  useModalBackHandler(isAuthModalOpen, () => setIsAuthModalOpen(false));
 
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
