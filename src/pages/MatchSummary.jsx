@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Share2, Check, Trophy, Activity, BarChart2, Calendar, Sparkles, Info, Image as ImageIcon } from 'lucide-react';
-import { computeInningsStats, computeBatterDetails, computeBowlerDetails } from '../engine/stats.js';
+import { computeInningsStats, computeBatterDetails, computeBowlerDetails, computeMatchFieldingStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
-import { getTopPlayers } from '../engine/potm.js';
+import { getTopPlayers, getVisibleBreakdownItems } from '../engine/potm.js';
 import { getShareUrl } from '../engine/constants.js';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
 import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
+import ScorecardPNGGenerator from '../components/ScorecardPNGGenerator.jsx';
 
 // Team crest shield component matching redesign prototype
 function TeamCrest({ name, color }) {
@@ -36,6 +37,7 @@ export default function MatchSummary({ matchState, onBack }) {
   const [selectedBowler, setSelectedBowler] = useState(null);
   const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isScorecardPNGOpen, setIsScorecardPNGOpen] = useState(false);
 
   const teamAName = matchState?.teams?.[0]?.name || 'Team Alpha';
   const teamBName = matchState?.teams?.[1]?.name || 'Team Bravo';
@@ -48,7 +50,7 @@ export default function MatchSummary({ matchState, onBack }) {
 
   // Top 3 Players of the Match computation
   const aggregatedPlayerStats = {};
-  const aggregatedFieldingStats = {};
+  const aggregatedFieldingStats = computeMatchFieldingStats(matchState);
 
   const getPlayerTeam = (playerName) => {
     if (matchState?.teams && Array.isArray(matchState.teams)) {
@@ -68,14 +70,17 @@ export default function MatchSummary({ matchState, onBack }) {
         aggregatedPlayerStats[name] = {
           name,
           team: actualTeam,
-          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0, dismissed: false },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0, bowledLbw: 0, wides: 0, noBalls: 0 }
         };
       }
       aggregatedPlayerStats[name].batting.runs += bStat.runs || 0;
       aggregatedPlayerStats[name].batting.balls += bStat.balls || 0;
       aggregatedPlayerStats[name].batting.fours += bStat.fours || 0;
       aggregatedPlayerStats[name].batting.sixes += bStat.sixes || 0;
+      if (bStat.dismissed || bStat.isOut) {
+        aggregatedPlayerStats[name].batting.dismissed = true;
+      }
     });
 
     Object.entries(stats.bowling).forEach(([name, bwStat]) => {
@@ -84,8 +89,8 @@ export default function MatchSummary({ matchState, onBack }) {
         aggregatedPlayerStats[name] = {
           name,
           team: actualTeam,
-          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0, dismissed: false },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0, bowledLbw: 0, wides: 0, noBalls: 0 }
         };
       }
       aggregatedPlayerStats[name].bowling.legalBalls += bwStat.legalBalls || 0;
@@ -93,13 +98,20 @@ export default function MatchSummary({ matchState, onBack }) {
       aggregatedPlayerStats[name].bowling.wickets += bwStat.wickets || 0;
       aggregatedPlayerStats[name].bowling.maidens += bwStat.maidens || 0;
       aggregatedPlayerStats[name].bowling.dots += bwStat.dots || 0;
+      aggregatedPlayerStats[name].bowling.bowledLbw += bwStat.bowledLbw || 0;
+      aggregatedPlayerStats[name].bowling.wides += bwStat.wides || 0;
+      aggregatedPlayerStats[name].bowling.noBalls += bwStat.noBalls || 0;
     });
   };
 
   accumulateStats(computeInningsStats(inn1), inn1.battingTeam, inn1.bowlingTeam);
   accumulateStats(computeInningsStats(inn2), inn2.battingTeam, inn2.bowlingTeam);
 
-  const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3);
+  const isMatchConcluded = matchState?.status === 'completed' || matchState?.isCompleted;
+  const winningTeam = isMatchConcluded && matchState?.winner && matchState.winner !== 'Tie'
+    ? matchState.winner
+    : null;
+  const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3, winningTeam);
   const topPerformer = topPlayers?.[0];
 
   const matchCode = matchState?.code || '';
@@ -140,40 +152,51 @@ export default function MatchSummary({ matchState, onBack }) {
       className="min-h-screen flex flex-col w-full max-w-lg lg:max-w-6xl mx-auto box-border min-w-0 px-1 sm:px-3 lg:pl-28 lg:pr-8 pb-24 select-none safe-top"
     >
       {/* 1. Header Row */}
-      <div className="flex items-center gap-2 w-full my-2.5">
-        <div className="hidden lg:flex items-center gap-1.5 mr-2 font-serif font-black text-lg text-[var(--pri)] tracking-tight">
-          <span>SmartCricket</span>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full my-2.5 p-1.5 sm:p-0">
+        <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0 w-full sm:w-auto flex-1">
+          <div className="hidden lg:flex items-center gap-1.5 mr-2 font-serif font-black text-lg text-[var(--pri)] tracking-tight">
+            <span>SmartCricket</span>
+          </div>
+
+          <button
+            onClick={onBack}
+            className="ib shrink-0"
+            title="Back to scoring"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex-1 sm:flex-initial text-center sm:text-left min-w-0 px-1">
+            <h2 style={{ fontSize: '15px', fontWeight: 800 }} className="truncate">Comprehensive Match Summary</h2>
+            <span className="mono ok" style={{ fontSize: '12px', fontWeight: 700 }}>
+              #{matchCode || 'MATCH'}
+            </span>
+          </div>
         </div>
 
-        <button
-          onClick={onBack}
-          className="ib shrink-0"
-          title="Back to scoring"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+        <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
+          <button
+            onClick={() => setIsScorecardPNGOpen(true)}
+            className="btn p s flex-1 sm:flex-initial shrink-0 inline-flex items-center justify-center gap-1.5 h-9 px-2.5 sm:px-3.5 rounded-full m-0 font-bold text-[11px] sm:text-xs box-border bg-[#0B2D59] text-[#35A9F5] border border-[#35A9F5]/40 hover:bg-[#123C73]"
+            title="Generate Premium Scorecard PNG (16:8)"
+          >
+            <Trophy className="w-3.5 h-3.5 shrink-0 text-[#35A9F5]" />
+            <span className="whitespace-nowrap leading-none">Scorecard PNG</span>
+          </button>
 
-        <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-          <h2 style={{ fontSize: '15px', fontWeight: 800 }} className="truncate">Comprehensive Match Summary</h2>
-          <span className="mono ok" style={{ fontSize: '12px', fontWeight: 700 }}>
-            #{matchCode || 'MATCH'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="btn p s shrink-0 inline-flex items-center justify-center gap-2 h-9 px-3.5 sm:px-4 rounded-full m-0 font-bold text-xs box-border"
-            title="Export Scorecard"
+            className="btn p s flex-1 sm:flex-initial shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 px-2.5 sm:px-4 rounded-full m-0 font-bold text-[11px] sm:text-xs box-border"
+            title="Export Summary Infographic"
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
-            <span className="truncate leading-none">Export Scorecard</span>
+            <span className="whitespace-nowrap leading-none">Infographic</span>
           </button>
 
           <button
             onClick={handleShareSummary}
-            className="ib p shrink-0"
+            className="ib p shrink-0 h-9 w-9 inline-flex items-center justify-center"
             title="Share Summary"
             aria-label="Share"
           >
@@ -429,13 +452,16 @@ export default function MatchSummary({ matchState, onBack }) {
                         </div>
                       </div>
 
-                      <div className="ex" style={{ marginTop: '6px' }}>
-                        <span className="chip">
-                          {p.breakdown?.runs > 0 ? `${p.breakdown.runs} runs` : `${p.breakdown?.wickets || 0} wkts`}
-                        </span>
-                        <span className="chip">
-                          {p.breakdown?.boundaries > 0 ? `+${p.breakdown.boundaries} bound.` : `${p.breakdown?.dots || 0} dots`}
-                        </span>
+                      <div className="ex flex flex-wrap gap-1.5" style={{ marginTop: '6px' }}>
+                        {getVisibleBreakdownItems(p.breakdown).map(item => (
+                          <span
+                            key={item.key}
+                            className={`chip text-[11px] ${item.val < 0 ? 'danger' : ''}`}
+                            style={item.val < 0 ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : {}}
+                          >
+                            {item.label} {item.val > 0 ? `+${item.val}` : `-${Math.abs(item.val)}`}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -466,6 +492,12 @@ export default function MatchSummary({ matchState, onBack }) {
         topPlayers={topPlayers}
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
+      />
+
+      <ScorecardPNGGenerator
+        matchState={matchState}
+        isOpen={isScorecardPNGOpen}
+        onClose={() => setIsScorecardPNGOpen(false)}
       />
     </div>
   );

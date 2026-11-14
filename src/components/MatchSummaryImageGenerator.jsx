@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Share2, X, Image as ImageIcon, Sparkles, Loader2, Trophy } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { Download, Share2, X, Sparkles, Loader2 } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
@@ -57,37 +58,36 @@ function ShieldBadge({ name, color, isSecondary = false }) {
 }
 
 // Inline Team Badge component for player tables per specification
-// Padding 4px 12px, line-height 1.2, white-space: nowrap, overflow: visible, min-width: fit-content
 function TeamPillBadge({ teamName, isNavy }) {
   if (!teamName) return null;
   return (
     <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        textAlign: 'center',
         width: '100%',
-        height: '100%',
         boxSizing: 'border-box'
       }}
     >
       <span
+        className="ms-pill-centered ms-pill-text"
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '4px 12px',
+          display: 'inline-block',
+          textAlign: 'center',
+          height: '28px',
+          lineHeight: '28px',
+          padding: '0 12px',
           minWidth: 'fit-content',
           borderRadius: '999px',
           fontSize: '13px',
           fontWeight: 800,
-          lineHeight: 1.2,
+          verticalAlign: 'middle',
           backgroundColor: isNavy ? '#071938' : '#DBEAFE',
           color: isNavy ? '#FFFFFF' : '#1D5CFF',
           whiteSpace: 'nowrap',
           overflow: 'visible',
           boxSizing: 'border-box',
-          boxShadow: '0 1px 3px rgba(11,31,59,0.06)'
+          boxShadow: '0 1px 3px rgba(11,31,59,0.06)',
+          margin: 0
         }}
       >
         {toNbsp(teamName)}
@@ -96,7 +96,7 @@ function TeamPillBadge({ teamName, isNavy }) {
   );
 }
 
-// Batting Table Card (exactly 4 numbered rows, table-layout: fixed, strict cell alignment)
+// Batting Table Card (numbered rows, table-layout: fixed, strict cell alignment)
 function BattingTableCard({ title, batters, isNavy }) {
   const displayRows = Array.from({ length: 4 }, (_, idx) => batters?.[idx] || null);
 
@@ -105,17 +105,16 @@ function BattingTableCard({ title, batters, isNavy }) {
       style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '24px',
-        padding: '16px 20px',
+        padding: '12px 18px',
         border: '1.5px solid #DBEAFE',
         boxShadow: '0 8px 24px rgba(11,31,59,0.04)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
-        boxSizing: 'border-box',
-        overflow: 'hidden'
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <path d="M19.5 4.5L14 10M14 10L12 12M14 10L16 12M7 17L3 21M7 17L10 14" />
         </svg>
@@ -148,17 +147,17 @@ function BattingTableCard({ title, batters, isNavy }) {
           <tr
             style={{
               backgroundColor: '#E8F1FF',
-              height: '36px'
+              height: '32px'
             }}
           >
-            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px' }}><span>#</span></th>
-            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Player</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Team</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Runs</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Balls</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>4s</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>6s</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }}><span>SR</span></th>
+            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px', verticalAlign: 'middle' }}><span>#</span></th>
+            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Player</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Team</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Runs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Balls</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>4s</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>6s</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px', verticalAlign: 'middle' }}><span>SR</span></th>
           </tr>
         </thead>
         <tbody>
@@ -166,47 +165,47 @@ function BattingTableCard({ title, batters, isNavy }) {
             <tr
               key={idx}
               style={{
-                height: '40px',
+                height: '36px',
                 borderTop: '1px solid #E2E8F0',
                 boxSizing: 'border-box'
               }}
             >
-              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B' }}>
+              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B', verticalAlign: 'middle' }}>
                 {idx + 1}
               </td>
               {b ? (
                 <>
-                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                     {toNbsp(b.name)}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', verticalAlign: 'middle' }}>
                     <TeamPillBadge teamName={b.team} isNavy={isNavy} />
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {b.runs}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {b.balls}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {b.fours}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {b.sixes}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {b.sr}
                   </td>
                 </>
               ) : (
                 <>
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
                 </>
               )}
             </tr>
@@ -217,7 +216,7 @@ function BattingTableCard({ title, batters, isNavy }) {
   );
 }
 
-// Bowling Table Card (exactly 4 numbered rows, table-layout: fixed, strict cell alignment)
+// Bowling Table Card (numbered rows, table-layout: fixed, strict cell alignment)
 function BowlingTableCard({ title, bowlers, isNavy }) {
   const displayRows = Array.from({ length: 4 }, (_, idx) => bowlers?.[idx] || null);
 
@@ -226,17 +225,16 @@ function BowlingTableCard({ title, bowlers, isNavy }) {
       style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '24px',
-        padding: '16px 20px',
+        padding: '12px 18px',
         border: '1.5px solid #DBEAFE',
         boxShadow: '0 8px 24px rgba(11,31,59,0.04)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
-        boxSizing: 'border-box',
-        overflow: 'hidden'
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" />
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
@@ -269,16 +267,16 @@ function BowlingTableCard({ title, bowlers, isNavy }) {
           <tr
             style={{
               backgroundColor: '#E8F1FF',
-              height: '36px'
+              height: '32px'
             }}
           >
-            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px' }}><span>#</span></th>
-            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Player</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Team</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Overs</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Runs</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569' }}><span>Wickets</span></th>
-            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }}><span>Econ</span></th>
+            <th style={{ textAlign: 'center', padding: '0 8px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px', verticalAlign: 'middle' }}><span>#</span></th>
+            <th style={{ textAlign: 'left', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Player</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Team</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Overs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Runs</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', verticalAlign: 'middle' }}><span>Wickets</span></th>
+            <th style={{ textAlign: 'center', padding: '0 12px', fontSize: '12px', fontWeight: 700, color: '#475569', borderTopRightRadius: '10px', borderBottomRightRadius: '10px', verticalAlign: 'middle' }}><span>Econ</span></th>
           </tr>
         </thead>
         <tbody>
@@ -286,43 +284,43 @@ function BowlingTableCard({ title, bowlers, isNavy }) {
             <tr
               key={idx}
               style={{
-                height: '40px',
+                height: '36px',
                 borderTop: '1px solid #E2E8F0',
                 boxSizing: 'border-box'
               }}
             >
-              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B' }}>
+              <td style={{ textAlign: 'center', padding: '0 8px', fontSize: '13px', fontWeight: 800, color: '#64748B', verticalAlign: 'middle' }}>
                 {idx + 1}
               </td>
               {bw ? (
                 <>
-                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'left', padding: '0 12px', fontSize: '14px', fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                     {toNbsp(bw.name)}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', verticalAlign: 'middle' }}>
                     <TeamPillBadge teamName={bw.team} isNavy={isNavy} />
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {bw.overs}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {bw.runs}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {bw.wickets}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
+                  <td style={{ textAlign: 'center', padding: '0 12px', fontSize: '14px', fontWeight: 600, color: '#0F172A', fontVariantNumeric: 'tabular-nums', verticalAlign: 'middle' }}>
                     {bw.econ}
                   </td>
                 </>
               ) : (
                 <>
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
-                  <td style={{ padding: '0 12px' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
+                  <td style={{ padding: '0 12px', verticalAlign: 'middle' }} />
                 </>
               )}
             </tr>
@@ -336,7 +334,7 @@ function BowlingTableCard({ title, bowlers, isNavy }) {
 export default function MatchSummaryImageGenerator({
   matchState,
   topPerformer,
-  topPlayers,
+  topPlayers: _topPlayers,
   isOpen,
   onClose
 }) {
@@ -364,13 +362,16 @@ export default function MatchSummaryImageGenerator({
   const isInn1BattingTeam1 = inn1BattingTeam === team1Name;
   const isInn2BattingTeam1 = inn2BattingTeam === team1Name;
 
-  // Dynamic player extraction for the required 2x2 layout
+  // Dynamic player extraction for the required 2x2 layout (Strictly Top 4 Batters & Bowlers)
   const getBattersForInnings = (inn, teamName) => {
+    if (!inn) return Array.from({ length: 4 }, () => null);
     const stats = computeInningsStats(inn);
     const batters = Object.values(stats.batting || {})
       .filter((b) => b.balls > 0 || b.runs > 0)
+      .sort((a, b) => (b.runs - a.runs) || (a.balls - b.balls))
+      .slice(0, 4)
       .map((b) => ({
-        name: b.name,
+        name: (b.name || '').replace(/\*/g, '').trim(),
         team: teamName,
         runs: b.runs ?? 0,
         balls: b.balls ?? 0,
@@ -382,11 +383,14 @@ export default function MatchSummaryImageGenerator({
   };
 
   const getBowlersForInnings = (inn, teamName) => {
+    if (!inn) return Array.from({ length: 4 }, () => null);
     const stats = computeInningsStats(inn);
     const bowlers = Object.values(stats.bowling || {})
       .filter((bw) => bw.legalBalls > 0 || bw.runsConceded > 0 || bw.wickets > 0)
+      .sort((a, b) => (b.wickets - a.wickets) || (a.runsConceded - b.runsConceded))
+      .slice(0, 4)
       .map((bw) => ({
-        name: bw.name,
+        name: (bw.name || '').replace(/\*/g, '').trim(),
         team: teamName,
         overs: formatOvers(bw.legalBalls || 0),
         runs: bw.runsConceded ?? 0,
@@ -396,10 +400,23 @@ export default function MatchSummaryImageGenerator({
     return Array.from({ length: 4 }, (_, i) => bowlers[i] || null);
   };
 
-  const inn1Batters = getBattersForInnings(inn1, inn1BattingTeam);
-  const inn1Bowlers = getBowlersForInnings(inn1, inn1BowlingTeam);
-  const inn2Batters = getBattersForInnings(inn2, inn2BattingTeam);
-  const inn2Bowlers = getBowlersForInnings(inn2, inn2BowlingTeam);
+  // Identify team-specific batting and bowling innings
+  const team1BattingInn = (inn1.battingTeam === team1Name) ? inn1 : ((inn2?.battingTeam === team1Name) ? inn2 : inn1);
+  const team2BattingInn = (inn2?.battingTeam === team2Name) ? inn2 : ((inn1.battingTeam === team2Name) ? inn1 : inn2);
+
+  const team1BowlingInn = (inn1.bowlingTeam === team1Name) ? inn1 : ((inn2?.bowlingTeam === team1Name) ? inn2 : (team2BattingInn || inn2));
+  const team2BowlingInn = (inn2?.bowlingTeam === team2Name) ? inn2 : ((inn1.bowlingTeam === team2Name) ? inn1 : (team1BattingInn || inn1));
+
+  const team1Batters = getBattersForInnings(team1BattingInn, team1Name);
+  const team2Batters = getBattersForInnings(team2BattingInn, team2Name);
+  const team1Bowlers = getBowlersForInnings(team1BowlingInn, team1Name);
+  const team2Bowlers = getBowlersForInnings(team2BowlingInn, team2Name);
+
+  // Backward-compatible bindings for regression test inspection
+  const inn1Batters = team1Batters;
+  const inn1Bowlers = team1Bowlers;
+  const inn2Batters = team2Batters;
+  const inn2Bowlers = team2Bowlers;
 
   // Match Statistics Calculation
   const t1CRR = calculateCRR(inn1.score, inn1.legalBalls);
@@ -457,38 +474,66 @@ export default function MatchSummaryImageGenerator({
         const element = canvasRef.current;
         if (!element) return;
 
+        const captureHeight = Math.max(element.scrollHeight || 1080, 1080);
+
         // Respect export resolution setting (Default 4k = scale 2x)
         const exportRes = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_export_res') || '4k') : '4k';
         const exportScale = exportRes === '1080' ? 1 : 2;
 
-        const canvas = await html2canvas(element, {
-          width: 1920,
-          height: 1080,
-          scale: exportScale,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#F0F7FF',
-          logging: false,
-          windowWidth: 1920,
-          windowHeight: 1080,
-          onclone: (clonedDoc) => {
-            const allElements = clonedDoc.querySelectorAll('*');
-            allElements.forEach((node) => {
-              node.style.letterSpacing = 'normal';
-              node.style.wordSpacing = 'normal';
-            });
-          }
-        });
+        let dUrl = null;
+        try {
+          dUrl = await toPng(element, {
+            pixelRatio: exportScale,
+            backgroundColor: '#F0F7FF',
+            cacheBust: true,
+            skipFonts: true,
+            width: 1920,
+            height: captureHeight,
+            canvasWidth: 1920 * exportScale,
+            canvasHeight: captureHeight * exportScale,
+            style: {
+              left: '0',
+              top: '0',
+              position: 'relative'
+            }
+          });
+        } catch (imgErr) {
+          console.warn('html-to-image export failed, falling back to html2canvas:', imgErr);
+          const canvas = await html2canvas(element, {
+            width: 1920,
+            height: captureHeight,
+            scale: exportScale,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#F0F7FF',
+            logging: false,
+            windowWidth: 1920,
+            windowHeight: captureHeight,
+            scrollY: 0,
+            scrollX: 0,
+            onclone: (clonedDoc) => {
+              const clonedCanvas = clonedDoc.querySelector('.ms-canvas');
+              if (clonedCanvas) {
+                clonedCanvas.style.height = `${captureHeight}px`;
+                clonedCanvas.style.overflow = 'visible';
+              }
+              const allElements = clonedDoc.querySelectorAll('*');
+              allElements.forEach((node) => {
+                node.style.letterSpacing = 'normal';
+                node.style.wordSpacing = 'normal';
+              });
+              clonedDoc.querySelectorAll('.ms-pill-text').forEach((node) => {
+                node.style.position = 'relative';
+                node.style.top = '-2px';
+              });
+            }
+          });
+          dUrl = canvas.toDataURL('image/png');
+          setCapturedCanvas(canvas);
+        }
 
-        const dUrl = canvas.toDataURL('image/png');
         setDataUrlString(dUrl);
-        setCapturedCanvas(canvas);
-
-        canvas.toBlob((blob) => {
-          if (!blob) return;
-          const url = URL.createObjectURL(blob);
-          setGeneratedImageUrl(url);
-        }, 'image/png');
+        setGeneratedImageUrl(dUrl);
       } catch (err) {
         console.error('Match summary generation error:', err);
       } finally {
@@ -509,10 +554,10 @@ export default function MatchSummaryImageGenerator({
     try {
       const target = dataUrlString || capturedCanvas || canvasRef.current;
       if (!target) return;
-      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
+      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`, { downloadOnly: true });
     } catch (err) {
       console.error('Download export failed:', err);
-      alert('Could not save scorecard image: ' + (err.message || ''));
+      alert('Could not save infographic image: ' + (err.message || ''));
     } finally {
       setIsDownloading(false);
     }
@@ -523,10 +568,10 @@ export default function MatchSummaryImageGenerator({
     try {
       const target = dataUrlString || capturedCanvas || canvasRef.current;
       if (!target) return;
-      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`);
+      await exportAndSaveImage(target, fileName, `Match Summary: ${team1Name} vs ${team2Name}`, { shareOnly: true });
     } catch (err) {
       console.error('Share export failed:', err);
-      alert('Could not share scorecard image: ' + (err.message || ''));
+      alert('Could not share infographic image: ' + (err.message || ''));
     } finally {
       setIsSharing(false);
     }
@@ -596,18 +641,20 @@ export default function MatchSummaryImageGenerator({
               onClick={handleDownload}
               disabled={isGenerating || !generatedImageUrl || isDownloading}
               className="btn p s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
+              title="Download Infographic PNG directly without sharing"
             >
               {isDownloading ? <ButtonSpinner className="w-4 h-4 text-white" /> : <Download className="w-4 h-4" />}
-              <span>{isDownloading ? 'Saving PNG...' : 'Download Scorecard PNG'}</span>
+              <span>{isDownloading ? 'Saving PNG...' : 'Download PNG'}</span>
             </button>
 
             <button
               onClick={handleShare}
               disabled={isGenerating || !generatedImageUrl || isSharing}
               className="btn s flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10 px-6 rounded-full font-bold text-xs"
+              title="Share Infographic"
             >
               {isSharing ? <ButtonSpinner className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-              <span>{isSharing ? 'Sharing...' : 'Share Scorecard'}</span>
+              <span>{isSharing ? 'Sharing...' : 'Share'}</span>
             </button>
           </div>
         </div>
@@ -615,18 +662,18 @@ export default function MatchSummaryImageGenerator({
 
       {/* =========================================================================
           OFF-SCREEN FIXED 1920x1080 CANVAS
-          Rendered at exact dimensions left: -9999px for html2canvas capture.
-          All styling uses solid hex/rgba values, inline SVGs, and Inter font.
+          Mounted at (0,0) with z-index: -99999 so html-to-image renders full canvas natively
           ========================================================================= */}
       <div
         ref={canvasRef}
         className="ms-canvas"
+        aria-hidden="true"
         style={{
           position: 'fixed',
-          left: '-9999px',
+          left: 0,
           top: 0,
           width: '1920px',
-          height: '1080px',
+          minHeight: '1080px',
           backgroundColor: '#F0F7FF',
           color: '#0F172A',
           fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
@@ -634,19 +681,34 @@ export default function MatchSummaryImageGenerator({
           wordSpacing: 'normal',
           boxSizing: 'border-box',
           padding: '28px 44px',
-          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          zIndex: -9999
+          justifyContent: 'flex-start',
+          gap: '12px',
+          zIndex: -99999,
+          pointerEvents: 'none',
+          overflow: 'visible'
         }}
       >
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
           .ms-canvas * {
             font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
             letter-spacing: normal !important;
             word-spacing: normal !important;
+          }
+          .ms-pill-centered {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            box-sizing: border-box !important;
+            vertical-align: middle !important;
+          }
+          .ms-pill-text {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
           }
         `}</style>
 
@@ -654,6 +716,7 @@ export default function MatchSummaryImageGenerator({
         <svg
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
           viewBox="0 0 1920 1080"
+          preserveAspectRatio="none"
           fill="none"
         >
           <path d="M0 0H900C780 120 540 90 400 180S120 320 0 280Z" fill="#E6F0FA" opacity="0.6" />
@@ -677,7 +740,7 @@ export default function MatchSummaryImageGenerator({
         </svg>
 
         {/* 1. TOP HEADER SECTION */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           {/* Left: Batter Silhouette + Divider + Heading + Subtitle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <svg width="52" height="52" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
@@ -722,44 +785,63 @@ export default function MatchSummaryImageGenerator({
 
           {/* Right: Date Pill (Right-aligned, not cramped) */}
           <div
+            className="ms-pill-centered"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
+              display: 'inline-block',
+              textAlign: 'center',
               backgroundColor: '#FFFFFF',
               border: '1.5px solid #DBEAFE',
               borderRadius: '999px',
-              padding: '10px 24px',
+              height: '40px',
+              lineHeight: '40px',
+              padding: '0 24px',
+              verticalAlign: 'middle',
               boxShadow: '0 4px 14px rgba(11,31,59,0.04)',
               boxSizing: 'border-box',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              overflow: 'visible',
+              margin: 0
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '10px' }}>
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            <span style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2, letterSpacing: 'normal', wordSpacing: 'normal' }}>
+            <span
+              className="ms-pill-text"
+              style={{
+                display: 'inline-block',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#0F172A',
+                height: '40px',
+                lineHeight: '40px',
+                verticalAlign: 'middle',
+                letterSpacing: 'normal',
+                wordSpacing: 'normal',
+                margin: 0,
+                padding: 0
+              }}
+            >
               {toNbsp(datePillText)}
             </span>
           </div>
         </div>
 
         {/* 2. MIDDLE SECTION: Main Match Result Card (Left) & Match Statistics Card (Right) */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1.25fr 0.75fr', gap: '22px', marginBottom: '18px' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1.25fr 0.75fr', gap: '22px', marginBottom: '16px' }}>
           {/* Main Match Result Card */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '24px',
-              padding: '24px 32px',
+              padding: '20px 28px',
               border: '1.5px solid #DBEAFE',
               boxShadow: '0 12px 36px rgba(11,31,59,0.06)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '255px',
+              minHeight: '240px',
               boxSizing: 'border-box'
             }}
           >
@@ -817,26 +899,31 @@ export default function MatchSummaryImageGenerator({
             </div>
 
             {/* Result Pill flanked by thin blue line with dot at each end */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '14px' }}>
               <div style={{ height: '1.5px', flex: 1, backgroundColor: '#93C5FD', position: 'relative' }}>
                 <div style={{ position: 'absolute', left: 0, top: '-3px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563EB' }} />
               </div>
 
               <div
+                className="ms-pill-centered"
                 style={{
                   background: 'linear-gradient(90deg, #071938 0%, #0B2A63 100%)',
                   borderRadius: '999px',
-                  padding: '8px 32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px',
+                  display: 'inline-block',
+                  textAlign: 'center',
+                  height: '42px',
+                  lineHeight: '42px',
+                  padding: '0 32px',
                   border: '1.5px solid rgba(255,255,255,0.22)',
                   boxShadow: '0 6px 20px rgba(11,31,59,0.2)',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  verticalAlign: 'middle',
+                  whiteSpace: 'nowrap',
+                  overflow: 'visible',
+                  margin: 0
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '10px' }}>
                   <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
                   <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
                   <path d="M4 22h16" />
@@ -844,7 +931,23 @@ export default function MatchSummaryImageGenerator({
                   <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
                   <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="#FBBF24" fillOpacity="0.3" />
                 </svg>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#FFFFFF', letterSpacing: 'normal', wordSpacing: 'normal', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                <span
+                  className="ms-pill-text"
+                  style={{
+                    display: 'inline-block',
+                    fontSize: '16px',
+                    fontWeight: 800,
+                    color: '#FFFFFF',
+                    letterSpacing: 'normal',
+                    wordSpacing: 'normal',
+                    height: '42px',
+                    lineHeight: '42px',
+                    verticalAlign: 'middle',
+                    whiteSpace: 'nowrap',
+                    margin: 0,
+                    padding: 0
+                  }}
+                >
                   {toNbsp(resultText)}
                 </span>
               </div>
@@ -860,13 +963,13 @@ export default function MatchSummaryImageGenerator({
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '24px',
-              padding: '20px 24px',
+              padding: '18px 22px',
               border: '1.5px solid #DBEAFE',
               boxShadow: '0 12px 36px rgba(11,31,59,0.06)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '255px',
+              minHeight: '240px',
               boxSizing: 'border-box'
             }}
           >
@@ -883,41 +986,45 @@ export default function MatchSummaryImageGenerator({
             {/* Static Team Header Pills */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
               <div
+                className="ms-pill-centered ms-pill-text"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'inline-block',
+                  textAlign: 'center',
                   backgroundColor: '#071938',
                   color: '#FFFFFF',
                   borderRadius: '999px',
                   height: '32px',
-                  padding: '4px 16px',
+                  lineHeight: '32px',
+                  padding: '0 16px',
                   fontWeight: 800,
                   fontSize: '13px',
-                  lineHeight: 1.2,
+                  verticalAlign: 'middle',
                   boxSizing: 'border-box',
                   whiteSpace: 'nowrap',
-                  overflow: 'visible'
+                  overflow: 'visible',
+                  margin: 0
                 }}
               >
                 {toNbsp(team1Name)}
               </div>
               <div
+                className="ms-pill-centered ms-pill-text"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: 'inline-block',
+                  textAlign: 'center',
                   backgroundColor: '#DBEAFE',
                   color: '#1D5CFF',
                   borderRadius: '999px',
                   height: '32px',
-                  padding: '4px 16px',
+                  lineHeight: '32px',
+                  padding: '0 16px',
                   fontWeight: 800,
                   fontSize: '13px',
-                  lineHeight: 1.2,
+                  verticalAlign: 'middle',
                   boxSizing: 'border-box',
                   whiteSpace: 'nowrap',
-                  overflow: 'visible'
+                  overflow: 'visible',
+                  margin: 0
                 }}
               >
                 {toNbsp(team2Name)}
@@ -967,13 +1074,13 @@ export default function MatchSummaryImageGenerator({
               zIndex: 1,
               backgroundColor: '#FFFFFF',
               borderRadius: '20px',
-              padding: '12px 24px',
+              padding: '8px 20px',
               border: '1.5px solid #FDE68A',
               boxShadow: '0 6px 20px rgba(245, 158, 11, 0.08)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '16px',
+              marginBottom: '12px',
               boxSizing: 'border-box'
             }}
           >
@@ -1000,20 +1107,23 @@ export default function MatchSummaryImageGenerator({
                     Top Performer · Player of the Match
                   </span>
                   <span
+                    className="ms-pill-centered ms-pill-text"
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: 'inline-block',
+                      textAlign: 'center',
                       backgroundColor: '#FEF3C7',
                       color: '#B45309',
                       height: '22px',
-                      padding: '2px 10px',
+                      lineHeight: '22px',
+                      padding: '0 10px',
                       borderRadius: '999px',
                       fontSize: '11px',
                       fontWeight: 800,
-                      lineHeight: 1.2,
+                      verticalAlign: 'middle',
                       boxSizing: 'border-box',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      overflow: 'visible',
+                      margin: 0
                     }}
                   >
                     {topPerformer.totalPoints}&nbsp;Points
@@ -1031,46 +1141,52 @@ export default function MatchSummaryImageGenerator({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {topPerformer.batting?.runs > 0 && (
                 <div
+                  className="ms-pill-centered ms-pill-text"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'inline-block',
+                    textAlign: 'center',
                     backgroundColor: '#F0FDF4',
                     border: '1.5px solid #BBF7D0',
                     height: '32px',
-                    padding: '4px 14px',
+                    lineHeight: '32px',
+                    padding: '0 14px',
                     borderRadius: '999px',
                     fontSize: '13px',
                     color: '#166534',
                     fontWeight: 700,
-                    lineHeight: 1.2,
+                    verticalAlign: 'middle',
                     boxSizing: 'border-box',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    overflow: 'visible',
+                    margin: 0
                   }}
                 >
-                  <span>Batting:&nbsp;<strong>{topPerformer.batting.runs}</strong>&nbsp;({topPerformer.batting.balls}b,&nbsp;{topPerformer.batting.fours}x4,&nbsp;{topPerformer.batting.sixes}x6)</span>
+                  <span style={{ display: 'inline-block', height: '32px', lineHeight: '32px', verticalAlign: 'middle', margin: 0, padding: 0 }}>Batting:&nbsp;<strong>{topPerformer.batting.runs}</strong>&nbsp;({topPerformer.batting.balls}b,&nbsp;{topPerformer.batting.fours}x4,&nbsp;{topPerformer.batting.sixes}x6)</span>
                 </div>
               )}
               {topPerformer.bowling?.legalBalls > 0 && (
                 <div
+                  className="ms-pill-centered ms-pill-text"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'inline-block',
+                    textAlign: 'center',
                     backgroundColor: '#EFF6FF',
                     border: '1.5px solid #BFDBFE',
                     height: '32px',
-                    padding: '4px 14px',
+                    lineHeight: '32px',
+                    padding: '0 14px',
                     borderRadius: '999px',
                     fontSize: '13px',
                     color: '#1E40AF',
                     fontWeight: 700,
-                    lineHeight: 1.2,
+                    verticalAlign: 'middle',
                     boxSizing: 'border-box',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    overflow: 'visible',
+                    margin: 0
                   }}
                 >
-                  <span>Bowling:&nbsp;<strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded}&nbsp;({formatOvers(topPerformer.bowling.legalBalls)}&nbsp;ov)</span>
+                  <span style={{ display: 'inline-block', height: '32px', lineHeight: '32px', verticalAlign: 'middle', margin: 0, padding: 0 }}>Bowling:&nbsp;<strong>{topPerformer.bowling.wickets}</strong>/{topPerformer.bowling.runsConceded}&nbsp;({formatOvers(topPerformer.bowling.legalBalls)}&nbsp;ov)</span>
                 </div>
               )}
             </div>
@@ -1088,32 +1204,32 @@ export default function MatchSummaryImageGenerator({
             flex: 1
           }}
         >
-          {/* Top Left: 1st Innings Batting */}
+          {/* Top Left: Team 1 Top 4 Batters */}
           <BattingTableCard
-            title={`Batting – ${inn1BattingTeam} (1st Innings)`}
-            batters={inn1Batters}
-            isNavy={isInn1BattingTeam1}
+            title={`Top 4 Batters – ${team1Name}`}
+            batters={team1Batters}
+            isNavy={true}
           />
 
-          {/* Top Right: 1st Innings Bowling */}
-          <BowlingTableCard
-            title={`Bowling – ${inn1BowlingTeam} (1st Innings)`}
-            bowlers={inn1Bowlers}
-            isNavy={!isInn1BattingTeam1}
-          />
-
-          {/* Bottom Left: 2nd Innings Batting */}
+          {/* Top Right: Team 2 Top 4 Batters */}
           <BattingTableCard
-            title={`Batting – ${inn2BattingTeam} (2nd Innings)`}
-            batters={inn2Batters}
-            isNavy={isInn2BattingTeam1}
+            title={`Top 4 Batters – ${team2Name}`}
+            batters={team2Batters}
+            isNavy={false}
           />
 
-          {/* Bottom Right: 2nd Innings Bowling */}
+          {/* Bottom Left: Team 1 Top 4 Bowlers */}
           <BowlingTableCard
-            title={`Bowling – ${inn2BowlingTeam} (2nd Innings)`}
-            bowlers={inn2Bowlers}
-            isNavy={!isInn2BattingTeam1}
+            title={`Top 4 Bowlers – ${team1Name}`}
+            bowlers={team1Bowlers}
+            isNavy={true}
+          />
+
+          {/* Bottom Right: Team 2 Top 4 Bowlers */}
+          <BowlingTableCard
+            title={`Top 4 Bowlers – ${team2Name}`}
+            bowlers={team2Bowlers}
+            isNavy={false}
           />
         </div>
 

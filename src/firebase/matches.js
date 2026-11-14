@@ -191,11 +191,16 @@ export async function findMatchByCode(code) {
       const q = query(collection(db, 'matches'), where('code', '==', cleanCode));
       const snap = await getDocs(q);
       if (!snap.empty) {
-        const matchDoc = snap.docs[0];
-        return {
-          matchId: matchDoc.id,
-          ...matchDoc.data()
-        };
+        const matches = snap.docs.map((d) => ({ matchId: d.id, ...d.data() }));
+        matches.sort((a, b) => {
+          const aActive = a.status === 'in_progress' ? 1 : 0;
+          const bActive = b.status === 'in_progress' ? 1 : 0;
+          if (aActive !== bActive) return bActive - aActive;
+          const aTime = a.updatedAt || a.lastSeen || 0;
+          const bTime = b.updatedAt || b.lastSeen || 0;
+          return bTime - aTime;
+        });
+        return matches[0];
       }
     }
 
@@ -213,11 +218,16 @@ export async function findMatchByCode(code) {
     const qFallback = query(collection(db, 'matches'), where('code', '==', cleanCode));
     const snapFallback = await getDocs(qFallback);
     if (!snapFallback.empty) {
-      const matchDoc = snapFallback.docs[0];
-      return {
-        matchId: matchDoc.id,
-        ...matchDoc.data()
-      };
+      const matches = snapFallback.docs.map((d) => ({ matchId: d.id, ...d.data() }));
+      matches.sort((a, b) => {
+        const aActive = a.status === 'in_progress' ? 1 : 0;
+        const bActive = b.status === 'in_progress' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        const aTime = a.updatedAt || a.lastSeen || 0;
+        const bTime = b.updatedAt || b.lastSeen || 0;
+        return bTime - aTime;
+      });
+      return matches[0];
     }
   } catch (err) {
     console.warn('findMatchByCode error:', err);

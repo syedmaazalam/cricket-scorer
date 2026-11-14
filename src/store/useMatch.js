@@ -173,6 +173,34 @@ export function useMatch(matchId, isViewerMode = false) {
         if (docData && isViewerMode) {
           lastDocData = docData;
           evaluateOffline();
+
+          // Snapshot fallback: if state has not been populated with real events yet, hydrate from match document
+          if (docData.innings?.length > 0 && docData.teams?.length > 0) {
+            const curState = stateRef.current;
+            const hasRealEvents = (curState?.events || []).length > 0 && curState?.teams?.[0]?.name !== 'Batting Team';
+            if (!hasRealEvents) {
+              const restored = {
+                matchId: activeTargetId,
+                code: docData.code || '',
+                status: docData.status || 'in_progress',
+                overs: docData.overs || 20,
+                playersPerTeam: docData.playersPerTeam || 11,
+                teams: docData.teams || [],
+                toss: docData.toss || null,
+                currentInningsIndex: docData.currentInningsIndex || 0,
+                striker: docData.striker || null,
+                nonStriker: docData.nonStriker || null,
+                currentBowler: docData.currentBowler || null,
+                isFreeHit: Boolean(docData.isFreeHit),
+                target: docData.target != null ? docData.target : null,
+                innings: docData.innings || [],
+                summary: docData.summary || null,
+                events: docData.events || []
+              };
+              stateRef.current = restored;
+              setMatchState(restored);
+            }
+          }
         }
       });
 

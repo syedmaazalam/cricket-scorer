@@ -22,6 +22,7 @@ export default function EditBallModal({
   const [wicketType, setWicketType] = useState(WICKET_TYPES.BOWLED);
   const [dismissedPlayer, setDismissedPlayer] = useState('');
   const [fielder, setFielder] = useState('');
+  const [isDirectHit, setIsDirectHit] = useState(false);
   const [isOverthrow, setIsOverthrow] = useState(false);
   const [overthrowRuns, setOverthrowRuns] = useState(0);
 
@@ -39,6 +40,7 @@ export default function EditBallModal({
     setWicketType(target.wicket?.type || target.wicketType || WICKET_TYPES.BOWLED);
     setDismissedPlayer(target.wicket?.playerOut || target.dismissedPlayer || target.striker || '');
     setFielder(target.wicket?.fielder || target.fielder || '');
+    setIsDirectHit(Boolean(target.wicket?.isDirectHit || target.isDirectHit));
     setIsOverthrow(Boolean(target.isOverthrow));
     setOverthrowRuns(Number(target.overthrowRuns) || 0);
   }, [initialBall, isOpen, allBalls]);
@@ -60,6 +62,7 @@ export default function EditBallModal({
       setWicketType(found.wicket?.type || found.wicketType || WICKET_TYPES.BOWLED);
       setDismissedPlayer(found.wicket?.playerOut || found.dismissedPlayer || found.striker || '');
       setFielder(found.wicket?.fielder || found.fielder || '');
+      setIsDirectHit(Boolean(found.wicket?.isDirectHit || found.isDirectHit));
       setIsOverthrow(Boolean(found.isOverthrow));
       setOverthrowRuns(Number(found.overthrowRuns) || 0);
     }
@@ -70,6 +73,7 @@ export default function EditBallModal({
     if (!currentBall) return;
 
     const chosenBowler = bowler || currentBall.bowler;
+    const directHit = (isWicket && wicketType === WICKET_TYPES.RUN_OUT) ? Boolean(isDirectHit) : false;
     const payload = {
       runs: extraType === EXTRA_TYPES.WIDE ? 0 : runs,
       extraType,
@@ -80,11 +84,13 @@ export default function EditBallModal({
         type: wicketType,
         playerOut: dismissedPlayer || currentBall.striker,
         bowler: chosenBowler,
-        fielder: fielder.trim() || null
+        fielder: fielder.trim() || null,
+        isDirectHit: directHit
       } : null,
       wicketType: isWicket ? wicketType : null,
       dismissedPlayer: isWicket ? (dismissedPlayer || currentBall.striker) : null,
       fielder: isWicket ? (fielder.trim() || null) : null,
+      isDirectHit: directHit,
       isOverthrow,
       overthrowRuns: isOverthrow ? overthrowRuns : 0
     };
@@ -430,6 +436,18 @@ export default function EditBallModal({
                     />
                   </div>
                 ) : null}
+
+                {wicketType === WICKET_TYPES.RUN_OUT && (
+                  <label className="flex items-center gap-2 cursor-pointer mt-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={isDirectHit}
+                      onChange={(e) => setIsDirectHit(e.target.checked)}
+                      className="rounded accent-[#22C55E]"
+                    />
+                    <span style={{ color: 'var(--text)' }}>Direct Hit Run-out (+12 pts)</span>
+                  </label>
+                )}
               </div>
             )}
           </div>

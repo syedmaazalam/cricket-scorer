@@ -17,12 +17,14 @@ export default function WicketModal({
   const [wicketType, setWicketType] = useState(WICKET_TYPES.CAUGHT);
   const [playerOut, setPlayerOut] = useState(striker);
   const [fielder, setFielder] = useState('');
+  const [isDirectHit, setIsDirectHit] = useState(false);
   const [nextBatter, setNextBatter] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const directHit = wicketType === WICKET_TYPES.RUN_OUT ? Boolean(isDirectHit) : false;
     onConfirmWicket({
       runs: 0,
       extraType: null,
@@ -32,11 +34,13 @@ export default function WicketModal({
         type: wicketType,
         playerOut: playerOut || striker,
         fielder: fielder || null,
+        isDirectHit: directHit,
         bowler
       },
       wicketType,
       dismissedPlayer: playerOut || striker,
       fielder: fielder || null,
+      isDirectHit: directHit,
       nextBatter: nextBatter || null
     });
     onClose();
@@ -153,6 +157,19 @@ export default function WicketModal({
                 ))}
               </select>
             </div>
+          )}
+
+          {/* Direct Hit Toggle (Run Out only) */}
+          {wicketType === WICKET_TYPES.RUN_OUT && (
+            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 border border-slate-700 cursor-pointer text-xs font-semibold text-slate-200 hover:bg-slate-800 transition-colors">
+              <input
+                type="checkbox"
+                checked={isDirectHit}
+                onChange={(e) => setIsDirectHit(e.target.checked)}
+                className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 bg-slate-900 border-slate-600 cursor-pointer"
+              />
+              <span>Direct Hit Run-out (awards +12 pts instead of +6 pts)</span>
+            </label>
           )}
 
           {/* Next Batter Selector */}

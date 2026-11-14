@@ -56,6 +56,7 @@ import Settings from './Settings.jsx';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets, checkBattingMilestone, checkBowlerHatTrick } from '../engine/rules.js';
 import { getShareUrl } from '../engine/constants.js';
+import { getBallChipConfig, useIsDark } from '../engine/ballChipStyles.js';
 import { registerModalHandler } from '../services/navigationManager.js';
 
 export default function Scoring({
@@ -96,6 +97,7 @@ export default function Scoring({
   const [activeTab, setActiveTab] = useState('score');
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isDark = useIsDark();
 
   const handleSelectTab = (tab) => {
     if (tab === activeTab) return;
@@ -1212,48 +1214,31 @@ export default function Scoring({
               </div>
 
               <div className="row wrap" style={{ margin: '12px 0', gap: '6px' }}>
+                {/* Score-based styling via getBallChipConfig (var(--ball-run-bg) / var(--ball-run-text)) */}
                 {currentOverBalls.length === 0 ? (
                   <span className="mu text-xs py-1">No balls bowled in this over yet</span>
                 ) : (
-                  currentOverBalls.map((b, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBallForEdit(b);
-                        setIsEditBallModalOpen(true);
-                      }}
-                      title={`Click to edit ball ${b.shortLabel || b.runs}`}
-                      style={{
-                        backgroundColor: b.isWicket
-                          ? '#DC2626'
-                          : b.runs === 6
-                          ? 'var(--purple)'
-                          : b.runs === 4
-                          ? 'var(--blue)'
-                          : b.extraType
-                          ? 'var(--orange)'
-                          : b.runs > 0
-                          ? 'var(--ball-run-bg)'
-                          : 'var(--well)',
-                        color: b.isWicket
-                          ? '#FFFFFF'
-                          : b.runs === 0 && !b.extraType
-                          ? 'var(--t2)'
-                          : b.runs > 0 && !b.extraType
-                          ? 'var(--ball-run-text)'
-                          : '#FFFFFF',
-                        borderColor: b.isWicket
-                          ? '#EF4444'
-                          : b.runs > 0 && !b.extraType
-                          ? 'var(--bda)'
-                          : 'var(--bd)'
-                      }}
-                      className="bl cursor-pointer hover:scale-110 active:scale-90 transition-transform font-black"
-                    >
-                      {b.shortLabel}
-                    </button>
-                  ))
+                  currentOverBalls.map((b, i) => {
+                    const chipCfg = getBallChipConfig(b, isDark);
+                    return (
+                      <button
+                        key={b.ballId || b.id || i}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBallForEdit(b);
+                          setIsEditBallModalOpen(true);
+                        }}
+                        title={`Click to edit ball ${chipCfg.label || b.shortLabel || b.runs}`}
+                        style={{
+                          ...chipCfg.style,
+                          fontWeight: 600
+                        }}
+                        className="bl cursor-pointer hover:scale-110 active:scale-90 transition-transform animate-ball-scale-in"
+                      >
+                        {chipCfg.label}
+                      </button>
+                    );
+                  })
                 )}
               </div>
 
@@ -1272,7 +1257,7 @@ export default function Scoring({
 
             {/* Desktop Live Charts */}
             <div className="hidden lg:block w-full">
-              <MatchCharts matchState={matchState} />
+              <MatchCharts matchState={matchState} hideSummaryTiles={true} />
             </div>
           </div>
         </div>

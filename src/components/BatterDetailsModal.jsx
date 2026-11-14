@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, TrendingUp, Target, User, Zap } from 'lucide-react';
 import { computeBatterDetails } from '../engine/stats.js';
+import { getBallChipConfig, useIsDark } from '../engine/ballChipStyles.js';
 
 export default function BatterDetailsModal({
   batterName,
   innings,
   onClose
 }) {
+  const [selectedBallIndex, setSelectedBallIndex] = useState(null);
+  const isDark = useIsDark();
+
   if (!batterName) return null;
 
   const details = computeBatterDetails(innings, batterName);
@@ -217,11 +221,16 @@ export default function BatterDetailsModal({
             )}
           </div>
 
-          {/* Chronological Ball-by-Ball Timeline */}
+          {/* Chronological Batsman Ball-by-Ball Timeline */}
           <div>
-            <div className="flex items-center gap-1.5 pb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Innings Delivery Timeline</span>
+            <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Batsman Delivery Timeline</span>
+              </div>
+              <span className="text-[11px] font-mono text-[var(--muted)] font-semibold">
+                {`${timeline.length} ${timeline.length === 1 ? 'ball played' : 'balls played'}`}
+              </span>
             </div>
 
             {timeline.length === 0 ? (
@@ -229,48 +238,76 @@ export default function BatterDetailsModal({
                 style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)', color: 'var(--muted)' }}
                 className="p-3 rounded-lg border text-center text-xs"
               >
-                No deliveries faced yet.
+                No deliveries played by {batterName} yet.
               </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
-                {timeline.map((item, idx) => {
-                  let badgeBg = 'var(--card-alt)';
-                  let textColor = 'var(--muted)';
-                  let borderColor = 'var(--border)';
-                  if (item.isWicket) {
-                    badgeBg = 'var(--red)';
-                    textColor = '#FFFFFF';
-                    borderColor = 'var(--red)';
-                  } else if (item.isSix || item.isFour) {
-                    badgeBg = 'var(--primary)';
-                    textColor = '#FFFFFF';
-                    borderColor = 'var(--primary)';
-                  } else if (item.runs > 0) {
-                    badgeBg = 'color-mix(in srgb, var(--primary) 20%, var(--card-alt))';
-                    textColor = 'var(--text)';
-                    borderColor = 'var(--primary)';
-                  }
+              <>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1 items-center">
+                  {timeline.map((item, idx) => {
+                    const chipCfg = getBallChipConfig(item, isDark);
+                    const isSelected = selectedBallIndex === idx;
 
-                  return (
-                    <div
-                      key={idx}
-                      title={`Ball ${idx + 1} (Ov ${item.ballInOver}) vs ${item.bowler}: ${item.runs} run(s) • Total: ${item.cumulativeRuns}`}
-                      style={{
-                        backgroundColor: badgeBg,
-                        color: textColor,
-                        borderColor: borderColor
-                      }}
-                      className="w-8 h-8 rounded-lg border flex flex-col items-center justify-center text-xs font-semibold shrink-0 transition-transform hover:scale-105 cursor-pointer shadow-sm"
-                    >
-                      <span>{item.shortLabel}</span>
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedBallIndex(isSelected ? null : idx)}
+                        title={`Ball ${idx + 1} (Ov ${item.ballInOver}) vs ${item.bowler}: ${item.isWicket ? 'Wicket Out' : `${item.runs} run(s)`} • Cumulative: ${item.cumulativeRuns} runs`}
+                        style={{
+                          ...chipCfg.style,
+                          fontWeight: 600,
+                          transform: isSelected ? 'scale(1.15)' : 'none',
+                          zIndex: isSelected ? 10 : 1
+                        }}
+                        className="bl shrink-0 w-8 h-8 rounded-full border cursor-pointer hover:scale-110 active:scale-95 transition-transform font-semibold text-xs inline-flex items-center justify-center shadow-sm select-none"
+                      >
+                        {chipCfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Ball Inspector Bar */}
+                {selectedBallIndex !== null && timeline[selectedBallIndex] && (
+                  <div
+                    style={{ backgroundColor: 'var(--card-alt)', borderColor: 'var(--border)' }}
+                    className="mt-2 p-2.5 rounded-lg border flex items-center justify-between text-xs animate-in fade-in duration-150"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] bg-[var(--primary)] text-white shrink-0">
+                        #{selectedBallIndex + 1}
+                      </div>
+                      <div>
+                        <div className="font-bold" style={{ color: 'var(--text)' }}>
+                          vs {timeline[selectedBallIndex].bowler} · Ov {timeline[selectedBallIndex].ballInOver}
+                        </div>
+                        <div className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                          {timeline[selectedBallIndex].isWicket ? (
+                            <span className="text-[var(--red)] font-bold">WICKET ({timeline[selectedBallIndex].wicketType || 'Out'})</span>
+                          ) : (
+                            <span>{timeline[selectedBallIndex].runs} run{timeline[selectedBallIndex].runs === 1 ? '' : 's'} off bat</span>
+                          )}
+                          {' · '}Total: {timeline[selectedBallIndex].cumulativeRuns} runs
+                        </div>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBallIndex(null)}
+                      className="p-1 rounded hover:opacity-70 text-[var(--muted)]"
+                      aria-label="Close inspector"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
+
             <div className="flex items-center justify-between text-[10px] pt-1.5 px-1" style={{ color: 'var(--muted)' }}>
-              <span>Tap ball badge for bowler & over details</span>
-              <span>Total Balls: {timeline.length}</span>
+              <span>Tap any ball to inspect bowler &amp; delivery outcome</span>
+              <span>Balls Played: {timeline.length}</span>
             </div>
           </div>
         </div>

@@ -209,7 +209,7 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
 
           {/* Over Comparison Chart (Under Head to Head comparison on Desktop) */}
           <div className="hidden lg:block w-full">
-            <MatchCharts matchState={matchState} initialChart="runs" />
+            <MatchCharts matchState={matchState} initialChart="worm" />
           </div>
         </div>
 
@@ -407,7 +407,7 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
       {/* 4. Over Comparison Chart at the End on Mobile (Hidden on Desktop since it is under Head to Head) */}
       <div className="w-full mt-4 pt-4 border-t border-[var(--bd)] flex flex-col items-center lg:hidden">
         <div className="w-full max-w-md mx-auto px-0.5 sm:px-0">
-          <MatchCharts matchState={matchState} initialChart="runs" />
+          <MatchCharts matchState={matchState} initialChart="worm" />
         </div>
       </div>
     </div>

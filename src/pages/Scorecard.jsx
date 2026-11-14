@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash, BarChart2, Shield, Activity, User, Target, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
+import { computeInningsStats, getScoreAtLegalBalls, computeMatchFieldingStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
-import { getTopPlayers } from '../engine/potm.js';
+import { getTopPlayers, getVisibleBreakdownItems } from '../engine/potm.js';
 import { getShareUrl } from '../engine/constants.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
@@ -11,6 +11,7 @@ import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
 import SquadModal from '../components/SquadModal.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
+import ScorecardPNGGenerator from '../components/ScorecardPNGGenerator.jsx';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
 import { SkeletonBox, SkeletonCard, SkeletonTable } from '../components/ui/LoadingPrimitives.jsx';
 
@@ -42,6 +43,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isScorecardPNGOpen, setIsScorecardPNGOpen] = useState(false);
   const scorecardRef = useRef(null);
 
   const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
@@ -134,7 +136,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
   // Top 3 Players of the Match computation
   const aggregatedPlayerStats = {};
-  const aggregatedFieldingStats = {};
+  const aggregatedFieldingStats = computeMatchFieldingStats(matchState);
 
   const getPlayerTeam = (playerName) => {
     if (matchState?.teams && Array.isArray(matchState.teams)) {
@@ -154,14 +156,17 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         aggregatedPlayerStats[name] = {
           name,
           team: actualTeam,
-          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0, dismissed: false },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0, bowledLbw: 0, wides: 0, noBalls: 0 }
         };
       }
       aggregatedPlayerStats[name].batting.runs += bStat.runs || 0;
       aggregatedPlayerStats[name].batting.balls += bStat.balls || 0;
       aggregatedPlayerStats[name].batting.fours += bStat.fours || 0;
       aggregatedPlayerStats[name].batting.sixes += bStat.sixes || 0;
+      if (bStat.dismissed || bStat.isOut) {
+        aggregatedPlayerStats[name].batting.dismissed = true;
+      }
     });
 
     Object.entries(stats.bowling).forEach(([name, bwStat]) => {
@@ -170,8 +175,8 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         aggregatedPlayerStats[name] = {
           name,
           team: actualTeam,
-          batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0 }
+          batting: { runs: 0, balls: 0, fours: 0, sixes: 0, dismissed: false },
+          bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0, dots: 0, bowledLbw: 0, wides: 0, noBalls: 0 }
         };
       }
       aggregatedPlayerStats[name].bowling.legalBalls += bwStat.legalBalls || 0;
@@ -179,24 +184,20 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       aggregatedPlayerStats[name].bowling.wickets += bwStat.wickets || 0;
       aggregatedPlayerStats[name].bowling.maidens += bwStat.maidens || 0;
       aggregatedPlayerStats[name].bowling.dots += bwStat.dots || 0;
-    });
-
-    stats.fow.forEach(f => {
-      if (f.dismissal) {
-        const match = f.dismissal.match(/c\s+([A-Za-z0-9_ ]+)\s+b/);
-        if (match && match[1]) {
-          const fielder = match[1].trim();
-          if (!aggregatedFieldingStats[fielder]) aggregatedFieldingStats[fielder] = { catches: 0, runOuts: 0, stumpings: 0 };
-          aggregatedFieldingStats[fielder].catches += 1;
-        }
-      }
+      aggregatedPlayerStats[name].bowling.bowledLbw += bwStat.bowledLbw || 0;
+      aggregatedPlayerStats[name].bowling.wides += bwStat.wides || 0;
+      aggregatedPlayerStats[name].bowling.noBalls += bwStat.noBalls || 0;
     });
   };
 
   accumulateStats(stats1, inn1.battingTeam, inn1.bowlingTeam);
   accumulateStats(stats2, inn2.battingTeam, inn2.bowlingTeam);
 
-  const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3);
+  const isMatchConcluded = matchState?.status === 'completed' || matchState?.isCompleted;
+  const winningTeam = isMatchConcluded && matchState?.winner && matchState.winner !== 'Tie'
+    ? matchState.winner
+    : null;
+  const topPlayers = getTopPlayers(aggregatedPlayerStats, aggregatedFieldingStats, 3, winningTeam);
   const topPerformer = topPlayers?.[0];
 
   const timeFormat = typeof localStorage !== 'undefined' ? (localStorage.getItem('setting_time_format') || '12h') : '12h';
@@ -488,11 +489,15 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
 
               {/* Performance Breakdown Chips */}
               <div className="flex flex-wrap gap-1.5 mt-1 pl-4">
-                <span className="chip text-[11px]">Runs +{p.breakdown.runs || 0}</span>
-                <span className="chip text-[11px]">Boundaries +{p.breakdown.boundaries || 0}</span>
-                {p.breakdown.wickets > 0 && (
-                  <span className="chip text-[11px]">Wickets +{p.breakdown.wickets}</span>
-                )}
+                {getVisibleBreakdownItems(p.breakdown).map(item => (
+                  <span
+                    key={item.key}
+                    className={`chip text-[11px] ${item.val < 0 ? 'danger' : ''}`}
+                    style={item.val < 0 ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : {}}
+                  >
+                    {item.label} {item.val > 0 ? `+${item.val}` : `-${Math.abs(item.val)}`}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -506,38 +511,47 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       style={{ color: 'var(--t1)' }}
       className="w-full max-w-5xl mx-auto px-0 sm:px-2 md:px-4 pt-2 pb-24 select-none"
     >
-      {/* Action Row: unified single-line controls matching media_1793796232507_883085a1.jpg */}
-      <div className="flex items-center justify-between w-full p-1.5 rounded-full bg-[rgba(10,21,56,0.65)] border border-[rgba(77,163,255,0.22)] backdrop-blur-md mb-5 shadow-sm">
+      {/* Action Row: responsive controls matching broadcast theme */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full p-2 sm:p-1.5 rounded-2xl sm:rounded-full bg-[rgba(10,21,56,0.65)] border border-[rgba(77,163,255,0.22)] backdrop-blur-md mb-5 shadow-sm">
         {onOpenSummary ? (
           <button
             onClick={() => onOpenSummary(matchState)}
-            className="flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold text-slate-200 hover:text-white transition-colors mx-auto"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl sm:rounded-full text-xs font-bold text-slate-200 hover:text-white transition-colors bg-white/5 sm:bg-transparent border border-white/10 sm:border-transparent w-full sm:w-auto"
             title="Open Complete Match Summary"
           >
             <FileSpreadsheet className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="truncate">Full Summary</span>
           </button>
         ) : (
-          <div className="flex-1" />
+          <div className="hidden sm:block flex-1" />
         )}
 
-        <div className="flex items-center gap-1.5 shrink-0 pr-1">
+        <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto pr-0 sm:pr-1">
           <button
-            onClick={handleShare}
-            title="Share Scorecard Link"
-            className="ib shrink-0"
-            aria-label="Share"
+            onClick={() => setIsScorecardPNGOpen(true)}
+            className="btn p s flex-1 sm:flex-initial shrink-0 inline-flex items-center justify-center gap-1.5 h-9 px-2.5 sm:px-3.5 rounded-full m-0 font-bold text-[11px] sm:text-xs bg-[#0B2D59] text-[#35A9F5] border border-[#35A9F5]/40 hover:bg-[#123C73]"
+            title="Generate Premium Scorecard PNG (16:8)"
           >
-            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" /> : <Share2 className="w-4 h-4" />}
+            <Trophy className="w-3.5 h-3.5 shrink-0 text-[#35A9F5]" />
+            <span className="whitespace-nowrap">Scorecard PNG</span>
           </button>
 
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="btn p s shrink-0 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-full m-0 font-bold text-xs"
-            title="Export Scorecard"
+            className="btn p s flex-1 sm:flex-initial shrink-0 inline-flex items-center justify-center gap-1.5 sm:gap-2 h-9 px-2.5 sm:px-4 rounded-full m-0 font-bold text-[11px] sm:text-xs"
+            title="Export Summary Infographic"
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
-            <span className="truncate">Export Scorecard</span>
+            <span className="whitespace-nowrap">Infographic</span>
+          </button>
+
+          <button
+            onClick={handleShare}
+            title="Share Scorecard Link"
+            className="ib shrink-0 h-9 w-9 inline-flex items-center justify-center"
+            aria-label="Share"
+          >
+            {copied ? <Check className="w-4 h-4 text-[var(--ok)]" /> : <Share2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -604,6 +618,20 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                     </span>
                   )}
                 </div>
+
+                {topPerformer.breakdown && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-amber-300/20 text-xs">
+                    {getVisibleBreakdownItems(topPerformer.breakdown).map(item => (
+                      <span
+                        key={item.key}
+                        className={`chip text-[11px] ${item.val < 0 ? 'danger' : ''}`}
+                        style={item.val < 0 ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : {}}
+                      >
+                        {item.label} {item.val > 0 ? `+${item.val}` : `-${Math.abs(item.val)}`}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -754,6 +782,12 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
         topPlayers={topPlayers}
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
+      />
+
+      <ScorecardPNGGenerator
+        matchState={matchState}
+        isOpen={isScorecardPNGOpen}
+        onClose={() => setIsScorecardPNGOpen(false)}
       />
     </div>
   );

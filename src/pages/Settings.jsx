@@ -14,7 +14,9 @@ import {
   Sparkles,
   Award
 } from 'lucide-react';
-import { CURRENT_APP_VERSION } from '../components/UpdateNotificationBanner.jsx';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config.js';
+import { CURRENT_APP_VERSION, CURRENT_APP_VERSION_CODE } from '../components/UpdateNotificationBanner.jsx';
 
 function Switch({ checked, onChange, ariaLabel }) {
   return (
@@ -217,35 +219,86 @@ export default function Settings({ onBack }) {
     triggerSaved();
   };
 
-  // Check for updates via GitHub Release API
+  // Check for updates via Firebase Firestore with website fallback
+  const OFFICIAL_APK_URL = 'https://smartcricket-website.web.app/SmartCricket.apk';
+
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
     setUpdateStatus(null);
     try {
-      const res = await fetch('https://api.github.com/repos/syedmaazalam/cricket-scorer/releases/latest');
-      if (res.ok) {
-        const release = await res.json();
-        const latestTag = release.tag_name || `v${CURRENT_APP_VERSION}`;
-        const cleanTag = latestTag.replace(/^v/i, '').trim();
-        const isLatest = cleanTag === CURRENT_APP_VERSION || cleanTag <= CURRENT_APP_VERSION;
+      let remoteRelease = null;
+
+      // 1. Check Firestore config/latestRelease first (instant & authoritative)
+      if (db) {
+        try {
+          const snap = await getDoc(doc(db, 'config', 'latestRelease'));
+          if (snap.exists()) {
+            remoteRelease = snap.data();
+          }
+        } catch (e) {
+          console.warn('Firestore update check fallback notice:', e);
+        }
+      }
+
+      // 2. Fallback: check website release / static probe
+      if (!remoteRelease) {
+        try {
+          const res = await fetch(OFFICIAL_APK_URL, { method: 'HEAD' });
+          if (res.ok) {
+            remoteRelease = {
+              versionName: CURRENT_APP_VERSION,
+              versionCode: CURRENT_APP_VERSION_CODE,
+              apkUrl: OFFICIAL_APK_URL,
+            };
+          }
+        } catch (_) {}
+      }
+
+      // 3. Fallback: GitHub Release API if configured
+      if (!remoteRelease) {
+        try {
+          const res = await fetch('https://api.github.com/repos/syedmaazalam/cricket-scorer/releases/latest');
+          if (res.ok) {
+            const gh = await res.json();
+            const tag = (gh.tag_name || '').replace(/^v/i, '').trim();
+            remoteRelease = {
+              versionName: tag,
+              versionCode: 2,
+              apkUrl: gh.assets?.[0]?.browser_download_url || OFFICIAL_APK_URL,
+              notes: gh.body || '',
+              releaseDate: gh.published_at ? new Date(gh.published_at).toLocaleDateString() : undefined
+            };
+          }
+        } catch (_) {}
+      }
+
+      if (remoteRelease) {
+        const remoteCode = Number(remoteRelease.versionCode || 0);
+        const remoteName = String(remoteRelease.versionName || '').trim();
+        const isNewerCode = remoteCode > CURRENT_APP_VERSION_CODE;
+        const isNewerName = Boolean(remoteName && remoteName !== CURRENT_APP_VERSION && remoteName > CURRENT_APP_VERSION);
+        const isUpdateAvailable = isNewerCode || isNewerName || Boolean(remoteRelease.force);
+
         setUpdateStatus({
-          isLatest,
-          latestVersion: latestTag,
-          apkUrl: release.assets?.[0]?.browser_download_url || `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`,
-          publishedAt: release.published_at ? new Date(release.published_at).toLocaleDateString() : 'November 2026'
+          isLatest: !isUpdateAvailable,
+          latestVersion: remoteName ? `v${remoteName}` : `Build #${remoteCode}`,
+          apkUrl: remoteRelease.apkUrl || OFFICIAL_APK_URL,
+          notes: remoteRelease.notes || '',
+          releaseDate: remoteRelease.releaseDate || remoteRelease.releasedAt || 'Latest release',
         });
       } else {
+        // Fully offline or unreachable
         setUpdateStatus({
           isLatest: true,
           latestVersion: `v${CURRENT_APP_VERSION}`,
-          apkUrl: `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`
+          apkUrl: OFFICIAL_APK_URL,
         });
       }
     } catch (err) {
       setUpdateStatus({
         isLatest: true,
         latestVersion: `v${CURRENT_APP_VERSION}`,
-        apkUrl: `https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`
+        apkUrl: OFFICIAL_APK_URL,
       });
     } finally {
       setCheckingUpdate(false);
@@ -662,32 +715,55 @@ export default function Settings({ onBack }) {
               <span className="text-xs font-bold text-[var(--t1)]">Release Channel</span>
               <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                GitHub Official
+                Official Cloud
               </span>
             </div>
 
-            {updateStatus && (
+            {updateStatus && !updateStatus.isLatest && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 flex flex-col gap-2 text-xs animate-in fade-in">
+                <div className="flex items-center gap-2 font-bold text-amber-400">
+                  <Sparkles className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>New Update Available: {updateStatus.latestVersion}</span>
+                </div>
+                {updateStatus.notes && (
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
+                    {updateStatus.notes}
+                  </p>
+                )}
+                <a
+                  href={updateStatus.apkUrl || OFFICIAL_APK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn p s h-9 px-4 rounded-lg font-bold text-xs inline-flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white mt-1 shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Update ({updateStatus.latestVersion})</span>
+                </a>
+              </div>
+            )}
+
+            {updateStatus && updateStatus.isLatest && (
               <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2 text-xs font-semibold text-emerald-400 animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>SmartCricket is up to date ({updateStatus.latestVersion})</span>
               </div>
             )}
 
-            <div className="flex gap-2 mt-1">
+            <div className="flex flex-col sm:flex-row gap-2 mt-1">
               <button
                 type="button"
                 onClick={handleCheckUpdate}
                 disabled={checkingUpdate}
-                className="btn p s flex-1 text-xs font-bold flex items-center justify-center gap-2"
+                className="btn p s flex-1 text-xs font-bold flex items-center justify-center gap-2 h-9 rounded-lg"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
                 <span>{checkingUpdate ? 'Checking Server...' : 'Check for Updates'}</span>
               </button>
               <a
-                href={`https://github.com/syedmaazalam/cricket-scorer/releases/download/v${CURRENT_APP_VERSION}/SmartCricket.apk`}
+                href={OFFICIAL_APK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn s flex-1 text-xs font-bold flex items-center justify-center gap-2 bg-[var(--well)] hover:bg-[var(--bd)] text-[var(--t1)]"
+                className="btn s flex-1 text-xs font-bold flex items-center justify-center gap-2 h-9 rounded-lg bg-[var(--well)] hover:bg-[var(--bd)] text-[var(--t1)]"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download Latest APK</span>

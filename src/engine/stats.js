@@ -14,6 +14,7 @@ export function createBattingStat(playerName) {
     dots: 0,
     strikeRate: 0,
     isOut: false,
+    dismissed: false,
     dismissal: null,
     dismissalType: null,
     bowler: null,
@@ -32,6 +33,7 @@ export function createBowlingStat(bowlerName) {
     maidens: 0,
     runsConceded: 0,
     wickets: 0,
+    bowledLbw: 0,
     economy: 0,
     dots: 0,
     wides: 0,
@@ -91,7 +93,7 @@ export function computeInningsStats(inningsData) {
     b2Runs: 0
   };
 
-  const ballHistory = inningsData.balls || [];
+  const ballHistory = (inningsData && inningsData.balls) ? inningsData.balls : [];
 
   ballHistory.forEach((ball, idx) => {
     const striker = getBatter(ball.striker);
@@ -198,6 +200,7 @@ export function computeInningsStats(inningsData) {
       const outPlayer = getBatter(wicket.playerOut);
       if (outPlayer) {
         outPlayer.isOut = true;
+        outPlayer.dismissed = true;
         outPlayer.dismissalType = wicket.type;
         outPlayer.bowler = wicket.bowler || ball.bowler;
         outPlayer.fielder = wicket.fielder || null;
@@ -209,7 +212,7 @@ export function computeInningsStats(inningsData) {
         else if (wicket.type === 'lbw') dismissalText = `lbw b ${ball.bowler}`;
         else if (wicket.type === 'stumped') dismissalText = `st ${wicket.fielder || 'wk'} b ${ball.bowler}`;
         else if (wicket.type === 'hit_wicket') dismissalText = `hit wicket b ${ball.bowler}`;
-        else if (wicket.type === 'run_out') dismissalText = `run out (${wicket.fielder || 'direct'})`;
+        else if (wicket.type === 'run_out') dismissalText = `run out (${wicket.fielder || (wicket.isDirectHit ? 'direct' : 'fielder')})`;
         else if (wicket.type === 'retired_hurt') dismissalText = 'retired hurt';
         else if (wicket.type === 'retired_out') dismissalText = 'retired out';
 
@@ -218,6 +221,9 @@ export function computeInningsStats(inningsData) {
 
       if (isBowlerWicket(wicket.type) && bowler) {
         bowler.wickets += 1;
+        if (wicket.type === 'bowled' || wicket.type === 'lbw') {
+          bowler.bowledLbw = (bowler.bowledLbw || 0) + 1;
+        }
       }
 
       // Record Fall of Wicket (with partnership stats)
@@ -380,7 +386,17 @@ export function computeBatterDetails(innings, batterName) {
   const balls = (innings && innings.balls) ? innings.balls : [];
 
   balls.forEach((b, idx) => {
-    if (b.striker === batterName) {
+    const isStriker = b.striker === batterName;
+    const wicketType = b.wicket?.type || b.wicketType;
+    const dismissedPlayer = b.wicket?.playerOut || b.dismissedPlayer;
+    const isDismissedHere = Boolean(b.isWicket && dismissedPlayer === batterName);
+    const isWide = (b.extraType || '').toLowerCase() === 'wide' || (b.extraType || '').toLowerCase() === 'wd';
+
+    // A batsman plays deliveries where they are striker (excluding wides which are not faced)
+    // or where they were dismissed (e.g., run out at non-striker end).
+    const isBatterDelivery = (isStriker && !isWide) || isDismissedHere;
+
+    if (isStriker) {
       const runsOffBat = b.runs || 0;
       const bowler = b.bowler || 'Unknown';
 
@@ -403,7 +419,7 @@ export function computeBatterDetails(innings, batterName) {
       }
       headToHead[bowler].runs += runsOffBat;
 
-      if (runsOffBat === 0 && !b.extraType) {
+      if (runsOffBat === 0 && !b.extraType && !isDismissedHere) {
         headToHead[bowler].dots += 1;
         dotCount++;
       } else if (runsOffBat === 1) {
@@ -418,10 +434,7 @@ export function computeBatterDetails(innings, batterName) {
         headToHead[bowler].sixes += 1;
       }
 
-      const wicketType = b.wicket?.type || b.wicketType;
-      const dismissedPlayer = b.wicket?.playerOut || b.dismissedPlayer;
-
-      if (b.isWicket && dismissedPlayer === batterName) {
+      if (isDismissedHere) {
         headToHead[bowler].isDismissed = true;
         headToHead[bowler].dismissalType = wicketType || 'out';
       }
@@ -429,21 +442,44 @@ export function computeBatterDetails(innings, batterName) {
       if (headToHead[bowler].balls > 0) {
         headToHead[bowler].strikeRate = Math.round((headToHead[bowler].runs / headToHead[bowler].balls) * 100);
       }
+    }
 
+    if (isBatterDelivery) {
+      const runsOffBat = isStriker ? (b.runs || 0) : 0;
+      const bowler = b.bowler || 'Unknown';
       cumulativeRuns += runsOffBat;
+
+      let displayLabel = b.shortLabel;
+      if (isDismissedHere) {
+        displayLabel = 'W';
+      } else if (b.extraType === 'no_ball' && runsOffBat > 0) {
+        displayLabel = `Nb+${runsOffBat}`;
+      } else if (b.extraType === 'bye') {
+        displayLabel = `B${runsOffBat || b.extraRuns || 1}`;
+      } else if (b.extraType === 'leg_bye') {
+        displayLabel = `LB${runsOffBat || b.extraRuns || 1}`;
+      } else if (!displayLabel) {
+        displayLabel = String(runsOffBat);
+      }
+
+      const ballInOverStr = b.legalBallNumber
+        ? `${Math.floor((b.legalBallNumber - 1) / 6)}.${((b.legalBallNumber - 1) % 6) + 1}`
+        : (b.over != null ? `${b.over}.${b.ball != null ? b.ball : ''}` : `${timeline.length + 1}`);
 
       timeline.push({
         deliveryIndex: idx + 1,
-        ballInOver: b.legalBallNumber ? `${Math.floor((b.legalBallNumber - 1) / 6)}.${((b.legalBallNumber - 1) % 6) + 1}` : `${timeline.length + 1}`,
+        ballNumber: timeline.length + 1,
+        ballInOver: ballInOverStr,
         bowler,
         runs: runsOffBat,
         cumulativeRuns,
         extraType: b.extraType,
-        shortLabel: b.shortLabel || (b.isWicket ? 'W' : `${runsOffBat}`),
-        isWicket: b.isWicket && b.dismissedPlayer === batterName,
+        shortLabel: displayLabel,
+        isWicket: isDismissedHere,
+        wicketType: isDismissedHere ? (wicketType || 'out') : null,
         isFour: runsOffBat === 4,
         isSix: runsOffBat === 6,
-        isDot: runsOffBat === 0 && !b.extraType
+        isDot: runsOffBat === 0 && !b.extraType && !isDismissedHere
       });
     }
   });
@@ -563,4 +599,90 @@ export function computeBowlerDetails(innings, bowlerName) {
     headToHead: Object.values(headToHead),
     timeline
   };
+}
+
+/**
+ * Computes aggregated fielding statistics across both match innings.
+ * Returns: { [playerName]: { catches, stumpings, runOuts, directRunOuts } }
+ */
+export function computeMatchFieldingStats(matchState) {
+  const fieldingStats = {};
+
+  const getFielderEntry = (name) => {
+    if (!name || name === 'sub' || name === 'direct' || name === 'wk') return null;
+    const cleanName = String(name).trim();
+    if (!cleanName) return null;
+    if (!fieldingStats[cleanName]) {
+      fieldingStats[cleanName] = {
+        catches: 0,
+        stumpings: 0,
+        runOuts: 0,
+        directRunOuts: 0
+      };
+    }
+    return fieldingStats[cleanName];
+  };
+
+  const inningsList = matchState?.innings || [matchState?.innings1, matchState?.innings2].filter(Boolean);
+
+  inningsList.forEach((inn) => {
+    if (!inn) return;
+    const balls = inn.balls || [];
+
+    balls.forEach((ball) => {
+      if (!ball || !ball.isWicket) return;
+      const wicket = ball.wicket || {};
+      const wicketType = wicket.type || ball.wicketType;
+      const fielder = wicket.fielder || ball.fielder;
+      const isDirectHit = Boolean(wicket.isDirectHit || ball.isDirectHit);
+
+      if (wicketType === 'caught') {
+        const entry = getFielderEntry(fielder);
+        if (entry) entry.catches += 1;
+      } else if (wicketType === 'stumped') {
+        const entry = getFielderEntry(fielder);
+        if (entry) entry.stumpings += 1;
+      } else if (wicketType === 'run_out') {
+        const entry = getFielderEntry(fielder);
+        if (entry) {
+          entry.runOuts += 1;
+          if (isDirectHit) {
+            entry.directRunOuts += 1;
+          }
+        }
+      }
+    });
+
+    // Also check fow (Fall of Wickets) if balls are empty (e.g. from restored legacy/cloud payloads)
+    if (balls.length === 0 && Array.isArray(inn.fow)) {
+      inn.fow.forEach((f) => {
+        if (!f || !f.dismissal) return;
+        const catchMatch = f.dismissal.match(/c\s+([A-Za-z0-9_ ]+)\s+b/);
+        if (catchMatch && catchMatch[1]) {
+          const entry = getFielderEntry(catchMatch[1]);
+          if (entry) entry.catches += 1;
+          return;
+        }
+        const stumpMatch = f.dismissal.match(/st\s+([A-Za-z0-9_ ]+)\s+b/);
+        if (stumpMatch && stumpMatch[1]) {
+          const entry = getFielderEntry(stumpMatch[1]);
+          if (entry) entry.stumpings += 1;
+          return;
+        }
+        const roMatch = f.dismissal.match(/run out\s*\(([^)]+)\)/);
+        if (roMatch && roMatch[1]) {
+          const fielderName = roMatch[1].replace(/direct/i, '').trim();
+          const entry = getFielderEntry(fielderName);
+          if (entry) {
+            entry.runOuts += 1;
+            if (/direct/i.test(roMatch[1])) {
+              entry.directRunOuts += 1;
+            }
+          }
+        }
+      });
+    }
+  });
+
+  return fieldingStats;
 }

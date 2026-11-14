@@ -482,7 +482,7 @@ export default function App() {
 
       {page === 'live' && (
         <Live
-          matchCodeOrId={liveCodeOrId}
+          matchCodeOrId={activeMatchId || liveCodeOrId}
           matchState={matchState}
           scorerOfflineInfo={scorerOfflineInfo}
           onBack={handleBack}

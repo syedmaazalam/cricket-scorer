@@ -224,8 +224,13 @@ export function applyEvent(state, event) {
           type: wicketType || WICKET_TYPES.BOWLED,
           playerOut: dismissedPlayer || event.payload.playerOut || next.striker,
           fielder: fielder || null,
+          isDirectHit: Boolean(event.payload.isDirectHit),
           bowler: ballBowler
         };
+      } else if (normalizedWicket) {
+        if (event.payload.isDirectHit !== undefined && normalizedWicket.isDirectHit === undefined) {
+          normalizedWicket.isDirectHit = Boolean(event.payload.isDirectHit);
+        }
       }
       if (normalizedWicket && !normalizedWicket.playerOut) {
         normalizedWicket.playerOut = next.striker;
@@ -289,6 +294,7 @@ export function applyEvent(state, event) {
         isLegal,
         isWicket: calculatedWicket,
         wicket: calculatedWicket ? normalizedWicket : null,
+        isDirectHit: Boolean(normalizedWicket?.isDirectHit || event.payload.isDirectHit),
         isOverthrow: Boolean(event.payload.isOverthrow),
         overthrowRuns: Number(event.payload.overthrowRuns) || 0,
         runsRan: event.payload.runsRan !== undefined ? Number(event.payload.runsRan) : runs,
@@ -660,8 +666,13 @@ export function applyEvent(state, event) {
           type: wicketType || WICKET_TYPES.BOWLED,
           playerOut: dismissedPlayer || event.payload.playerOut || next.striker,
           fielder: fielder || null,
+          isDirectHit: Boolean(event.payload.isDirectHit),
           bowler: bowler || next.previousBowler || next.currentBowler
         };
+      } else if (normalizedWicket) {
+        if (event.payload.isDirectHit !== undefined && normalizedWicket.isDirectHit === undefined) {
+          normalizedWicket.isDirectHit = Boolean(event.payload.isDirectHit);
+        }
       }
 
       let totalBallRuns = 0;
@@ -703,6 +714,7 @@ export function applyEvent(state, event) {
         isLegal,
         isWicket: calculatedWicket,
         wicket: calculatedWicket ? normalizedWicket : null,
+        isDirectHit: Boolean(normalizedWicket?.isDirectHit || event.payload.isDirectHit),
         isPreviousOverCorrection: true,
         scoreAtBall: curInn.score,
         legalBallsSoFar: curInn.legalBalls,

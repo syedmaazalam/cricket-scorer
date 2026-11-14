@@ -3,10 +3,11 @@ import html2canvas from 'html2canvas';
 /**
  * Robust image export helper for both Android APK (native WebView bridge) and Web browsers.
  * Accepts a base64/dataUrl string, an HTMLCanvasElement, or an HTMLElement (e.g. div).
- * Inside the APK, window.ScorecardBridge writes the image directly to device storage (Gallery/Pictures)
- * and opens the Android native share sheet.
+ * Supports options.downloadOnly to guarantee direct download without opening the share sheet.
+ * Supports options.shareOnly to trigger native share dialog directly.
  */
-export async function exportAndSaveImage(target, fileName, title = 'Match Scorecard') {
+export async function exportAndSaveImage(target, fileName, title = 'Match Scorecard', options = {}) {
+  const { downloadOnly = false, shareOnly = false } = options;
   try {
     let dataUrl = null;
 
@@ -38,8 +39,8 @@ export async function exportAndSaveImage(target, fileName, title = 'Match Scorec
       return { success: true, native: true };
     }
 
-    // 2. Web browser navigator.share with files (if supported)
-    if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    // 2. Web browser navigator.share with files (ONLY when share is explicitly requested, NEVER on downloadOnly)
+    if (!downloadOnly && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
       try {
         const res = await fetch(dataUrl);
         const blob = await res.blob();
@@ -53,17 +54,35 @@ export async function exportAndSaveImage(target, fileName, title = 'Match Scorec
           return { success: true, method: 'share' };
         }
       } catch (shareErr) {
-        // User cancelled or share unhandled, fall through to download anchor
+        // User cancelled or share unhandled, fall through to download anchor if not shareOnly
+        if (shareOnly) {
+          return { success: false, method: 'share', cancelled: true };
+        }
       }
     }
 
-    // 3. Web browser standard anchor download
-    const link = document.createElement('a');
-    link.download = fileName;
-    link.href = dataUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 3. Web browser standard anchor download (blob URL approach for reliable mobile download)
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = blobUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } catch {
+      // Fallback to direct data URL anchor
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
     return { success: true, native: false };
   } catch (err) {
     console.error('exportAndSaveImage error:', err);

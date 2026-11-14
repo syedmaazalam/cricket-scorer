@@ -64,7 +64,14 @@ export default function PointingCriteriaModal({ isOpen, onClose }) {
                   {crit.desc}
                 </span>
               </div>
-              <span className="chip" style={{ fontSize: '11px', padding: '3px 8px' }}>
+              <span
+                className={`chip ${crit.points.startsWith('-') ? 'danger' : ''}`}
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 8px',
+                  ...(crit.points.startsWith('-') ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : {})
+                }}
+              >
                 {crit.points}
               </span>
             </div>

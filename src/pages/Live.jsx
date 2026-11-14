@@ -5,6 +5,7 @@ import { findMatchByCode, subscribeMatchMessages } from '../firebase/matches.js'
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
 import { formatOvers, calculateCRR, calculateRRR, getMaxWickets, checkBattingMilestone, checkBowlerHatTrick } from '../engine/rules.js';
 import { getShareUrl } from '../engine/constants.js';
+import { getBallChipConfig, useIsDark } from '../engine/ballChipStyles.js';
 import MatchCharts from '../components/MatchCharts.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import BatterDetailsModal from '../components/BatterDetailsModal.jsx';
@@ -46,6 +47,7 @@ export default function Live({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const prevBallCountRef = useRef(null);
   const lastSeenDevMsgCountRef = useRef(0);
+  const isDark = useIsDark();
 
   const handleSelectTab = (tab) => {
     if (tab === activeTab) return;
@@ -735,48 +737,31 @@ export default function Live({
                 <span className="text-[11px] text-[var(--muted)] font-mono">{recentBalls.length} balls</span>
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+                {/* Score-based styling via getBallChipConfig (var(--ball-run-bg) / var(--ball-run-text)) */}
                 {recentBalls.length === 0 ? (
                   <span className="text-xs text-[var(--muted)] py-1">Waiting for deliveries...</span>
                 ) : (
-                  recentBalls.map((b, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        backgroundColor: b.isWicket
-                          ? '#DC2626'
-                          : b.runs === 6
-                          ? 'var(--pri)'
-                          : b.runs === 4
-                          ? 'var(--accent)'
-                          : b.extraType
-                          ? 'var(--warn)'
-                          : b.runs > 0
-                          ? 'var(--ball-run-bg)'
-                          : 'var(--well)',
-                        color: b.isWicket
-                          ? '#FFFFFF'
-                          : b.runs === 0 && !b.extraType && !b.isWicket
-                          ? 'var(--muted)'
-                          : b.runs > 0 && !b.extraType && !b.isWicket
-                          ? 'var(--ball-run-text)'
-                          : '#FFFFFF',
-                        borderColor: b.isWicket
-                          ? '#EF4444'
-                          : b.runs > 0 && !b.extraType && !b.isWicket
-                          ? 'var(--ball-run-border)'
-                          : 'var(--b)'
-                      }}
-                      className="bl shrink-0 border shadow-sm font-black text-xs"
-                    >
-                      {b.shortLabel}
-                    </div>
-                  ))
+                  recentBalls.map((b, i) => {
+                    const chipCfg = getBallChipConfig(b, isDark);
+                    return (
+                      <div
+                        key={b.ballId || b.id || i}
+                        style={{
+                          ...chipCfg.style,
+                          fontWeight: 600
+                        }}
+                        className="bl shrink-0 animate-ball-scale-in"
+                      >
+                        {chipCfg.label}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
 
             {/* Over & Worm Charts */}
-            <MatchCharts matchState={matchState} />
+            <MatchCharts matchState={matchState} hideSummaryTiles={true} />
           </div>
         </div>
       )}

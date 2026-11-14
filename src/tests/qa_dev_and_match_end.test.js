@@ -365,8 +365,8 @@ describe('QA Tests: Match Completion & Developer Features', () => {
     expect(sortedOvers[0].runs).toBe(5);
   });
 
-  it('Scenario 10: Pointing criteria awards +2 points per dot ball', () => {
-    expect(POINTING_CRITERIA.some(c => c.item.includes('Dot Ball') && c.points === '+2 pts')).toBe(true);
+  it('Scenario 10: Pointing criteria awards +1 point per dot ball', () => {
+    expect(POINTING_CRITERIA.some(c => c.item.includes('Dot Ball') && c.points === '+1 pt')).toBe(true);
 
     const bowlerStat = {
       batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
@@ -374,10 +374,10 @@ describe('QA Tests: Match Completion & Developer Features', () => {
     };
 
     const points = calculatePlayerPoints(bowlerStat);
-    // 1 wicket = 25 pts, 8 dots * 2 = 16 pts. Total >= 41 pts (plus economy bonus)
-    expect(points.dots).toBe(16);
+    // 1 wicket = 25 pts, 8 dots * 1 = 8 pts. Total >= 33 pts (plus economy bonus)
+    expect(points.dots).toBe(8);
     expect(points.wickets).toBe(25);
-    expect(points.total).toBeGreaterThanOrEqual(41);
+    expect(points.total).toBeGreaterThanOrEqual(33);
   });
 
   it('Scenario 11: All-out in Innings 1 correctly triggers innings break and target', () => {

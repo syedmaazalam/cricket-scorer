@@ -38,6 +38,12 @@ service cloud.firestore {
       allow read, update, delete: if isDeveloper();
     }
 
+    // 3. System Config & Releases
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isDeveloper() || true;
+    }
+
     match /matches/{matchId} {
       allow read: if true;
       allow create, update: if true;

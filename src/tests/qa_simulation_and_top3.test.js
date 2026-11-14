@@ -9,13 +9,14 @@ describe('QA Scope 7: Top 3 Players Hand Math & Tie Breaks', () => {
     // Batter: 45 runs off 20 balls (3 fours, 2 sixes)
     // Runs: 45 pts
     // Boundaries: (3 * 1) + (2 * 2) = 7 pts
+    // Milestone: 25+ runs reached -> 4 pts
     // SR = 225% (>= 200%) -> 10 pts
     // Bowler: 18 legal balls (3.0 overs), 12 runs, 2 wickets, 1 maiden
     // Wickets: 2 * 25 = 50 pts
-    // Maidens: 1 * 8 = 8 pts
+    // Maidens: 1 * 6 = 6 pts
     // Economy = 12 / 3 = 4.0 (<= 4.5) -> 10 pts
-    // Fielding: 1 catch + 1 run-out -> 20 pts
-    // Expected Total: 45 + 7 + 10 + 50 + 8 + 10 + 20 = 150 pts
+    // Fielding: 1 catch (8) + 1 direct run-out (12) -> 20 pts
+    // Expected Total: 45 + 7 + 4 + 10 + 50 + 6 + 10 + 20 = 152 pts
 
     const playerStat = {
       name: 'AllRounder Star',
@@ -23,35 +24,47 @@ describe('QA Scope 7: Top 3 Players Hand Math & Tie Breaks', () => {
       batting: { runs: 45, balls: 20, fours: 3, sixes: 2 },
       bowling: { legalBalls: 18, runsConceded: 12, wickets: 2, maidens: 1 }
     };
-    const fieldingStat = { catches: 1, runOuts: 1, stumpings: 0 };
+    const fieldingStat = { catches: 1, runOuts: 1, directRunOuts: 1, stumpings: 0 };
 
     const pts = calculatePlayerPoints(playerStat, fieldingStat);
     expect(pts.runs).toBe(45);
     expect(pts.boundaries).toBe(7);
+    expect(pts.milestones).toBe(4);
     expect(pts.strikeRateBonus).toBe(10);
     expect(pts.wickets).toBe(50);
-    expect(pts.maidens).toBe(8);
+    expect(pts.maidens).toBe(6);
     expect(pts.economyBonus).toBe(10);
     expect(pts.fielding).toBe(20);
-    expect(pts.total).toBe(150);
+    expect(pts.total).toBe(152);
   });
 
   it('Resolves tie-breaks correctly when two players have identical points', () => {
+    // Both players have exactly 50 points:
+    // p1 (Bowler): 2 wickets (50 pts), 12 legal balls, 18 runs (econ 9 -> 0 bonus/penalty) -> 50 pts
     const p1 = {
       name: 'Player Bowler',
       team: 'Alpha',
       batting: { runs: 0, balls: 0, fours: 0, sixes: 0 },
-      bowling: { legalBalls: 12, runsConceded: 10, wickets: 2, maidens: 0 } // 2 wickets = 50 pts
+      bowling: { legalBalls: 12, runsConceded: 18, wickets: 2, maidens: 0 }
     };
+    // p2 (Batter): 24 runs off 24 balls (no milestone, SR 100 gives 0 bonus/penalty) + 2 catches (16) + 1 direct run-out (12) - 2 runs = 50 pts
     const p2 = {
       name: 'Player Batter',
       team: 'Bravo',
-      batting: { runs: 50, balls: 30, fours: 0, sixes: 0 }, // 50 runs = 50 pts
+      batting: { runs: 22, balls: 22, fours: 0, sixes: 0 },
       bowling: { legalBalls: 0, runsConceded: 0, wickets: 0, maidens: 0 }
+    };
+    const fieldingStats = {
+      p1: { catches: 0, runOuts: 0, stumpings: 0 },
+      p2: { catches: 2, runOuts: 1, directRunOuts: 1, stumpings: 0 } // 2*8 + 12 = 28 pts -> total 22 + 28 = 50 pts
     };
 
     const allStats = { p1, p2 };
-    const ranked = getTopPlayers(allStats, {}, 2);
+    const ranked = getTopPlayers(allStats, fieldingStats, 2);
+
+    // Both have 50 totalPoints
+    expect(ranked[0].totalPoints).toBe(50);
+    expect(ranked[1].totalPoints).toBe(50);
 
     // Bowler with more wickets (2 vs 0) wins the tie-break
     expect(ranked[0].name).toBe('Player Bowler');
