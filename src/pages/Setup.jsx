@@ -49,38 +49,47 @@ export default function Setup({ onStartMatch, onBack }) {
     setStep1Error('');
     setOversError('');
 
-    if (!teamAName.trim() || !teamBName.trim()) {
-      setStep1Error('Please enter names for both teams.');
+    const cleanTeamA = teamAName.trim();
+    const cleanTeamB = teamBName.trim();
+
+    // Bug 31: Trim team names and show inline error for blank names
+    if (!cleanTeamA || !cleanTeamB) {
+      setStep1Error('Team names cannot be blank. Please enter names for both teams.');
       return;
     }
 
-    if (teamAName.trim().toLowerCase() === teamBName.trim().toLowerCase()) {
+    if (cleanTeamA.toLowerCase() === cleanTeamB.toLowerCase()) {
       setStep1Error('Team names must be different. Please enter distinct names for each team.');
       return;
     }
 
+    setTeamAName(cleanTeamA);
+    setTeamBName(cleanTeamB);
+
     let finalOvers = overs;
     if (customOversInput !== '') {
       const parsed = Number(customOversInput);
+      // Bug 32: Reject decimals with an inline error using Number.isInteger
       if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 1) {
-        setOversError('Custom overs must be a positive whole number (minimum 1).');
+        setOversError('Custom overs must be a positive whole number (minimum 1). Decimals are not allowed.');
         return;
       }
       finalOvers = parsed;
     }
 
-    if (!finalOvers || finalOvers < 1) {
-      setOversError('Please select or enter valid number of overs (minimum 1).');
+    // Bug 31: Show inline error for overs < 1
+    if (!finalOvers || finalOvers < 1 || !Number.isInteger(finalOvers)) {
+      setOversError('Please select or enter a valid number of overs (minimum 1).');
       return;
     }
 
     setOvers(finalOvers);
 
     if (teamAPlayers.length !== playersPerTeam) {
-      initSquads(playersPerTeam, teamAName, teamBName);
+      initSquads(playersPerTeam, cleanTeamA, cleanTeamB);
     }
     setTossWinnerIndex(0);
-    setTossWinner(teamAName);
+    setTossWinner(cleanTeamA);
     setStep(2);
   };
 

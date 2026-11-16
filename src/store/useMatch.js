@@ -112,6 +112,14 @@ export function useMatch(matchId, isViewerMode = false) {
   useEffect(() => {
     let isMounted = true;
 
+    // Bug 43: Reset the local scoring store on match ID change or unmount before loading the new match, so no stale state flashes
+    const freshInitialState = createInitialMatchState();
+    stateRef.current = freshInitialState;
+    setMatchState(freshInitialState);
+    if (matchId) {
+      setIsLoading(true);
+    }
+
     async function loadMatch() {
       if (!matchId) {
         setIsLoading(false);
@@ -165,6 +173,10 @@ export function useMatch(matchId, isViewerMode = false) {
     return () => {
       isMounted = false;
       unsubSync();
+      // Bug 43: Reset state on match unmount
+      const unmountState = createInitialMatchState();
+      stateRef.current = unmountState;
+      setMatchState(unmountState);
     };
   }, [matchId]);
 

@@ -323,7 +323,7 @@ export default function RunPad({
             triggerHaptic(10);
             onOpenOverthrow();
           }}
-          disabled={isScoringDisabled}
+          disabled={disabled || isScoringDisabled}
           className="btn s"
           style={{ width: '100%', height: '40px', borderRadius: '12px', fontSize: '12px' }}
           title="Record Overthrow (Runs ran + Overthrow runs)"
@@ -338,7 +338,7 @@ export default function RunPad({
             triggerHaptic(10);
             onSwapBatter();
           }}
-          disabled={disabled}
+          disabled={disabled || isScoringDisabled}
           className="btn s"
           style={{ width: '100%', height: '40px', borderRadius: '12px', fontSize: '12px' }}
           title="Swap Striker and Non-Striker (Keyboard: Space or S)"

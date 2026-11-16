@@ -38,6 +38,7 @@ export function createBowlingStat(bowlerName) {
     dots: 0,
     wides: 0,
     noBalls: 0,
+    extrasConceded: 0,
     currentOverRuns: 0,
     currentOverBalls: 0
   };
@@ -118,6 +119,7 @@ export function computeInningsStats(inningsData) {
       extras.total += (1 + extraRuns);
       if (bowler) {
         bowler.wides += 1;
+        bowler.extrasConceded = (bowler.extrasConceded || 0) + (1 + extraRuns);
         bowler.runsConceded += (1 + extraRuns);
       }
       ballTotalRuns = 1 + extraRuns;
@@ -126,6 +128,7 @@ export function computeInningsStats(inningsData) {
       extras.total += (1 + extraRuns);
       if (bowler) {
         bowler.noBalls += 1;
+        bowler.extrasConceded = (bowler.extrasConceded || 0) + (1 + extraRuns);
         bowler.runsConceded += (1 + extraRuns + runs);
       }
       ballTotalRuns = 1 + extraRuns + runs;

@@ -526,7 +526,7 @@ export default function Scoring({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (activeTab !== 'score') return;
-      if (matchState?.isCompleted || currentInnings?.isCompleted) return;
+      if (matchState?.isCompleted || currentInnings?.isCompleted || matchState?.status === 'completed') return;
 
       // Ignore if typing inside text inputs, textareas, selects, or contenteditable
       const targetTag = e.target?.tagName?.toUpperCase();
@@ -599,8 +599,15 @@ export default function Scoring({
       style={{ color: 'var(--t1)' }}
       className="min-h-screen flex flex-col justify-start w-full max-w-lg lg:max-w-6xl mx-auto px-1 sm:px-3 lg:pl-28 lg:pr-8 pb-24 select-none safe-top"
     >
-      {/* 1. Header Bar: Redesigned sticky glass chrome */}
-      <header className="top w-full sticky top-0 z-20 flex items-center justify-between gap-1.5 py-3 shrink-0">
+      {/* 1. Header Bar: Bug 41 & Bug 35 - Opaque background, bottom border/shadow, proper z-index */}
+      <header
+        style={{
+          backgroundColor: 'var(--bg)',
+          borderBottom: '1px solid var(--bd)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+        }}
+        className="top w-full sticky top-0 z-30 flex items-center justify-between gap-1.5 py-3 shrink-0"
+      >
         {/* Left: Brand title on desktop, Back button & Match Code */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="hidden lg:flex items-center gap-1.5 mr-2 font-serif font-black text-lg text-[var(--pri)] tracking-tight">
@@ -1174,7 +1181,7 @@ export default function Scoring({
                       <td>
                         <b className="ac flex items-center gap-1.5 truncate">
                           <User className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">{matchState.striker || 'Select Striker'}</span>
+                          <span className="truncate">{matchState.striker || (matchState.status === 'completed' ? '-' : 'Select Striker')}</span>
                         </b>
                         <small>Striker</small>
                       </td>
@@ -1194,7 +1201,7 @@ export default function Scoring({
                       <td>
                         <b className="flex items-center gap-1.5 truncate" style={{ color: 'var(--t1)' }}>
                           <User className="w-3.5 h-3.5 text-[var(--t2)] shrink-0" />
-                          <span className="truncate">{matchState.nonStriker || 'Select Non-Striker'}</span>
+                          <span className="truncate">{matchState.nonStriker || (matchState.status === 'completed' ? '-' : 'Select Non-Striker')}</span>
                         </b>
                         <small style={{ background: 'var(--well)', color: 'var(--t2)' }}>Non-striker</small>
                       </td>

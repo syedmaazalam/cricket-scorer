@@ -81,6 +81,8 @@ export default function MatchSummary({ matchState, onBack }) {
       aggregatedPlayerStats[name].bowling.bowledLbw += bwStat.bowledLbw || 0;
       aggregatedPlayerStats[name].bowling.wides += bwStat.wides || 0;
       aggregatedPlayerStats[name].bowling.noBalls += bwStat.noBalls || 0;
+      // Bug 33: Track full extras conceded by bowler for accurate MVP extras calculation
+      aggregatedPlayerStats[name].bowling.extrasConceded = (aggregatedPlayerStats[name].bowling.extrasConceded || 0) + (bwStat.extrasConceded || ((bwStat.wides || 0) + (bwStat.noBalls || 0)));
     });
   };
 
@@ -138,13 +140,16 @@ export default function MatchSummary({ matchState, onBack }) {
             <span>SmartCricket</span>
           </div>
 
+          {/* Bug 33: Explicit Back/Home button */}
           <button
+            type="button"
             onClick={onBack}
-            className="ib shrink-0"
-            title="Back to scoring"
-            aria-label="Back"
+            className="btn s inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs shrink-0"
+            title="Back to Scoring / Home"
+            aria-label="Back to Scoring or Home"
           >
             <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
           </button>
 
           <div className="flex-1 sm:flex-initial text-center sm:text-left min-w-0 px-1">
@@ -200,7 +205,12 @@ export default function MatchSummary({ matchState, onBack }) {
               </p>
               <div className="row" style={{ justifyContent: 'center', marginTop: '6px', gap: '6px' }}>
                 <span className="pill mono ac">#{matchCode || 'MATCH'}</span>
-                <span className="pill live"><i></i>LIVE</span>
+                {/* Bug 33: Show COMPLETED badge when match ends */}
+                {isMatchConcluded ? (
+                  <span className="pill ok font-bold">COMPLETED</span>
+                ) : (
+                  <span className="pill live"><i></i>LIVE</span>
+                )}
               </div>
             </div>
 

@@ -164,6 +164,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       aggregatedPlayerStats[name].bowling.bowledLbw += bwStat.bowledLbw || 0;
       aggregatedPlayerStats[name].bowling.wides += bwStat.wides || 0;
       aggregatedPlayerStats[name].bowling.noBalls += bwStat.noBalls || 0;
+      aggregatedPlayerStats[name].bowling.extrasConceded = (aggregatedPlayerStats[name].bowling.extrasConceded || 0) + (bwStat.extrasConceded || ((bwStat.wides || 0) + (bwStat.noBalls || 0)));
     });
   };
 
@@ -619,7 +620,11 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
                   </p>
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <span className="pill mono ac">#{matchState?.code || 'MATCH'}</span>
-                    <span className="pill live"><i></i>LIVE</span>
+                    {isMatchConcluded ? (
+                      <span className="pill ok font-bold">COMPLETED</span>
+                    ) : (
+                      <span className="pill live"><i></i>LIVE</span>
+                    )}
                   </div>
                 </div>
 

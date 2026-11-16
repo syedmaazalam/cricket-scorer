@@ -177,8 +177,8 @@ export function calculatePlayerPoints(playerStat, fieldingStat = {}) {
     breakdown.economyPenalty = penalty ? penalty.points : 0;
   }
 
-  // 10. Wides and no balls
-  const extrasCount = num(bowling.wides) + num(bowling.noBalls);
+  // 10. Wides and no balls (Bug 33: counts all extras conceded by the bowler)
+  const extrasCount = num(bowling.extrasConceded) || (num(bowling.wides) + num(bowling.noBalls));
   breakdown.extras = extrasCount > 0 ? extrasCount * SCORING.extra : 0;
 
   // 11. Fielding

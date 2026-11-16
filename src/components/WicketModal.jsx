@@ -228,7 +228,7 @@ export default function WicketModal({
                       color: isSelected ? '#FFFFFF' : 'var(--text)'
                     }}
                     className={`py-2 rounded-xl text-xs font-semibold border transition-all focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:outline-none ${
-                      isSelected ? 'shadow-md shadow-rose-900/50 ring-2 ring-rose-500 font-bold scale-[1.02]' : 'hover:opacity-85'
+                      isSelected ? 'shadow-md ring-2 ring-[var(--primary)] font-bold scale-[1.02]' : 'hover:opacity-85'
                     } ${isBlockedByFreeHit ? 'opacity-30 cursor-not-allowed line-through' : ''}`}
                   >
                     {label}
