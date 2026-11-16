@@ -15,7 +15,6 @@ import {
   initNavigation,
   pushScreen,
   handleBackPress,
-  resetToHome,
   subscribeToNavigation,
   subscribeToExitToast,
   initHardwareAndBrowserBack

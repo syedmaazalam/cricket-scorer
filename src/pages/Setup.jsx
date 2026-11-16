@@ -58,7 +58,7 @@ export default function Setup({ onStartMatch, onBack }) {
       return;
     }
 
-    if (cleanTeamA.toLowerCase() === cleanTeamB.toLowerCase()) {
+    if (teamAName.trim().toLowerCase() === teamBName.trim().toLowerCase()) {
       setStep1Error('Team names must be different. Please enter distinct names for each team.');
       return;
     }

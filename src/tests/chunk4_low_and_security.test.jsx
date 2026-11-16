@@ -22,7 +22,8 @@ describe('Chunk 4: Low Severity and Security Hardening', () => {
     expect(rules).toContain('match /messages/{messageId}');
     expect(rules).toContain('request.resource.data.text.size() > 0');
     expect(rules).toContain('request.resource.data.text.size() <= 500');
-    expect(rules).toContain('allow create, update: if isAuthenticated()');
+    expect(rules).toContain('allow update: if isAuthenticated()');
+    expect(rules).toContain('allow create: if isAuthenticated()');
     expect(rules).not.toContain('allow update, delete: if true');
   });
 

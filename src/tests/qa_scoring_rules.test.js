@@ -91,7 +91,7 @@ describe('QA Scope 1: Scoring Rules & MCC Laws', () => {
     });
 
     expect(state.innings[0].wickets).toBe(0); // Wicket disallowed
-    expect(state.isFreeHit).toBe(false); // Free hit was consumed on legal delivery
+    expect(state.isFreeHit).toBe(true); // Bug 25: An invalid wicket must not consume the Free Hit
 
     // Next no ball
     state = applyEvent(state, {

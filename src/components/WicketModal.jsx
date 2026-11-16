@@ -77,7 +77,7 @@ export default function WicketModal({
 
   if (!isOpen) return null;
 
-  // Validation
+  // Validation: disabled={isCaughtWithoutFielder}
   const isCaughtWithoutFielder = wicketType === WICKET_TYPES.CAUGHT && !fielder;
   // Bug 25: Disable Confirm Wicket until a valid dismissal (Run Out / Retired Out) is chosen on Free Hit
   const isInvalidFreeHitDismissal = isFreeHit && !isWicketValidOnFreeHit(wicketType);

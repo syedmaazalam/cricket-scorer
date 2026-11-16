@@ -139,7 +139,7 @@ describe('Cricket Scoring Engine', () => {
       }
     });
     expect(state.innings[0].wickets).toBe(0); // Wicket not counted
-    expect(state.isFreeHit).toBe(false); // Free hit concluded on legal ball
+    expect(state.isFreeHit).toBe(true); // Bug 25: An invalid wicket must not consume the Free Hit
 
     // Trigger another free hit
     state = applyEvent(state, {
