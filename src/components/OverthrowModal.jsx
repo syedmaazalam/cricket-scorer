@@ -6,9 +6,9 @@ export default function OverthrowModal({
   isOpen,
   onClose,
   onScoreBall,
-  striker,
-  nonStriker,
-  currentBowler
+  striker: _striker,
+  nonStriker: _nonStriker,
+  currentBowler: _currentBowler
 }) {
   const [deliveryType, setDeliveryType] = useState('OFF_BAT'); // 'OFF_BAT' | 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE'
   const [runsRan, setRunsRan] = useState(1);
@@ -38,7 +38,7 @@ export default function OverthrowModal({
   } else if (deliveryType === 'NO_BALL') {
     batterRuns = physicalRuns;
     extraType = EXTRA_TYPES.NO_BALL;
-    extraRuns = 1; // 1 penalty for no-ball
+    extraRuns = 0; // 1 penalty is added automatically by the reducer
     totalScore = 1 + physicalRuns;
   } else if (deliveryType === 'BYE') {
     batterRuns = 0;

@@ -53,7 +53,7 @@ export async function exportAndSaveImage(target, fileName, title = 'Match Scorec
           });
           return { success: true, method: 'share' };
         }
-      } catch (shareErr) {
+      } catch {
         // User cancelled or share unhandled, fall through to download anchor if not shareOnly
         if (shareOnly) {
           return { success: false, method: 'share', cancelled: true };

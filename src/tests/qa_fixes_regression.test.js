@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { applyEvent, createInitialMatchState } from '../engine/reducer.js';
-import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
+import { EVENT_TYPES, EXTRA_TYPES, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
-import { getMaxWickets, formatOvers } from '../engine/rules.js';
+import { getMaxWickets } from '../engine/rules.js';
 
 function setupMatch() {
   let state = createInitialMatchState();
@@ -208,9 +208,9 @@ describe('Regression Tests: All User Reported Fixes', () => {
     const path = await import('path');
     const devCode = fs.readFileSync(path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'), 'utf-8');
 
-    // 1. Developer default username is syedmaazalam2007@gmail.com and password Silicon123@
+    // 1. Developer default username is syedmaazalam2007@gmail.com and no hardcoded password
     expect(devCode).toContain('syedmaazalam2007@gmail.com');
-    expect(devCode).toContain('Silicon123@');
+    expect(devCode).not.toContain('Silicon123@');
 
     // 2. Developer can view and change their own username and password
     expect(devCode).toContain('Developer Portal Credentials');

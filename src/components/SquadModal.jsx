@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Users, Edit2, Check, User, Shield, Search } from 'lucide-react';
+import { X, Users, Edit2, Check, Search } from 'lucide-react';
 
 export default function SquadModal({
   isOpen,

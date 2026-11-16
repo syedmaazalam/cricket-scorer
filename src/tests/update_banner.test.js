@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CURRENT_APP_VERSION, CURRENT_APP_VERSION_CODE } from '../components/UpdateNotificationBanner.jsx';
+import { CURRENT_APP_VERSION, CURRENT_APP_VERSION_CODE, isVersionNewer } from '../components/UpdateNotificationBanner.jsx';
 
 const mockStore = {};
 globalThis.localStorage = {
@@ -24,6 +24,19 @@ describe('UpdateNotificationBanner Unit Tests', () => {
     expect(localStorage.getItem(versionKey)).toBeNull();
     localStorage.setItem(versionKey, 'true');
     expect(localStorage.getItem(versionKey)).toBe('true');
+  });
+
+  it('evaluates semantic version comparisons accurately with isVersionNewer', () => {
+    expect(isVersionNewer('1.3.4', '1.3.3')).toBe(true);
+    expect(isVersionNewer('1.4.0', '1.3.3')).toBe(true);
+    expect(isVersionNewer('1.10.0', '1.3.3')).toBe(true); // multi-digit minor version
+    expect(isVersionNewer('2.0.0', '1.3.3')).toBe(true);
+    expect(isVersionNewer('v1.3.4', '1.3.3')).toBe(true);
+    expect(isVersionNewer('1.3.3', '1.3.3')).toBe(false);
+    expect(isVersionNewer('1.3.2', '1.3.3')).toBe(false);
+    expect(isVersionNewer('1.2.9', '1.3.3')).toBe(false);
+    expect(isVersionNewer(null, '1.3.3')).toBe(false);
+    expect(isVersionNewer('', '1.3.3')).toBe(false);
   });
 
   it('evaluates version comparison arithmetic accurately', () => {

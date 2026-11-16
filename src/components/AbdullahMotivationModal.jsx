@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Sparkles, Trophy, Award, Flame, ShieldAlert, Zap } from 'lucide-react';
+import { Heart, Sparkles, Trophy, Award, Flame, Zap } from 'lucide-react';
 
 export function isAbdullah(name) {
   if (!name || typeof name !== 'string') return false;
@@ -23,7 +23,7 @@ export function isAbdullahMessagesEnabled() {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem('smartcricket_abdullah_messages') !== 'false';
     }
-  } catch (e) {}
+  } catch {}
   return _abdullahEnabledMemory;
 }
 
@@ -36,7 +36,7 @@ export function setAbdullahMessagesEnabled(enabled) {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('smartcricket_abdullah_messages', enabled ? 'true' : 'false');
     }
-  } catch (e) {}
+  } catch {}
 }
 
 export const setBrotherMessagesEnabled = setAbdullahMessagesEnabled;

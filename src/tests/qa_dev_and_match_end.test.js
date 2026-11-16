@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyEvent, createInitialMatchState, replayEvents } from '../engine/reducer.js';
-import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
+import { EVENT_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
 import { calculatePlayerPoints, POINTING_CRITERIA } from '../engine/potm.js';
 

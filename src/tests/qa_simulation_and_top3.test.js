@@ -194,7 +194,7 @@ describe('QA Scope 5 & Robustness: 100+ Randomized Matches Simulation & Invarian
       }
 
       // Check INVARIANTS for each innings of the simulated match:
-      state.innings.forEach((inn, innIdx) => {
+      state.innings.forEach((inn) => {
         if (!inn.balls || inn.balls.length === 0) return;
 
         const stats = computeInningsStats(inn);

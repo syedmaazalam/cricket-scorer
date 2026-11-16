@@ -1,16 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ArrowDownToLine, X, AlertTriangle, Sparkles, ExternalLink } from 'lucide-react';
+import { Bell, ArrowDownToLine, X, AlertTriangle } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 import { db } from '../firebase/config.js';
 
 export const CURRENT_APP_VERSION = '1.3.3';
 export const CURRENT_APP_VERSION_CODE = 6;
+
+export function isNativeApp() {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (typeof Capacitor !== 'undefined' && Capacitor?.isNativePlatform && Capacitor.isNativePlatform()) return true;
+    if (window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform()) return true;
+    if (window.ScorecardBridge) return true;
+  } catch {}
+  return false;
+}
+
+/**
+ * Compares two semantic version strings (e.g. '1.10.0' vs '1.3.3').
+ * Returns true if remoteVer is strictly newer than currentVer.
+ */
+export function isVersionNewer(remoteVer, currentVer = CURRENT_APP_VERSION) {
+  if (!remoteVer || typeof remoteVer !== 'string') return false;
+  const p1 = String(remoteVer).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = String(currentVer).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return true;
+    if (num1 < num2) return false;
+  }
+  return false;
+}
 
 export default function UpdateNotificationBanner() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Bug 23: Show APK update banner ONLY in native Capacitor / Android build
+    if (!isNativeApp()) {
+      return;
+    }
+
     let unsubscribeFirestore = null;
 
     // Helper to evaluate and trigger banner if update is newer than current app
@@ -23,7 +56,7 @@ export default function UpdateNotificationBanner() {
 
       // Check if remote version is strictly newer
       const isNewerCode = remoteCode > CURRENT_APP_VERSION_CODE;
-      const isNewerName = remoteName && remoteName !== CURRENT_APP_VERSION && remoteName > CURRENT_APP_VERSION;
+      const isNewerName = isVersionNewer(remoteName, CURRENT_APP_VERSION);
       const isUpdateAvailable = isNewerCode || isNewerName || isForce;
 
       if (!isUpdateAvailable) {
@@ -56,7 +89,7 @@ export default function UpdateNotificationBanner() {
               url
             );
           }
-        } catch (e) {}
+        } catch {}
       }
     };
 
@@ -83,7 +116,7 @@ export default function UpdateNotificationBanner() {
         if (res.ok) {
           const ghRelease = await res.json();
           const ghTag = (ghRelease.tag_name || '').replace(/^v/i, '').trim();
-          if (ghTag && ghTag !== CURRENT_APP_VERSION && ghTag > CURRENT_APP_VERSION) {
+          if (ghTag && isVersionNewer(ghTag, CURRENT_APP_VERSION)) {
             evaluateUpdate({
               versionName: ghTag,
               versionCode: 2,
@@ -94,9 +127,7 @@ export default function UpdateNotificationBanner() {
             });
           }
         }
-      } catch (err) {
-        // Offline or unconfigured GitHub API
-      }
+      } catch {}
     };
 
     checkGitHubRelease();
@@ -123,7 +154,7 @@ export default function UpdateNotificationBanner() {
     window.open(downloadUrl, '_system');
   };
 
-  if (!isVisible || !updateInfo) return null;
+  if (!isNativeApp() || !isVisible || !updateInfo) return null;
 
   return (
     <div

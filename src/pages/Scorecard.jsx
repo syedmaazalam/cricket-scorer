@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trophy, Award, Share2, Check, Image as ImageIcon, Users, FileSpreadsheet, Calendar, Hash, BarChart2, Shield, Activity, User, Target, Info } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { computeInningsStats, getScoreAtLegalBalls, computeMatchFieldingStats } from '../engine/stats.js';
+import React, { useState } from 'react';
+import { ArrowLeft, Trophy, Share2, Check, Image as ImageIcon, FileSpreadsheet, Activity, Info } from 'lucide-react';
+import { computeInningsStats, computeMatchFieldingStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { getTopPlayers, getVisibleBreakdownItems } from '../engine/potm.js';
 import { getShareUrl } from '../engine/constants.js';
@@ -12,39 +11,17 @@ import SquadModal from '../components/SquadModal.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
 import ScorecardPNGGenerator from '../components/ScorecardPNGGenerator.jsx';
-import { exportAndSaveImage } from '../engine/nativeExport.js';
-import { SkeletonBox, SkeletonCard, SkeletonTable } from '../components/ui/LoadingPrimitives.jsx';
-
-// Team crest shield component matching redesign prototype
-function TeamCrest({ name, color }) {
-  const initials = (name || 'SC')
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'SC';
-
-  return (
-    <svg width="50" height="58" viewBox="0 0 54 62" role="img" aria-label={`${name} crest`} style={{ flex: 'none' }}>
-      <path d="M27 2 50 10v22c0 14-10 24-23 28C14 56 4 46 4 32V10Z" fill={color} stroke="rgba(255,255,255,.65)" strokeWidth="2" />
-      <path d="M19 9l4 5 4-6 4 6 4-5-1 8H20Z" fill="#FFC83D" />
-      <text x="27" y="41" textAnchor="middle" fontSize="16" fontWeight="800" fill="#fff">
-        {initials}
-      </text>
-    </svg>
-  );
-}
+import TeamCrest from '../components/TeamCrest.jsx';
+import { SkeletonBox, SkeletonTable } from '../components/ui/LoadingPrimitives.jsx';
 
 export default function Scorecard({ matchState, onBack, onOpenSummary }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2
   const [copied, setCopied] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [selectedBatterDetails, setSelectedBatterDetails] = useState(null);
   const [isSquadModalOpen, setIsSquadModalOpen] = useState(false);
   const [isPointingCriteriaOpen, setIsPointingCriteriaOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isScorecardPNGOpen, setIsScorecardPNGOpen] = useState(false);
-  const scorecardRef = useRef(null);
 
   const isLoading = !matchState || (!matchState.code && (!matchState.teams || matchState.teams.length === 0));
 
@@ -220,69 +197,6 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       navigator.clipboard?.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleExportPNG = async () => {
-    if (!scorecardRef.current || isExporting) return;
-    try {
-      setIsExporting(true);
-
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const element = scorecardRef.current;
-
-      const canvas = await html2canvas(element, {
-        backgroundColor: isDark ? '#021024' : '#F0F7FF',
-        scale: 3,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        width: element.scrollWidth,
-        height: element.scrollHeight,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        onclone: (clonedDoc) => {
-          const el = clonedDoc.querySelector('[ref="scorecardRef"]') || clonedDoc.body;
-          if (el) {
-            el.style.overflow = 'visible';
-            el.style.maxHeight = 'none';
-          }
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((node) => {
-            node.style.backdropFilter = 'none';
-            node.style.webkitBackdropFilter = 'none';
-
-            if (node.style.backgroundClip === 'text' || node.style.webkitBackgroundClip === 'text') {
-              node.style.backgroundClip = 'unset';
-              node.style.webkitBackgroundClip = 'unset';
-              node.style.color = isDark ? '#C1E8FF' : '#0B1F3B';
-            }
-
-            if (node.children.length === 0 && node.textContent && node.textContent.trim().length > 0) {
-              node.style.lineHeight = '1.3';
-              node.style.transform = 'translateY(-1.5px)';
-              if (node.parentElement) {
-                node.parentElement.style.overflow = 'visible';
-              }
-            }
-          });
-        }
-      });
-
-      const cleanTeams = `${teamAName.replace(/\s+/g, '_')}-vs-${teamBName.replace(/\s+/g, '_')}`;
-      const fileName = `Scorecard_${cleanTeams}_${matchState?.code || 'live'}.png`;
-
-      await exportAndSaveImage(canvas, fileName, `Scorecard: ${teamAName} vs ${teamBName}`);
-    } catch (err) {
-      console.error('PNG export failed:', err);
-      alert('Could not export image directly. Please try again.');
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -557,7 +471,7 @@ export default function Scorecard({ matchState, onBack, onOpenSummary }) {
       </div>
 
       {/* Exportable Scorecard Container */}
-      <div ref={scorecardRef} className="flex flex-col gap-4 w-full">
+      <div className="flex flex-col gap-4 w-full">
         {/* Responsive Desktop 2-Column Split / Mobile Single Column */}
         <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-6 items-start w-full">
           {/* Column 1 (On mobile: order-2, on desktop: order-1): Innings Tabs, Batting & Bowling Cards */}

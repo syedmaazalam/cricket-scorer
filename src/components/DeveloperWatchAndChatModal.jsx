@@ -11,7 +11,6 @@ import {
   Trash2,
   Send,
   RefreshCw,
-  Zap,
   Trophy,
   Users
 } from 'lucide-react';
@@ -19,7 +18,7 @@ import { db } from '../firebase/config.js';
 import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { sendMatchMessage, subscribeMatchMessages, setMatchMessageInactive, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import { replayEvents } from '../engine/reducer.js';
-import { formatOvers, calculateCRR, calculateRRR } from '../engine/rules.js';
+import { formatOvers, calculateCRR } from '../engine/rules.js';
 
 export default function DeveloperWatchAndChatModal({
   isOpen,
@@ -83,9 +82,9 @@ export default function DeveloperWatchAndChatModal({
     });
 
     return () => {
-      unsubDoc();
-      unsubEvents();
-      unsubChat();
+      if (typeof unsubDoc === 'function') unsubDoc();
+      if (typeof unsubEvents === 'function') unsubEvents();
+      if (typeof unsubChat === 'function') unsubChat();
     };
   }, [isOpen, matchId, activeTab]);
 

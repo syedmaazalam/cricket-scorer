@@ -13,15 +13,11 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
-  FileCode,
   FileJson,
   AlertCircle,
   Radio,
-  Clock,
   LogOut,
-  Calendar,
   Layers,
-  Sparkles,
   Heart,
   MessageSquare,
   Trash2,
@@ -31,9 +27,9 @@ import {
   Key,
   Edit2,
   Save,
-  UserCheck
+  Mail
 } from 'lucide-react';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import {
   getAllMatchesFromCloud,
   getAllManagersFromCloud,
@@ -65,25 +61,19 @@ import DeveloperWatchAndChatModal from '../components/DeveloperWatchAndChatModal
 import { isAbdullahMessagesEnabled, setAbdullahMessagesEnabled } from '../components/AbdullahMotivationModal.jsx';
 import { registerModalHandler } from '../services/navigationManager.js';
 
-// Check developer authorization
+// Check developer authorization via custom claims, verified email, or allowlisted UID
 function checkIsDeveloper(user, idTokenResult) {
   if (!user) return false;
   if (idTokenResult?.claims?.developer === true) return true;
-  let devEmail = 'syedmaazalam2007@gmail.com';
-  try {
-    const stored = JSON.parse(localStorage.getItem('cricket_dev_creds') || '{}');
-    if (stored.email) devEmail = stored.email;
-  } catch {}
   if (user.email && (
-    user.email.toLowerCase() === devEmail.toLowerCase() ||
-    user.email === 'syedmaazalam2007@gmail.com' ||
-    user.email === 'syedmaazalam@gmail.com' ||
-    user.email.endsWith('@smartcricket.app')
+    user.email.toLowerCase() === 'syedmaazalam2007@gmail.com' ||
+    user.email.toLowerCase() === 'syedmaazalam@gmail.com' ||
+    user.email.toLowerCase().endsWith('@smartcricket.app')
   )) {
     return true;
   }
   const allowlistedUids = (import.meta.env.VITE_DEVELOPER_UIDS || '').split(',').map(u => u.trim());
-  if (allowlistedUids.includes(user.uid)) return true;
+  if (user.uid && allowlistedUids.includes(user.uid)) return true;
   return false;
 }
 
@@ -96,9 +86,7 @@ function sanitizeString(str, maxLength = 80) {
 export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const auth = getAuth();
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
-  const [isDeveloperUser, setIsDeveloperUser] = useState(() => {
-    return sessionStorage.getItem('dev_auth') === 'true';
-  });
+  const [isDeveloperUser, setIsDeveloperUser] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
 
   // Sign In form
@@ -111,23 +99,17 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [activeTab, setActiveTab] = useState('matches');
 
   // Developer Credentials Management
-  const [devCreds, setDevCreds] = useState(() => {
-    try {
-      const stored = localStorage.getItem('cricket_dev_creds');
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return { email: 'syedmaazalam2007@gmail.com', password: 'Silicon123@' };
-  });
+  const [devCreds, setDevCreds] = useState(() => ({
+    email: auth.currentUser?.email || 'developer@example.com'
+  }));
   const [isEditingDevCreds, setIsEditingDevCreds] = useState(false);
   const [devEmailInput, setDevEmailInput] = useState('');
   const [devPasswordInput, setDevPasswordInput] = useState('');
-  const [showDevPassword, setShowDevPassword] = useState(false);
   const [isSavingDevCreds, setIsSavingDevCreds] = useState(false);
 
   // Manager Credentials & Match Selection State
   const [editingManager, setEditingManager] = useState(null);
   const [managerEditEmail, setManagerEditEmail] = useState('');
-  const [managerEditPassword, setManagerEditPassword] = useState('');
   const [isSavingManagerCreds, setIsSavingManagerCreds] = useState(false);
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [selectedManagerMatch, setSelectedManagerMatch] = useState({});
@@ -135,9 +117,8 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   // Sync developer credentials from cloud on mount
   useEffect(() => {
     getDeveloperCredentialsFromCloud().then((remoteCreds) => {
-      if (remoteCreds?.email && remoteCreds?.password) {
-        setDevCreds(remoteCreds);
-        localStorage.setItem('cricket_dev_creds', JSON.stringify(remoteCreds));
+      if (remoteCreds?.email) {
+        setDevCreds({ email: remoteCreds.email });
       }
     }).catch(() => {});
   }, []);
@@ -159,7 +140,6 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const [expandedManagerId, setExpandedManagerId] = useState(null);
 
   // Import state
-  const [importFile, setImportFile] = useState(null);
   const [importPreview, setImportPreview] = useState(null);
   const [importError, setImportError] = useState(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
@@ -261,22 +241,19 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const handleSaveDevCredentials = async (e) => {
     e?.preventDefault?.();
     const cleanEmail = devEmailInput.trim();
-    const cleanPass = devPasswordInput.trim();
-    if (!cleanEmail || !cleanPass) {
-      showToast('Developer email and password cannot be empty.');
+    if (!cleanEmail) {
+      showToast('Developer email cannot be empty.');
       return;
     }
     setIsSavingDevCreds(true);
-    const updated = { email: cleanEmail, password: cleanPass };
+    const updated = { email: cleanEmail };
     try {
       await saveDeveloperCredentialsInCloud(updated);
-      localStorage.setItem('cricket_dev_creds', JSON.stringify(updated));
       setDevCreds(updated);
       setIsEditingDevCreds(false);
-      showToast('Developer username & password updated successfully!');
+      showToast('Developer credentials updated successfully!');
     } catch (err) {
       console.warn('Cloud save failed for dev creds, saving locally:', err);
-      localStorage.setItem('cricket_dev_creds', JSON.stringify(updated));
       setDevCreds(updated);
       setIsEditingDevCreds(false);
       showToast('Developer credentials updated locally.');
@@ -285,20 +262,33 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     }
   };
 
+  // Send Password Reset Email for Manager
+  const handleSendManagerPasswordReset = async (targetEmail) => {
+    if (!targetEmail) {
+      showToast('No manager email address provided.');
+      return;
+    }
+    try {
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, targetEmail);
+      showToast(`Password reset link sent to ${targetEmail}`);
+    } catch (err) {
+      showToast(err.message || 'Failed to send password reset email.');
+    }
+  };
+
   // Save Manager Credentials
   const handleSaveManagerCredentials = async (mgr) => {
     if (!mgr?.uid) return;
     const cleanEmail = managerEditEmail.trim();
-    const cleanPass = managerEditPassword.trim();
-    if (!cleanEmail || !cleanPass) {
-      showToast('Manager email and password cannot be empty.');
+    if (!cleanEmail) {
+      showToast('Manager email cannot be empty.');
       return;
     }
     setIsSavingManagerCreds(true);
     const updates = {
       email: cleanEmail,
       username: cleanEmail,
-      password: cleanPass,
       updatedAt: Date.now()
     };
     try {
@@ -310,7 +300,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
         prev.map((m) => (m.uid === mgr.uid ? { ...m, ...updates } : m))
       );
       setEditingManager(null);
-      showToast(`Credentials updated for ${mgr.name || cleanEmail}!`);
+      showToast(`Credentials updated securely for ${mgr.name || cleanEmail}!`);
     } catch (err) {
       console.warn('Error saving manager credentials in cloud:', err);
       await updateManagerLocally(mgr.uid, updates);
@@ -324,7 +314,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     }
   };
 
-  // Check auth state
+  // Check auth state securely via Firebase Auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -332,18 +322,11 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
         try {
           const tokenResult = await user.getIdTokenResult();
           const isDev = checkIsDeveloper(user, tokenResult);
-          if (isDev) {
-            setIsDeveloperUser(true);
-            sessionStorage.setItem('dev_auth', 'true');
-          } else if (sessionStorage.getItem('dev_auth') !== 'true') {
-            setIsDeveloperUser(false);
-          }
+          setIsDeveloperUser(Boolean(isDev));
         } catch (e) {
-          if (sessionStorage.getItem('dev_auth') !== 'true') {
-            setIsDeveloperUser(false);
-          }
+          setIsDeveloperUser(false);
         }
-      } else if (sessionStorage.getItem('dev_auth') !== 'true') {
+      } else {
         setIsDeveloperUser(false);
       }
       setAuthChecking(false);
@@ -359,41 +342,26 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
     const cleanPass = passwordInput.trim();
     const cleanEmail = emailInput.trim().toLowerCase();
 
-    // Check dev credentials
-    const targetEmail = (devCreds.email || 'syedmaazalam2007@gmail.com').toLowerCase();
-    const targetPass = devCreds.password || 'Silicon123@';
-
-    const matchesEmail = !cleanEmail || cleanEmail === targetEmail || cleanEmail === 'syedmaazalam2007@gmail.com' || cleanEmail === 'syedmaazalam@gmail.com';
-    const matchesPass = cleanPass === targetPass || cleanPass === 'Silicon123@';
-
-    // Direct credentials check
-    if (matchesEmail && matchesPass) {
-      setIsDeveloperUser(true);
-      sessionStorage.setItem('dev_auth', 'true');
-      localStorage.setItem('cricket_is_developer', 'true');
-      setAuthError('');
+    if (!cleanEmail || !cleanPass) {
+      setAuthError('Please enter developer email and password.');
       setAuthLoading(false);
       return;
     }
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, emailInput.trim() || targetEmail, cleanPass);
-      const tokenResult = await cred.user.getIdTokenResult();
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, cleanPass);
+      const tokenResult = await cred.user.getIdTokenResult(true);
       const isDev = checkIsDeveloper(cred.user, tokenResult);
-      if (!isDev && !matchesPass) {
+      if (!isDev) {
+        await signOut(auth);
         setIsDeveloperUser(false);
         setAuthError('Password or login is incorrect.');
       } else {
         setIsDeveloperUser(true);
-        sessionStorage.setItem('dev_auth', 'true');
+        setAuthError('');
       }
     } catch (err) {
-      if (matchesEmail && matchesPass) {
-        setIsDeveloperUser(true);
-        sessionStorage.setItem('dev_auth', 'true');
-        setAuthError('');
-        return;
-      }
+      setIsDeveloperUser(false);
       setAuthError('Password or login is incorrect.');
     } finally {
       setAuthLoading(false);
@@ -403,10 +371,11 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
   const handleDeveloperLogout = async () => {
     try {
       sessionStorage.removeItem('dev_auth');
+      localStorage.removeItem('cricket_is_developer');
       await signOut(auth);
       setCurrentUser(null);
       setIsDeveloperUser(false);
-    } catch (e) {}
+    } catch {}
   };
 
   // Load matches and managers
@@ -769,8 +738,8 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                 Developer Username / Email
               </label>
               <input
-                type="text"
-                placeholder="syedmaazalam2007@gmail.com"
+                type="email"
+                placeholder="developer@example.com"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 style={{
@@ -779,6 +748,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                   color: 'var(--text)'
                 }}
                 className="w-full px-3 py-2.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
+                required
               />
             </div>
 
@@ -788,7 +758,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
               </label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 style={{
@@ -1009,21 +979,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                 </div>
                 <div className="text-[11px] flex flex-wrap items-center gap-x-4 gap-y-1 mt-0.5" style={{ color: 'var(--muted)' }}>
                   <span>
-                    Username: <strong style={{ color: 'var(--text)' }}>{devCreds.email}</strong>
+                    Authenticated Developer: <strong style={{ color: 'var(--text)' }}>{currentUser?.email || devCreds?.email || 'syedmaazalam2007@gmail.com'}</strong>
                   </span>
-                  <span className="flex items-center gap-1">
-                    Password:{' '}
-                    <strong style={{ color: 'var(--text)' }}>
-                      {showDevPassword ? devCreds.password : '••••••••'}
-                    </strong>
-                    <button
-                      type="button"
-                      onClick={() => setShowDevPassword(!showDevPassword)}
-                      className="text-[var(--muted)] hover:text-emerald-400 p-0.5"
-                      title={showDevPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showDevPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
+                  <span className="text-emerald-400 font-medium">
+                    Session Managed via Firebase Auth
                   </span>
                 </div>
               </div>
@@ -1033,7 +992,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
               onClick={() => {
                 if (!isEditingDevCreds) {
                   setDevEmailInput(devCreds.email);
-                  setDevPasswordInput(devCreds.password);
+                  setDevPasswordInput('');
                 }
                 setIsEditingDevCreds(!isEditingDevCreds);
               }}
@@ -1061,10 +1020,10 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                   Developer Username / Email
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   value={devEmailInput}
                   onChange={(e) => setDevEmailInput(e.target.value)}
-                  placeholder="syedmaazalam2007@gmail.com"
+                  placeholder="developer@example.com"
                   style={{
                     backgroundColor: 'var(--card)',
                     borderColor: 'var(--border)',
@@ -1082,7 +1041,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                   type="text"
                   value={devPasswordInput}
                   onChange={(e) => setDevPasswordInput(e.target.value)}
-                  placeholder="Silicon123@"
+                  placeholder="Enter new password"
                   style={{
                     backgroundColor: 'var(--card)',
                     borderColor: 'var(--border)',
@@ -1270,7 +1229,7 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                               } else {
                                 setEditingManager(mgr);
                                 setManagerEditEmail(mgr.email || mgr.username || '');
-                                setManagerEditPassword(mgr.password || '');
+                                setManagerEditPassword('');
                               }
                             }}
                             className="text-[11px] font-semibold text-[#22C55E] hover:underline flex items-center gap-1"
@@ -1292,13 +1251,13 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                             <span style={{ color: 'var(--muted)' }}>Password:</span>
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono" style={{ color: 'var(--text)' }}>
-                                {revealedPasswords[mgr.uid] ? (mgr.password || '(No password set)') : '••••••••'}
+                                {revealedPasswords[mgr.uid] ? 'Protected via Firebase Auth' : '••••••••'}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => togglePasswordVisibility(mgr.uid)}
                                 className="text-[var(--muted)] hover:text-[#22C55E] p-0.5"
-                                title={revealedPasswords[mgr.uid] ? 'Hide password' : 'Show password'}
+                                title={revealedPasswords[mgr.uid] ? 'Hide password info' : 'View password status'}
                               >
                                 {revealedPasswords[mgr.uid] ? (
                                   <EyeOff className="w-3 h-3" />
@@ -1340,22 +1299,20 @@ export default function DeveloperDashboard({ onBack, onOpenMatch }) {
                                 className="w-full px-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
                               />
                             </div>
-                            <div className="flex-1">
-                              <label className="block text-[10px] font-medium uppercase mb-0.5" style={{ color: 'var(--muted)' }}>
-                                New Password
-                              </label>
-                              <input
-                                type="text"
-                                value={managerEditPassword}
-                                onChange={(e) => setManagerEditPassword(e.target.value)}
-                                placeholder="NewPassword123"
+                            <div className="flex-1 flex flex-col justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleSendManagerPasswordReset(managerEditEmail || mgr.email)}
                                 style={{
                                   backgroundColor: 'var(--card)',
                                   borderColor: 'var(--border)',
                                   color: 'var(--text)'
                                 }}
-                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:border-[#22C55E]"
-                              />
+                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs flex items-center justify-center gap-1.5 hover:border-[#22C55E] text-[#22C55E] transition-colors"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                <span>Send Reset Password Email</span>
+                              </button>
                             </div>
                           </div>
 

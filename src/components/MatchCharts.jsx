@@ -1,7 +1,7 @@
 import React, { useState, useId, useEffect } from 'react';
-import { BarChart3, TrendingUp, Sparkles } from 'lucide-react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
-import { formatOvers, calculateCRR } from '../engine/rules.js';
+import { calculateCRR } from '../engine/rules.js';
 
 // Dedicated broadcast colors for Worm Chart
 const TEAM1_WORM_COLOR = '#10B981'; // Green
@@ -173,21 +173,28 @@ export default function MatchCharts({
     let wicketsCount = 0;
     let legalBalls = 0;
 
-    overMap.push({ over: 0, score: 0, wickets: 0, isWicket: false });
+    overMap.push({ over: 0, overDecimal: 0, overDisplay: '0.0', score: 0, wickets: 0, isWicket: false });
 
     innings.balls.forEach((b) => {
       currentScore = b.scoreAtBall || (currentScore + (b.runs || 0) + (b.extraRuns || 0));
-      if (b.isLegal) {
+      // Bug 4: Strictly exclude wides and no-balls from legal balls
+      const isLegal = b.isLegal !== undefined
+        ? Boolean(b.isLegal)
+        : !['wide', 'wd', 'noball', 'no_ball', 'nb'].includes(String(b.extraType || '').toLowerCase());
+
+      if (isLegal) {
         legalBalls++;
       }
       if (b.isWicket) {
         wicketsCount++;
       }
 
-      if (b.isLegal && legalBalls % 6 === 0) {
-        const ov = legalBalls / 6;
+      if (isLegal && legalBalls % 6 === 0) {
+        const completedOvers = Math.floor(legalBalls / 6);
         overMap.push({
-          over: ov,
+          over: completedOvers,
+          overDecimal: completedOvers,
+          overDisplay: `${completedOvers}.0`,
           score: currentScore,
           wickets: wicketsCount,
           isWicket: b.isWicket
@@ -196,9 +203,14 @@ export default function MatchCharts({
     });
 
     if (legalBalls % 6 !== 0 && legalBalls > 0) {
-      const ov = Number((legalBalls / 6).toFixed(1));
+      const completed = Math.floor(legalBalls / 6);
+      const remainingBalls = legalBalls % 6;
+      const overDecimal = completed + (remainingBalls / 6);
+      const overDisplay = `${completed}.${remainingBalls}`;
       overMap.push({
-        over: ov,
+        over: overDecimal,
+        overDecimal,
+        overDisplay,
         score: currentScore,
         wickets: wicketsCount,
         isWicket: false
@@ -627,15 +639,15 @@ export default function MatchCharts({
           {/* Bar Chart Legend */}
           <div className="row wrap" style={{ justifyContent: 'center', gap: '14px', fontSize: '12px', color: 'var(--t2)', margin: '4px 0 10px' }}>
             <span className="flex items-center gap-1.5">
-              <i className="dot" style={{ backgroundColor: 'var(--chart-normal, #16A34A)' }} />
+              <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--chart-normal, #16A34A)' }} />
               <span>Normal over</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <i className="dot" style={{ backgroundColor: 'var(--chart-high, #2563EB)' }} />
+              <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--chart-high, #2563EB)' }} />
               <span>10+ runs</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <i className="dot" style={{ backgroundColor: 'var(--bad)' }} />
+              <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: 'var(--bad)' }} />
               <span>Wicket over</span>
             </span>
           </div>
@@ -679,14 +691,18 @@ export default function MatchCharts({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="px-2 py-0.5 rounded-md bg-[var(--pri)] text-white text-[10px] font-black uppercase tracking-wider">
-                    Over {activeWormPoint.over}
+                    Over {activeWormPoint.overDisplay || activeWormPoint.over}
                   </span>
                   <span className="text-xs font-bold" style={{ color: 'var(--t1)' }}>
                     Score: <b className="text-[var(--pri)]">{activeWormPoint.score}/{activeWormPoint.wickets}</b>
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-[var(--t2)]">
-                  <span>CRR: <b style={{ color: 'var(--t1)' }}>{(activeWormPoint.over > 0 ? (activeWormPoint.score / activeWormPoint.over).toFixed(2) : '0.00')}</b></span>
+                  <span>CRR: <b style={{ color: 'var(--t1)' }}>
+                    {activeWormPoint.overDecimal > 0
+                      ? (activeWormPoint.score / activeWormPoint.overDecimal).toFixed(2)
+                      : (activeWormPoint.over > 0 ? (activeWormPoint.score / activeWormPoint.over).toFixed(2) : '0.00')}
+                  </b></span>
                   {matchState?.target && (
                     <span className="text-[var(--warn)] font-bold">
                       {Math.max(0, matchState.target - activeWormPoint.score)} to win
@@ -884,12 +900,12 @@ export default function MatchCharts({
           <div className="row bt" style={{ fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--bd)' }}>
             <div className="row" style={{ gap: '10px' }}>
               <span className="flex items-center gap-1.5 font-bold">
-                <i className="dot" style={{ backgroundColor: TEAM1_WORM_COLOR }} />
+                <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TEAM1_WORM_COLOR }} />
                 <span>{inn1.battingTeam || 'Team 1'}</span>
               </span>
               {inn2 && (
                 <span className="flex items-center gap-1.5 font-bold">
-                  <i className="dot" style={{ backgroundColor: TEAM2_WORM_COLOR }} />
+                  <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: TEAM2_WORM_COLOR }} />
                   <span>{inn2.battingTeam || 'Team 2'}</span>
                 </span>
               )}
@@ -897,6 +913,7 @@ export default function MatchCharts({
 
             <div className="row" style={{ gap: '12px' }}>
               <span className="mu">CRR <b style={{ color: 'var(--t1)' }}>{crrValue.toFixed(1)}</b></span>
+              {' '}
               <span className="mu">Proj <b style={{ color: 'var(--t1)' }}>{Math.round(crrValue * totalMatchOvers)}</b></span>
             </div>
           </div>

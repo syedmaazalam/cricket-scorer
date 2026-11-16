@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { toPng } from 'html-to-image';
 import { Download, Share2, X, Trophy, Star, Loader2 } from 'lucide-react';
 import { exportAndSaveImage } from '../engine/nativeExport.js';
+import { formatOvers, calculateCRR } from '../engine/rules.js';
 import { ButtonSpinner } from './ui/LoadingPrimitives.jsx';
 
 // ─────────────────────────────────────────────────────────────
@@ -14,13 +15,11 @@ export function strip(name) {
 }
 
 export function formatOversLocal(legalBalls) {
-  if (!legalBalls) return '0.0';
-  return `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
+  return formatOvers(legalBalls || 0);
 }
 
 export function calcCRRLocal(score, legalBalls) {
-  if (!legalBalls) return '0.00';
-  return (score / (legalBalls / 6)).toFixed(2);
+  return calculateCRR(score || 0, legalBalls || 0).toFixed(2);
 }
 
 /**

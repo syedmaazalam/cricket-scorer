@@ -97,7 +97,7 @@ export function computeInningsStats(inningsData) {
 
   ballHistory.forEach((ball, idx) => {
     const striker = getBatter(ball.striker);
-    const nonStriker = getBatter(ball.nonStriker);
+    getBatter(ball.nonStriker);
     const bowler = getBowler(ball.bowler);
 
     // Track active partnership members

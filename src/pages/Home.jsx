@@ -16,8 +16,7 @@ import {
   RefreshCw,
   Trophy,
   Tv,
-  History,
-  ShieldCheck
+  X
 } from 'lucide-react';
 import { getAllLocalMatches } from '../store/localDb.js';
 import { searchMatches, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
@@ -283,7 +282,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
   return (
     <div
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
-      className="min-h-screen flex flex-col px-2 sm:px-6 md:px-8 py-3 w-full max-w-xl mx-auto select-none transition-colors"
+      className="min-h-screen flex flex-col px-2 sm:px-6 md:px-8 py-3 w-full max-w-xl lg:max-w-5xl xl:max-w-6xl mx-auto select-none transition-colors"
     >
       {/* 1. Formal Top Navigation Bar */}
       <header className="flex items-center justify-between pt-1 pb-3 w-full border-b border-[var(--border)] mb-3">
@@ -367,7 +366,33 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
           }}
           className="relative z-10 w-16 h-16 rounded-2xl border-2 flex items-center justify-center mb-2.5 transition-transform hover:scale-105 shadow-lg overflow-hidden"
         >
-          <img src="/logo.png" alt="SmartCricket Logo" className="w-full h-full object-cover rounded-xl" />
+          <img
+            src="/logo.png"
+            alt="SmartCricket Logo"
+            className="w-full h-full object-cover rounded-xl"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback-svg');
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <svg
+            className="logo-fallback-svg w-10 h-10 text-emerald-500"
+            style={{ display: 'none' }}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="m4.93 4.93 4.24 4.24" />
+            <path d="m14.83 9.17 4.24-4.24" />
+            <path d="m14.83 14.83 4.24 4.24" />
+            <path d="m9.17 14.83-4.24 4.24" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
         </div>
 
         <h1 className="relative z-10 text-3xl sm:text-4xl font-extrabold tracking-tight m-0" style={{ color: 'var(--text)' }}>
@@ -564,8 +589,18 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#22C55E] transition-all font-medium"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-[#22C55E] transition-all font-medium"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-2.5 p-1 rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Matches list rendered directly under the search bar */}
@@ -602,7 +637,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    className="flex flex-col gap-2.5 max-h-[420px] overflow-y-auto w-full pr-0.5"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[500px] overflow-y-auto w-full pr-0.5"
                   >
                     {displayedMatches.map((m) => {
                       const teamA = m.teams?.[0]?.name || 'Team 1';
@@ -758,9 +793,19 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl border text-xs sm:text-sm font-medium focus:outline-none focus:border-[#1E6BFF] transition-all"
+                className="w-full pl-11 pr-9 py-2.5 rounded-xl border text-xs sm:text-sm font-medium focus:outline-none focus:border-[#1E6BFF] transition-all"
                 autoFocus
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-3 p-1 rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* When Searching: Show centered segmented capsule spinner */}

@@ -51,6 +51,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // UI state
+  const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -67,12 +68,53 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateFields = () => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    const cleanName = name.trim();
+    const errors = { name: '', email: '', password: '' };
+    let hasErr = false;
+
+    if (isRegister && !cleanName) {
+      errors.name = 'Please enter your manager name.';
+      hasErr = true;
+    }
+
+    if (!cleanEmail) {
+      errors.email = 'Please enter your email address.';
+      hasErr = true;
+    } else if (!EMAIL_REGEX.test(cleanEmail)) {
+      errors.email = 'Please enter a valid email address.';
+      hasErr = true;
+    }
+
+    if (!cleanPassword) {
+      errors.password = 'Please enter your password.';
+      hasErr = true;
+    } else if (cleanPassword.length < 6) {
+      errors.password = 'Password must be at least 6 characters.';
+      hasErr = true;
+    }
+
+    setFieldErrors(errors);
+    return !hasErr;
+  };
+
   const handleContinueOffline = () => {
+    if (isRegister) {
+      const isValid = validateFields();
+      if (!isValid) {
+        setError('Please fill in all required fields to register.');
+        return;
+      }
+    }
+
     const offlineMgr = {
       uid: 'offline_' + Math.random().toString(36).substring(2, 9),
       name: name.trim() || 'Offline Manager',
-      email: email.trim() || 'offline@scorer.local',
-      password: password.trim() || '',
+      email: email.trim().toLowerCase() || 'offline@scorer.local',
       isOffline: true,
       emailVerified: true,
       createdAt: Date.now(),
@@ -98,6 +140,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
     setError(null);
     setSuccessMsg(null);
 
+    const isValid = validateFields();
+    if (!isValid) {
+      setError('Please resolve the errors highlighted below.');
+      return;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
     const cleanName = name.trim();
@@ -107,21 +155,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
-    if (!cleanEmail || !cleanPassword) {
-      setError('Please fill in both email and password.');
-      return;
-    }
-
-    if (cleanPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
     if (isRegister) {
-      if (!cleanName) {
-        setError('Please enter your manager name.');
-        return;
-      }
 
       // Check for duplicate registrations in local managers database
       try {
@@ -176,7 +210,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           uid: cred.user.uid,
           name: cred.user.displayName || cleanEmail.split('@')[0],
           email: cleanEmail,
-          password: cleanPassword,
           emailVerified: true,
           lastActive: Date.now()
         };
@@ -191,12 +224,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
             setLoading(false);
             return;
           }
-          if (foundLocal.password && foundLocal.password !== cleanPassword) {
-            setError('Incorrect password. Please verify or use Forgot Password.');
-            setLoading(false);
-            return;
-          }
-          managerData = { ...foundLocal, password: cleanPassword, lastActive: Date.now() };
+          managerData = { ...foundLocal, lastActive: Date.now() };
         } else if (code === 'auth/wrong-password') {
           setError('Incorrect password. Please verify or use Forgot Password.');
           setLoading(false);
@@ -246,7 +274,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           uid: cred.user.uid,
           name: cleanName || cleanEmail.split('@')[0],
           email: cleanEmail,
-          password: cleanPassword,
           emailVerified: true,
           createdAt: Date.now(),
           lastActive: Date.now()
@@ -268,7 +295,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
             uid: localUid,
             name: cleanName || cleanEmail.split('@')[0],
             email: cleanEmail,
-            password: cleanPassword,
             emailVerified: true,
             createdAt: Date.now(),
             lastActive: Date.now()
@@ -330,7 +356,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
           uid: cred.user.uid,
           name: cleanName || cleanEmail.split('@')[0],
           email: cleanEmail,
-          password: cleanPassword,
           emailVerified: true,
           createdAt: Date.now(),
           lastActive: Date.now()
@@ -352,7 +377,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
             uid: localUid,
             name: cleanName || cleanEmail.split('@')[0],
             email: cleanEmail,
-            password: cleanPassword,
             emailVerified: true,
             createdAt: Date.now(),
             lastActive: Date.now()
@@ -411,9 +435,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       try {
         const auth = getAuth();
         await sendPasswordResetEmail(auth, cleanEmail);
-      } catch (err) {
-        // Non-blocking
-      }
+      } catch {}
 
       // If OTP is disabled, proceed straight to set new password without blocking user
       if (!ENABLE_OTP_VERIFICATION) {
@@ -488,7 +510,6 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
         uid: existing?.uid || 'mgr_' + Math.random().toString(36).substring(2, 9),
         name: existing?.name || cleanEmail.split('@')[0],
         email: cleanEmail,
-        password: cleanPass,
         emailVerified: true,
         lastActive: Date.now()
       };
@@ -631,15 +652,23 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                     type="text"
                     placeholder="e.g. Scorer Name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
+                    }}
                     style={{
                       backgroundColor: 'var(--card-alt)',
-                      borderColor: 'var(--border)',
+                      borderColor: fieldErrors.name ? 'var(--red)' : 'var(--border)',
                       color: 'var(--text)'
                     }}
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#22C55E]"
                   />
                 </div>
+                {fieldErrors.name && (
+                  <p className="text-[11px] text-red-500 font-semibold mt-1 animate-in fade-in">
+                    {fieldErrors.name}
+                  </p>
+                )}
               </div>
             )}
 
@@ -653,15 +682,23 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   type="email"
                   placeholder="scorer@cricket.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+                  }}
                   style={{
                     backgroundColor: 'var(--card-alt)',
-                    borderColor: 'var(--border)',
+                    borderColor: fieldErrors.email ? 'var(--red)' : 'var(--border)',
                     color: 'var(--text)'
                   }}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#22C55E]"
                 />
               </div>
+              {fieldErrors.email && (
+                <p className="text-[11px] text-red-500 font-semibold mt-1 animate-in fade-in">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -690,15 +727,23 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
+                  }}
                   style={{
                     backgroundColor: 'var(--card-alt)',
-                    borderColor: 'var(--border)',
+                    borderColor: fieldErrors.password ? 'var(--red)' : 'var(--border)',
                     color: 'var(--text)'
                   }}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#22C55E]"
                 />
               </div>
+              {fieldErrors.password && (
+                <p className="text-[11px] text-red-500 font-semibold mt-1 animate-in fade-in">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             <button

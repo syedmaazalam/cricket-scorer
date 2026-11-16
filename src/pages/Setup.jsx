@@ -23,11 +23,17 @@ export default function Setup({ onStartMatch, onBack }) {
   const [inputModeB, setInputModeB] = useState('multiline');
 
   // Toss & Openers
+  const [tossWinnerIndex, setTossWinnerIndex] = useState(0); // 0: Team A, 1: Team B
   const [tossWinner, setTossWinner] = useState('Team Alpha');
   const [tossDecision, setTossDecision] = useState('bat'); // 'bat' | 'bowl'
   const [striker, setStriker] = useState('');
   const [nonStriker, setNonStriker] = useState('');
   const [bowler, setBowler] = useState('');
+
+  // Inline Validation Errors
+  const [step1Error, setStep1Error] = useState('');
+  const [oversError, setOversError] = useState('');
+  const [step3Error, setStep3Error] = useState('');
 
   // Initialize squad names
   const initSquads = (count, nameA, nameB) => {
@@ -40,20 +46,40 @@ export default function Setup({ onStartMatch, onBack }) {
   };
 
   const handleStep1Next = () => {
+    setStep1Error('');
+    setOversError('');
+
     if (!teamAName.trim() || !teamBName.trim()) {
-      alert('Please enter names for both teams.');
+      setStep1Error('Please enter names for both teams.');
       return;
     }
-    const finalOvers = customOversInput ? parseInt(customOversInput, 10) : overs;
+
+    if (teamAName.trim().toLowerCase() === teamBName.trim().toLowerCase()) {
+      setStep1Error('Team names must be different. Please enter distinct names for each team.');
+      return;
+    }
+
+    let finalOvers = overs;
+    if (customOversInput !== '') {
+      const parsed = Number(customOversInput);
+      if (isNaN(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+        setOversError('Custom overs must be a positive whole number (minimum 1).');
+        return;
+      }
+      finalOvers = parsed;
+    }
+
     if (!finalOvers || finalOvers < 1) {
-      alert('Please select or enter valid number of overs.');
+      setOversError('Please select or enter valid number of overs (minimum 1).');
       return;
     }
+
     setOvers(finalOvers);
 
     if (teamAPlayers.length !== playersPerTeam) {
       initSquads(playersPerTeam, teamAName, teamBName);
     }
+    setTossWinnerIndex(0);
     setTossWinner(teamAName);
     setStep(2);
   };
@@ -104,37 +130,41 @@ export default function Setup({ onStartMatch, onBack }) {
   const duplicatesB = findDuplicates(teamBPlayers);
   const hasDuplicates = duplicatesA.length > 0 || duplicatesB.length > 0;
 
+  const battingTeamIndex = tossDecision === 'bat' ? tossWinnerIndex : (tossWinnerIndex === 0 ? 1 : 0);
+  const bowlingTeamIndex = battingTeamIndex === 0 ? 1 : 0;
+  const battingTeamName = battingTeamIndex === 0 ? teamAName : teamBName;
+  const bowlingTeamName = bowlingTeamIndex === 0 ? teamAName : teamBName;
+  const currentBattingSquad = battingTeamIndex === 0 ? teamAPlayers : teamBPlayers;
+  const currentBowlingSquad = bowlingTeamIndex === 0 ? teamAPlayers : teamBPlayers;
+
   const handleStep2Next = () => {
     if (hasDuplicates) {
       alert('Please resolve duplicate player names before proceeding.');
       return;
     }
 
-    const battingTeamName = tossDecision === 'bat' ? tossWinner : (tossWinner === teamAName ? teamBName : teamAName);
-    const bowlingTeamName = battingTeamName === teamAName ? teamBName : teamAName;
+    const battingSquad = battingTeamIndex === 0 ? teamAPlayers : teamBPlayers;
+    const bowlingSquad = bowlingTeamIndex === 0 ? teamAPlayers : teamBPlayers;
 
-    const battingSquad = battingTeamName === teamAName ? teamAPlayers : teamBPlayers;
-    const bowlingSquad = bowlingTeamName === teamAName ? teamAPlayers : teamBPlayers;
+    const initialStriker = battingSquad[0] || 'Batter 1';
+    const initialNonStriker = battingSquad[1] || (battingSquad.length > 1 ? battingSquad[1] : 'Batter 2');
 
-    setStriker(battingSquad[0] || 'Batter 1');
-    setNonStriker(battingSquad[1] || 'Batter 2');
+    setStriker(initialStriker);
+    setNonStriker(initialNonStriker);
     setBowler(bowlingSquad[0] || 'Bowler 1');
+    setStep3Error('');
 
     setStep(3);
   };
 
-  const battingTeamName = tossDecision === 'bat' ? tossWinner : (tossWinner === teamAName ? teamBName : teamAName);
-  const bowlingTeamName = battingTeamName === teamAName ? teamBName : teamAName;
-  const currentBattingSquad = battingTeamName === teamAName ? teamAPlayers : teamBPlayers;
-  const currentBowlingSquad = bowlingTeamName === teamAName ? teamAPlayers : teamBPlayers;
-
   const handleFinishSetup = () => {
+    setStep3Error('');
     if (striker === nonStriker) {
-      alert('Striker and Non-Striker must be two distinct players.');
+      setStep3Error('Striker and Non-Striker must be two distinct players.');
       return;
     }
     if (!bowler) {
-      alert('Please select an opening bowler.');
+      setStep3Error('Please select an opening bowler.');
       return;
     }
 
@@ -147,13 +177,14 @@ export default function Setup({ onStartMatch, onBack }) {
         matchId,
         code,
         teams: [
-          { name: battingTeamName, players: battingTeamName === teamAName ? teamAPlayers : teamBPlayers },
-          { name: bowlingTeamName, players: bowlingTeamName === teamAName ? teamAPlayers : teamBPlayers }
+          { name: battingTeamName, players: battingTeamIndex === 0 ? teamAPlayers : teamBPlayers },
+          { name: bowlingTeamName, players: bowlingTeamIndex === 0 ? teamAPlayers : teamBPlayers }
         ],
         overs,
         playersPerTeam,
         toss: {
           winner: tossWinner,
+          winnerIndex: tossWinnerIndex,
           decision: tossDecision
         },
         striker,
@@ -326,18 +357,35 @@ export default function Setup({ onStartMatch, onBack }) {
                 value={customOversInput}
                 onChange={(e) => {
                   setCustomOversInput(e.target.value);
-                  if (e.target.value) setOvers(parseInt(e.target.value, 10));
+                  setOversError('');
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) {
+                    setOvers(val);
+                  }
                 }}
                 placeholder="e.g. 6, 8, 12, 15, 25"
                 style={{
                   backgroundColor: 'var(--card-alt)',
-                  borderColor: 'var(--border)',
+                  borderColor: oversError ? 'var(--red)' : 'var(--border)',
                   color: 'var(--text)'
                 }}
                 className="w-full rounded-xl px-3.5 py-2 text-sm font-semibold border focus:outline-none focus:ring-2 focus:ring-[var(--orange)]"
               />
+              {oversError && (
+                <p className="text-[11px] text-red-500 font-semibold mt-1.5 flex items-center gap-1 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{oversError}</span>
+                </p>
+              )}
             </div>
           </div>
+
+          {step1Error && (
+            <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-500 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{step1Error}</span>
+            </div>
+          )}
 
           <button
             onClick={handleStep1Next}
@@ -396,7 +444,7 @@ export default function Setup({ onStartMatch, onBack }) {
                   }}
                   className="px-2 py-1 rounded-lg font-bold text-[10px] transition-all"
                 >
-                  Line-by-line (\n)
+                  One player per line
                 </button>
                 <button
                   type="button"
@@ -431,7 +479,7 @@ export default function Setup({ onStartMatch, onBack }) {
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1 pb-4">
                 {teamAPlayers.map((p, idx) => (
                   <input
                     key={idx}
@@ -474,7 +522,7 @@ export default function Setup({ onStartMatch, onBack }) {
                   }}
                   className="px-2 py-1 rounded-lg font-bold text-[10px] transition-all"
                 >
-                  Line-by-line (\n)
+                  One player per line
                 </button>
                 <button
                   type="button"
@@ -509,7 +557,7 @@ export default function Setup({ onStartMatch, onBack }) {
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1 pb-4">
                 {teamBPlayers.map((p, idx) => (
                   <input
                     key={idx}
@@ -569,10 +617,13 @@ export default function Setup({ onStartMatch, onBack }) {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setTossWinner(teamAName)}
+                  onClick={() => {
+                    setTossWinnerIndex(0);
+                    setTossWinner(teamAName);
+                  }}
                   style={{
-                    backgroundColor: tossWinner === teamAName ? 'var(--orange)' : 'var(--card-alt)',
-                    color: tossWinner === teamAName ? '#FFFFFF' : 'var(--text)',
+                    backgroundColor: tossWinnerIndex === 0 ? 'var(--orange)' : 'var(--card-alt)',
+                    color: tossWinnerIndex === 0 ? '#FFFFFF' : 'var(--text)',
                     borderColor: 'var(--border)'
                   }}
                   className="py-2.5 px-3 rounded-xl border text-xs font-bold transition-all truncate"
@@ -581,10 +632,13 @@ export default function Setup({ onStartMatch, onBack }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTossWinner(teamBName)}
+                  onClick={() => {
+                    setTossWinnerIndex(1);
+                    setTossWinner(teamBName);
+                  }}
                   style={{
-                    backgroundColor: tossWinner === teamBName ? 'var(--orange)' : 'var(--card-alt)',
-                    color: tossWinner === teamBName ? '#FFFFFF' : 'var(--text)',
+                    backgroundColor: tossWinnerIndex === 1 ? 'var(--orange)' : 'var(--card-alt)',
+                    color: tossWinnerIndex === 1 ? '#FFFFFF' : 'var(--text)',
                     borderColor: 'var(--border)'
                   }}
                   className="py-2.5 px-3 rounded-xl border text-xs font-bold transition-all truncate"
@@ -654,7 +708,10 @@ export default function Setup({ onStartMatch, onBack }) {
               </label>
               <select
                 value={striker}
-                onChange={(e) => setStriker(e.target.value)}
+                onChange={(e) => {
+                  setStriker(e.target.value);
+                  setStep3Error('');
+                }}
                 style={{
                   backgroundColor: 'var(--card-alt)',
                   borderColor: 'var(--border)',
@@ -663,7 +720,9 @@ export default function Setup({ onStartMatch, onBack }) {
                 className="w-full rounded-xl px-3 py-2.5 text-xs font-bold border focus:outline-none"
               >
                 {currentBattingSquad.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p} disabled={p === nonStriker}>
+                    {p}{p === nonStriker ? ' (Selected as Non-Striker)' : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -674,7 +733,10 @@ export default function Setup({ onStartMatch, onBack }) {
               </label>
               <select
                 value={nonStriker}
-                onChange={(e) => setNonStriker(e.target.value)}
+                onChange={(e) => {
+                  setNonStriker(e.target.value);
+                  setStep3Error('');
+                }}
                 style={{
                   backgroundColor: 'var(--card-alt)',
                   borderColor: 'var(--border)',
@@ -683,7 +745,9 @@ export default function Setup({ onStartMatch, onBack }) {
                 className="w-full rounded-xl px-3 py-2.5 text-xs font-bold border focus:outline-none"
               >
                 {currentBattingSquad.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p} disabled={p === striker}>
+                    {p}{p === striker ? ' (Selected as Striker)' : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -694,7 +758,10 @@ export default function Setup({ onStartMatch, onBack }) {
               </label>
               <select
                 value={bowler}
-                onChange={(e) => setBowler(e.target.value)}
+                onChange={(e) => {
+                  setBowler(e.target.value);
+                  setStep3Error('');
+                }}
                 style={{
                   backgroundColor: 'var(--card-alt)',
                   borderColor: 'var(--border)',
@@ -709,10 +776,19 @@ export default function Setup({ onStartMatch, onBack }) {
             </div>
           </div>
 
+          {(step3Error || striker === nonStriker) && (
+            <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-500 text-xs font-semibold">
+              {step3Error || 'Striker and Non-Striker must be two distinct players.'}
+            </div>
+          )}
+
           <button
             onClick={handleFinishSetup}
+            disabled={striker === nonStriker || !bowler}
             style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-            className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl active:scale-98 transition-all flex items-center justify-center gap-2 mt-2"
+            className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl active:scale-98 transition-all flex items-center justify-center gap-2 mt-2 ${
+              striker === nonStriker || !bowler ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <span>Start Match & Launch Scoring</span>
             <Check className="w-5 h-5" />

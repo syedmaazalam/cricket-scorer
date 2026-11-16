@@ -1,17 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Users,
-  Swords,
-  Shield,
-  Activity,
-  Edit2,
-  Check,
-  X,
-  Target,
-  Flame,
-  UserCheck,
-  ChevronDown
-} from 'lucide-react';
+import { Edit2, Check, X } from 'lucide-react';
 import { computeInningsStats } from '../engine/stats.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
 import MatchCharts from './MatchCharts.jsx';
@@ -24,11 +12,12 @@ export default function PlayersHeadToHead({ matchState, onEditPlayer }) {
   const [newRole, setNewRole] = useState('batter');
 
   const teams = matchState?.teams || [];
-  const team1 = teams[0] || { name: 'Team Alpha', players: [] };
-  const team2 = teams[1] || { name: 'Team Bravo', players: [] };
-
   const inn1 = matchState?.innings?.[0] || { score: 0, wickets: 0, legalBalls: 0, balls: [] };
   const inn2 = matchState?.innings?.[1] || { score: 0, wickets: 0, legalBalls: 0, balls: [] };
+
+  // Dynamically resolve team objects based on who actually batted in each innings
+  const team1 = teams.find(t => t.name === inn1.battingTeam) || teams[0] || { name: inn1.battingTeam || 'Team Alpha', players: [] };
+  const team2 = teams.find(t => t.name === inn2.battingTeam) || teams.find(t => t.name !== team1.name) || teams[1] || { name: inn2.battingTeam || 'Team Bravo', players: [] };
 
   const stats1 = computeInningsStats(inn1);
   const stats2 = computeInningsStats(inn2);

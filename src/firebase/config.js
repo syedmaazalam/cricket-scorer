@@ -26,7 +26,7 @@ try {
       tabManager: persistentMultipleTabManager()
     })
   });
-} catch (e) {
+} catch {
   // If already initialized or fallback needed
   db = getFirestore(app);
 }

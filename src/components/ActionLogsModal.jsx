@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, X, Clock, RefreshCw, Download, FileText } from 'lucide-react';
+import { History, X, Clock, Download } from 'lucide-react';
 import { getActionLogsLocally } from '../store/localDb.js';
 import { getActionLogsFromCloud } from '../firebase/matches.js';
 

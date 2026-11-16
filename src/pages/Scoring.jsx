@@ -23,8 +23,11 @@ import {
   Copy,
   Edit3,
   X,
-  Activity
+  Activity,
+  Download,
+  Lock
 } from 'lucide-react';
+import { exportSingleMatch, downloadOrShareBackup } from '../services/backupService.js';
 import SyncBadge from '../components/SyncBadge.jsx';
 import RunPad from '../components/RunPad.jsx';
 import WicketModal from '../components/WicketModal.jsx';
@@ -62,6 +65,10 @@ import { registerModalHandler } from '../services/navigationManager.js';
 export default function Scoring({
   matchState,
   syncStatus,
+  leaseConflict,
+  tabLockConflict,
+  isReconciling,
+  onTakeOverScoring,
   onRecordBall,
   onEditBall,
   onSwapBatter,
@@ -378,6 +385,9 @@ export default function Scoring({
   };
 
   const handleScoreBall = (ballData) => {
+    if (leaseConflict || isReconciling || tabLockConflict) {
+      return;
+    }
     if (matchState?.needsBowlerChange || !matchState?.currentBowler) {
       return;
     }
@@ -478,10 +488,11 @@ export default function Scoring({
     }
 
     onRecordBall(ballData);
-    setCooldownSeconds(10);
+    // Cooldown timer turned off per user request
   };
 
   const handleUndo = () => {
+    if (tabLockConflict || leaseConflict || isReconciling) return;
     if (typeof localStorage !== 'undefined' && localStorage.getItem('setting_confirm_undo') === 'true') {
       const confirmed = window.confirm('Are you sure you want to undo the last ball?');
       if (!confirmed) return;
@@ -538,8 +549,8 @@ export default function Scoring({
         return;
       }
 
-      // Scoring buttons and other actions require no modal and valid active bowler
-      if (isAnyModalOpen || matchState?.needsBowlerChange || !matchState?.currentBowler) return;
+      // Scoring buttons and other actions require no modal, valid active bowler, no lease conflict, and no tab lock conflict
+      if (isAnyModalOpen || matchState?.needsBowlerChange || !matchState?.currentBowler || leaseConflict || tabLockConflict || isReconciling) return;
 
       // Runs 0-6 (Number row or NumPad)
       if (['0', '1', '2', '3', '4', '5', '6'].includes(e.key)) {
@@ -765,6 +776,40 @@ export default function Scoring({
               <div className="border-t my-1" style={{ borderColor: 'var(--bd)' }} />
 
               <button
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  try {
+                    const mid = effectiveMatchId || matchState?.matchId || matchState?.code;
+                    const backup = await exportSingleMatch(mid);
+                    await downloadOrShareBackup(`SmartCricket_Match_${mid}_${Date.now()}.json`, backup, { share: false });
+                  } catch (e) {
+                    alert('Export failed: ' + (e?.message || e));
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--well)] transition-colors text-left text-[var(--pri)]"
+              >
+                <Download className="w-4 h-4 text-[var(--pri)]" />
+                <span>Export Match Backup (.json)</span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  try {
+                    const mid = effectiveMatchId || matchState?.matchId || matchState?.code;
+                    const backup = await exportSingleMatch(mid);
+                    await downloadOrShareBackup(`SmartCricket_Match_${mid}_${Date.now()}.json`, backup, { share: true });
+                  } catch (e) {
+                    alert('Share failed: ' + (e?.message || e));
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--well)] transition-colors text-left text-emerald-400"
+              >
+                <Share2 className="w-4 h-4 text-emerald-400" />
+                <span>Share Match Backup (Co-Scorer)</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setIsMenuOpen(false);
                   handleShareLink();
@@ -813,6 +858,69 @@ export default function Scoring({
         </div>
       )}
 
+      {/* Phase 2: Conflict Protection Scorer Lease Banner */}
+      {leaseConflict && (
+        <div
+          style={{
+            backgroundColor: 'rgba(234, 179, 8, 0.15)',
+            borderColor: 'rgba(234, 179, 8, 0.4)',
+            color: 'var(--text)'
+          }}
+          className="mx-auto w-full max-w-xl my-2 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-amber-400">Scoring Locked: </span>
+              <span className="opacity-90">Another device is currently scoring this match.</span>
+            </div>
+          </div>
+          {onTakeOverScoring && (
+            <button
+              onClick={onTakeOverScoring}
+              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold rounded-lg transition-colors shrink-0 shadow-sm"
+            >
+              Take Over
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Phase 6: Cross-Tab Multi-Tab Web Lock Conflict Banner */}
+      {tabLockConflict && (
+        <div
+          style={{
+            backgroundColor: 'rgba(234, 179, 8, 0.15)',
+            borderColor: 'rgba(234, 179, 8, 0.4)',
+            color: 'var(--text)'
+          }}
+          className="mx-auto w-full max-w-xl my-2 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-amber-400">Read-Only Tab: </span>
+              <span className="opacity-90">Another browser tab is actively scoring this match. Live score refreshes automatically.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 2: Chain Reconciling Banner */}
+      {isReconciling && (
+        <div
+          style={{
+            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+            borderColor: 'rgba(59, 130, 246, 0.4)',
+            color: 'var(--text)'
+          }}
+          className="mx-auto w-full max-w-xl my-2 p-3 rounded-xl border flex items-center gap-2.5 shadow-md animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-spin shrink-0" />
+          <span className="text-xs text-blue-300 font-medium">Reconciling events chain tip...</span>
+        </div>
+      )}
+
       {/* Main Content by Tab with Tab Shift Shimmer Skeleton */}
       {isTabTransitioning ? (
         <div className="w-full flex-1 py-2">
@@ -830,8 +938,9 @@ export default function Scoring({
                 <span className="lbl truncate">
                   {currentInnings.battingTeam || 'Batting Team'} · Inn {curInnIndex + 1}
                 </span>
+                {' '}
                 <span className="lbl ac truncate">
-                  vs {currentInnings.bowlingTeam || 'Bowling Team'}
+                  {' '}vs {currentInnings.bowlingTeam || 'Bowling Team'}
                 </span>
               </div>
 
@@ -1139,6 +1248,7 @@ export default function Scoring({
                       <th className="r">M</th>
                       <th className="r">R</th>
                       <th className="r">W</th>
+                      <th className="r">ECON</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1159,6 +1269,7 @@ export default function Scoring({
                       <td className="r m">{bowlerStat.maidens}</td>
                       <td className="r"><b>{bowlerStat.runsConceded}</b></td>
                       <td className="r bad"><b>{bowlerStat.wickets}</b></td>
+                      <td className="r mono">{Number(bowlerStat.economy ?? 0).toFixed(2)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1174,8 +1285,8 @@ export default function Scoring({
                 onSwapBatter={onSwapBatter}
                 onUndo={handleUndo}
                 isFreeHit={matchState.isFreeHit}
-                disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || !matchState.currentBowler || matchState.needsNewBatter || matchState.status === 'completed')}
-                disableUndo={Boolean(matchState.status === 'completed' || isFirstInningsEnded || (matchState.events && matchState.events.length <= 1))}
+                disabled={Boolean(isFirstInningsEnded || matchState.needsBowlerChange || !matchState.currentBowler || matchState.needsNewBatter || matchState.status === 'completed' || leaseConflict || tabLockConflict || isReconciling)}
+                disableUndo={Boolean(matchState.status === 'completed' || isFirstInningsEnded || (matchState.events && matchState.events.length <= 1) || tabLockConflict || leaseConflict || isReconciling)}
                 cooldownSeconds={cooldownSeconds}
                 onSkipCooldown={() => setCooldownSeconds(0)}
               />

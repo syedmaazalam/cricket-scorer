@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyEvent, createInitialMatchState, replayEvents, undoLastEvent } from '../engine/reducer.js';
+import { applyEvent, createInitialMatchState, undoLastEvent } from '../engine/reducer.js';
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
 
@@ -30,7 +30,7 @@ function createMatchWithPlayers(playerCount = 11, overs = 20) {
 
 describe('QA Scope 2: Configurable Setup (2 to 15 Players, Custom Overs, Bowler Rules)', () => {
   it('Handles 2-player match: 1 wicket is all out (playersPerTeam - 1 = 1), no crash, sole bowler can bowl consecutive overs', () => {
-    let { state, team1Players, team2Players } = createMatchWithPlayers(2, 5);
+    let { state } = createMatchWithPlayers(2, 5);
     expect(state.playersPerTeam).toBe(2);
     expect(state.striker).toBe('A_P1');
     expect(state.nonStriker).toBe('A_P2');

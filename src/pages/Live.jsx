@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Radio, FileText, WifiOff, Share2, Check, Users, FileSpreadsheet, Lock, User, Trophy, Zap, MessageSquare, MoreVertical, Activity } from 'lucide-react';
+import { ArrowLeft, WifiOff, Share2, Check, Lock, User, Trophy, MessageSquare, MoreVertical, Activity } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/config.js';
 import { useMatch } from '../store/useMatch.js';
 import { findMatchByCode, subscribeMatchMessages } from '../firebase/matches.js';
 import { computeInningsStats, getScoreAtLegalBalls } from '../engine/stats.js';
@@ -49,6 +51,37 @@ export default function Live({
   const lastSeenDevMsgCountRef = useRef(0);
   const isDark = useIsDark();
 
+  // Bug 2: Derive chat role from real user session
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setCurrentUser(u));
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, []);
+
+  const isDevUser = Boolean(
+    currentUser?.email && (
+      currentUser.email.toLowerCase() === 'syedmaazalam2007@gmail.com' ||
+      currentUser.email.toLowerCase() === 'syedmaazalam@gmail.com' ||
+      currentUser.email.toLowerCase().endsWith('@smartcricket.app')
+    )
+  );
+  const isManagerRole = Boolean(
+    typeof localStorage !== 'undefined' && localStorage.getItem('cricket_is_manager') === 'true'
+  );
+  const chatRole = isDevUser ? 'developer' : (isManagerRole ? 'scorer' : 'spectator');
+  const chatSenderName = isDevUser
+    ? 'Developer (Maaz)'
+    : (isManagerRole
+      ? (() => {
+          try {
+            const parsed = JSON.parse(localStorage.getItem('cricket_manager_user') || '{}');
+            return parsed?.name || 'Match Scorer';
+          } catch {
+            return 'Match Scorer';
+          }
+        })()
+      : (typeof localStorage !== 'undefined' ? localStorage.getItem('cricket_spectator_name') || '' : ''));
+
   const handleSelectTab = (tab) => {
     if (tab === activeTab) return;
     setIsTabTransitioning(true);
@@ -56,10 +89,14 @@ export default function Live({
     setTimeout(() => {
       setIsTabTransitioning(false);
     }, 220);
+    // Phase 5 Requirement 3: Query the full events subcollection only when spectator opens scorecard or timeline
+    if ((tab === 'scorecard' || tab === 'timeline') && typeof loadFullMatchEvents === 'function') {
+      loadFullMatchEvents();
+    }
   };
 
   // Fallback internal listener if parent did not stream matchState
-  const { matchState: fallbackState, scorerOfflineInfo: fallbackOffline } = useMatch(
+  const { matchState: fallbackState, scorerOfflineInfo: fallbackOffline, loadFullMatchEvents } = useMatch(
     propMatchState?.teams?.length > 0 ? null : resolvedMatchId,
     true
   );
@@ -114,7 +151,7 @@ export default function Live({
           setResolvedMatchId(clean);
           onMatchResolved?.(clean, null);
         }
-      } catch (e) {
+      } catch {
         setResolvedMatchId(clean);
       }
     }
@@ -712,6 +749,7 @@ export default function Live({
                     <th className="text-right text-[10px]">M</th>
                     <th className="text-right text-[10px]">R</th>
                     <th className="text-right text-[10px]">W</th>
+                    <th className="text-right text-[10px]">ECON</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -721,6 +759,7 @@ export default function Live({
                     <td className="text-right text-[var(--muted)]">{bowlerStat.maidens}</td>
                     <td className="text-right font-semibold">{bowlerStat.runsConceded}</td>
                     <td className="text-right font-black text-[var(--danger)]">{bowlerStat.wickets}</td>
+                    <td className="text-right font-mono text-[10px]">{Number(bowlerStat.economy ?? 0).toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -836,7 +875,7 @@ export default function Live({
         onOpenSummary={onOpenSummary}
       />
 
-      {/* Developer to Scorer Live Chat Modal while watching */}
+      {/* Live Chat Modal while watching */}
       {isDevChatOpen && (
         <DeveloperScorerChatModal
           isOpen={isDevChatOpen}
@@ -846,8 +885,8 @@ export default function Live({
           }}
           matchId={matchState.matchId || resolvedMatchId || matchCodeOrId}
           matchTitle={`${matchState.teams?.[0]?.name || 'Team 1'} vs ${matchState.teams?.[1]?.name || 'Team 2'} (${matchState.code || matchCodeOrId || ''})`}
-          role="developer"
-          senderName="Developer (Maaz)"
+          role={chatRole}
+          senderName={chatSenderName}
         />
       )}
 

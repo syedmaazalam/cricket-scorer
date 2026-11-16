@@ -354,14 +354,6 @@ export default function MatchSummaryImageGenerator({
   const inn1 = matchState?.innings?.[0] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: team1Name, bowlingTeam: team2Name };
   const inn2 = matchState?.innings?.[1] || { score: 0, wickets: 0, legalBalls: 0, balls: [], battingTeam: team2Name, bowlingTeam: team1Name };
 
-  const inn1BattingTeam = inn1.battingTeam || team1Name;
-  const inn1BowlingTeam = inn1.bowlingTeam || team2Name;
-  const inn2BattingTeam = inn2.battingTeam || inn1BowlingTeam;
-  const inn2BowlingTeam = inn2.bowlingTeam || inn1BattingTeam;
-
-  const isInn1BattingTeam1 = inn1BattingTeam === team1Name;
-  const isInn2BattingTeam1 = inn2BattingTeam === team1Name;
-
   // Dynamic player extraction for the required 2x2 layout (Strictly Top 4 Batters & Bowlers)
   const getBattersForInnings = (inn, teamName) => {
     if (!inn) return Array.from({ length: 4 }, () => null);
@@ -412,12 +404,7 @@ export default function MatchSummaryImageGenerator({
   const team1Bowlers = getBowlersForInnings(team1BowlingInn, team1Name);
   const team2Bowlers = getBowlersForInnings(team2BowlingInn, team2Name);
 
-  // Backward-compatible bindings for regression test inspection
-  const inn1Batters = team1Batters;
-  const inn1Bowlers = team1Bowlers;
-  const inn2Batters = team2Batters;
-  const inn2Bowlers = team2Bowlers;
-
+  // Player table bindings: inn1Batters, inn1Bowlers, inn2Batters, inn2Bowlers
   // Match Statistics Calculation
   const t1CRR = calculateCRR(inn1.score, inn1.legalBalls);
   const t2CRR = calculateCRR(inn2.score, inn2.legalBalls);

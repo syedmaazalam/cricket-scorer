@@ -10,11 +10,13 @@ import {
   where,
   orderBy,
   limit,
-  onSnapshot
+  onSnapshot,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, ensureAnonymousAuth } from './config.js';
 import { replayEvents } from '../engine/reducer.js';
 import { formatOvers } from '../engine/rules.js';
+import { getDeviceId } from '../store/sync.js';
 
 function sanitizeForFirestore(obj) {
   if (obj === undefined) return null;
@@ -54,9 +56,7 @@ export function deriveMatchDisplayScore(match, events = null) {
   if (Array.isArray(events) && events.length > 0) {
     try {
       state = replayEvents(events);
-    } catch (e) {
-      // Replay fallback
-    }
+    } catch {}
   }
 
   const innings = state?.innings || match.innings || [];
@@ -64,8 +64,8 @@ export function deriveMatchDisplayScore(match, events = null) {
   const inn2 = innings[1];
   const summary = state?.summary || match.summary;
 
-  const t1Name = match.teams?.[0]?.name || 'Team 1';
-  const t2Name = match.teams?.[1]?.name || 'Team 2';
+  const t1Name = inn1?.battingTeam || match.teams?.[0]?.name || 'Team 1';
+  const t2Name = inn2?.battingTeam || inn1?.bowlingTeam || match.teams?.[1]?.name || 'Team 2';
 
   const formatInn = (inn, fallbackName) => {
     if (!inn) return null;
@@ -130,24 +130,93 @@ export function getMatchStatusMeta(m) {
 }
 
 /**
- * Updates match heartbeat (scorer device online pulse).
+ * Phase 2 Requirement 4:
+ * Updates match heartbeat renewing scorer lease every 30s using serverTimestamp().
  */
 export async function updateMatchHeartbeat(matchId) {
   if (!matchId) return;
   try {
+    const user = await ensureAnonymousAuth();
+    const deviceId = getDeviceId();
     const matchRef = doc(db, 'matches', matchId);
-    await setDoc(matchRef, { lastSeen: Date.now() }, { merge: true });
+    await setDoc(matchRef, {
+      scorerId: deviceId,
+      scorerUid: user?.uid || null,
+      leaseExpiresAt: Date.now() + 45000,
+      lastHeartbeat: serverTimestamp(),
+      lastSeen: Date.now()
+    }, { merge: true });
+  } catch {}
+}
+
+/**
+ * Phase 2 Requirement 1 & 4:
+ * Claims or transfers the scorer lease.
+ * Returns { granted: true } if acquired, or { granted: false, currentScorerId, leaseExpiresAt } if blocked.
+ */
+export async function claimScorerLease(matchId, forceTakeover = false) {
+  if (!matchId) return { granted: true };
+  try {
+    const user = await ensureAnonymousAuth();
+    const deviceId = getDeviceId();
+    const matchRef = doc(db, 'matches', matchId);
+    const snap = await getDoc(matchRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const currentHolder = data.scorerId;
+      const leaseExpiresAt = data.leaseExpiresAt || 0;
+      const isExpired = Date.now() > leaseExpiresAt;
+      const isSameDevice = currentHolder === deviceId;
+
+      if (!isExpired && !isSameDevice && !forceTakeover) {
+        return {
+          granted: false,
+          currentScorerId: currentHolder,
+          leaseExpiresAt
+        };
+      }
+    }
+
+    const updatePayload = {
+      scorerId: deviceId,
+      leaseExpiresAt: Date.now() + 45000,
+      lastHeartbeat: serverTimestamp(),
+      lastSeen: Date.now()
+    };
+    if (user?.uid) {
+      updatePayload.scorerUid = user.uid;
+      if (!snap.exists() || !snap.data()?.ownerUid) {
+        updatePayload.ownerUid = user.uid;
+      }
+    }
+
+    await setDoc(matchRef, updatePayload, { merge: true });
+    return { granted: true };
   } catch (err) {
-    // Ignore network dropouts; will update on next pulse
+    console.warn('[Lease] claimScorerLease error, falling back locally:', err);
+    return { granted: true, offlineFallback: true };
   }
 }
 
 /**
- * Creates a match document in Firestore with manager metadata and initial scores.
+ * Checks whether another device currently holds an active, unexpired lease.
+ */
+export function isScorerLeaseHeldByOther(matchDoc, currentDeviceId) {
+  if (!matchDoc || !matchDoc.scorerId) return false;
+  if (matchDoc.scorerId === currentDeviceId) return false;
+  const expiresAt = matchDoc.leaseExpiresAt || 0;
+  return expiresAt > Date.now();
+}
+
+/**
+ * Phase 2 Requirement 1:
+ * Creates a match document in Firestore with ownerUid, scorerId (device), and leaseExpiresAt.
  */
 export async function createMatchInCloud(matchId, matchData) {
   try {
     const user = await ensureAnonymousAuth();
+    const deviceId = getDeviceId();
     const matchRef = doc(db, 'matches', matchId);
     
     // Attach manager information from active manager session
@@ -161,12 +230,16 @@ export async function createMatchInCloud(matchId, matchData) {
           managerEmail: activeManager.email || ''
         };
       }
-    } catch (e) {}
+    } catch {}
 
     const data = sanitizeForFirestore({
       ...matchData,
       ...managerMeta,
-      scorerId: user?.uid || 'anonymous',
+      ownerUid: user?.uid || null,
+      scorerUid: user?.uid || null,
+      scorerId: matchData?.scorerId || deviceId,
+      leaseExpiresAt: Date.now() + 45000,
+      lastHeartbeat: serverTimestamp(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     });
@@ -279,6 +352,157 @@ export async function searchMatches(queryText) {
   }
 }
 
+// Throttle management for root doc writes (Phase 5 Requirement 2)
+const rootDocThrottleMap = new Map(); // matchId -> { lastWriteTime, timer, pendingData }
+
+/**
+ * Phase 5 Requirement 1:
+ * Creates the compacted root document shape containing the aggregated score
+ * and the last 12 balls for spectator Live view.
+ */
+export function getCompactedRootData(matchState) {
+  if (!matchState) return {};
+  const currentInningsIndex = matchState.currentInningsIndex !== undefined ? matchState.currentInningsIndex : 0;
+  const currentInnings = matchState.innings?.[currentInningsIndex] || matchState.innings?.[0] || {};
+
+  const allBalls = [];
+  if (Array.isArray(matchState.innings)) {
+    for (const inn of matchState.innings) {
+      if (Array.isArray(inn.balls)) {
+        allBalls.push(...inn.balls);
+      }
+    }
+  }
+  const recentBalls = allBalls.slice(-12);
+
+  return sanitizeForFirestore({
+    matchId: matchState.matchId || matchState.id,
+    code: matchState.code || '',
+    status: matchState.status || (matchState.isCompleted ? 'completed' : 'in_progress'),
+    isCompleted: Boolean(matchState.isCompleted),
+    teams: matchState.teams,
+    toss: matchState.toss,
+    overs: matchState.overs,
+    playersPerTeam: matchState.playersPerTeam,
+    currentInningsIndex,
+    currentInnings: {
+      battingTeam: currentInnings.battingTeam,
+      bowlingTeam: currentInnings.bowlingTeam,
+      runs: currentInnings.runs || 0,
+      wickets: currentInnings.wickets || 0,
+      completedOvers: currentInnings.completedOvers || 0,
+      ballsInCurrentOver: currentInnings.ballsInCurrentOver || 0,
+      target: currentInnings.target,
+      isCompleted: currentInnings.isCompleted,
+      balls: recentBalls
+    },
+    innings: (matchState.innings || []).map(inn => ({
+      battingTeam: inn.battingTeam,
+      bowlingTeam: inn.bowlingTeam,
+      runs: inn.runs || 0,
+      wickets: inn.wickets || 0,
+      completedOvers: inn.completedOvers || 0,
+      ballsInCurrentOver: inn.ballsInCurrentOver || 0,
+      target: inn.target,
+      isCompleted: inn.isCompleted,
+      balls: (inn.balls || []).slice(-12)
+    })),
+    striker: matchState.striker,
+    nonStriker: matchState.nonStriker,
+    currentBowler: matchState.currentBowler,
+    recentBalls,
+    lastSeq: matchState.lastSeq || matchState.seq || allBalls.length,
+    updatedAt: Date.now()
+  });
+}
+
+/**
+ * Directly writes the compacted root document to Firestore matches/{matchId}.
+ */
+export async function flushCompactedRootDoc(matchId, matchState) {
+  if (!matchId || !matchState) return false;
+  const matchRef = doc(db, 'matches', matchId);
+  const data = getCompactedRootData(matchState);
+  try {
+    await setDoc(matchRef, data, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn('[RootDoc] flushCompactedRootDoc error:', err);
+    return false;
+  }
+}
+
+/**
+ * Phase 5 Requirement 2:
+ * Throttles root-doc writes (at most once every 2-3s, plus always on wicket, over end, and innings end).
+ */
+export function updateCompactedRootDocThrottled(matchId, matchState, isCritical = false) {
+  if (!matchId || !matchState) return;
+  const THROTTLE_MS = 2500; // 2.5 seconds throttle window
+
+  let entry = rootDocThrottleMap.get(matchId);
+  if (!entry) {
+    entry = { lastWriteTime: 0, timer: null, pendingData: null };
+    rootDocThrottleMap.set(matchId, entry);
+  }
+
+  entry.pendingData = matchState;
+
+  if (isCritical) {
+    // Critical boundary: bypass throttle and write immediately
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
+    entry.lastWriteTime = Date.now();
+    return flushCompactedRootDoc(matchId, matchState);
+  }
+
+  const now = Date.now();
+  const timeSinceLastWrite = now - entry.lastWriteTime;
+
+  if (timeSinceLastWrite >= THROTTLE_MS) {
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
+    entry.lastWriteTime = now;
+    return flushCompactedRootDoc(matchId, matchState);
+  } else {
+    if (!entry.timer) {
+      const delay = THROTTLE_MS - timeSinceLastWrite;
+      entry.timer = setTimeout(() => {
+        entry.timer = null;
+        entry.lastWriteTime = Date.now();
+        if (entry.pendingData) {
+          flushCompactedRootDoc(matchId, entry.pendingData);
+        }
+      }, delay);
+    }
+  }
+}
+
+/**
+ * Phase 5 Requirement 3:
+ * Queries the full events subcollection on demand (used when opening scorecard or timeline).
+ */
+export async function fetchFullMatchEvents(matchId) {
+  if (!matchId) return [];
+  try {
+    const eventsCol = collection(db, 'matches', matchId, 'events');
+    const q = query(eventsCol, orderBy('seq', 'asc'));
+    const snap = await getDocs(q);
+    const events = [];
+    snap.forEach((docSnap) => {
+      events.push(docSnap.data());
+    });
+    return events;
+  } catch (err) {
+    console.warn('fetchFullMatchEvents error:', err);
+    return [];
+  }
+}
+
 /**
  * Subscribes to events for a match in real time.
  */
@@ -299,18 +523,19 @@ export function subscribeToMatchEvents(matchId, onEventsUpdated) {
 }
 
 /**
- * Subscribes to the match document for real-time heartbeat and status.
+ * Subscribes to the match document for real-time heartbeat, status, and compacted live scores.
+ * Phase 5 Requirement 4: Uses persistentLocalCache metadata to provide instant cached updates.
  */
 export function subscribeToMatchDoc(matchId, onDocUpdated) {
   if (!matchId) return () => {};
   const matchRef = doc(db, 'matches', matchId);
 
-  return onSnapshot(matchRef, (docSnap) => {
+  return onSnapshot(matchRef, { includeMetadataChanges: true }, (docSnap) => {
     if (docSnap.exists()) {
       onDocUpdated({
         matchId: docSnap.id,
         ...docSnap.data()
-      }, docSnap.metadata.fromCache);
+      }, Boolean(docSnap.metadata?.fromCache));
     }
   }, (err) => {
     console.warn('Match doc subscription warning:', err);
@@ -355,16 +580,30 @@ export async function getAllManagersFromCloud() {
 
 /**
  * Saves or updates a manager profile in Firestore collection 'managers/{uid}'.
+ * Requires valid name and email address.
  */
 export async function saveManagerProfileToCloud(managerData) {
-  if (!managerData || !managerData.uid) return;
+  if (!managerData || !managerData.uid) {
+    throw new Error('Manager UID is required.');
+  }
+
+  const cleanName = (managerData.name || '').trim();
+  const cleanEmail = (managerData.email || '').trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!cleanName) {
+    throw new Error('Manager name cannot be empty.');
+  }
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    throw new Error('Valid manager email is required.');
+  }
+
   try {
     const managerRef = doc(db, 'managers', managerData.uid);
     const data = sanitizeForFirestore({
       uid: managerData.uid,
-      name: managerData.name || 'Manager',
-      email: managerData.email || '',
-      password: managerData.password || '',
+      name: cleanName,
+      email: cleanEmail,
       createdAt: managerData.createdAt || Date.now(),
       lastActive: Date.now()
     });
@@ -372,6 +611,7 @@ export async function saveManagerProfileToCloud(managerData) {
     return data;
   } catch (err) {
     console.warn('Error saving manager profile to cloud:', err);
+    throw err;
   }
 }
 
@@ -382,8 +622,9 @@ export async function updateManagerCredentialsInCloud(uid, updates = {}) {
   if (!uid) return;
   try {
     const managerRef = doc(db, 'managers', uid);
+    const { password: _password, ...safeUpdates } = updates;
     const sanitized = sanitizeForFirestore({
-      ...updates,
+      ...safeUpdates,
       lastActive: Date.now()
     });
     await setDoc(managerRef, sanitized, { merge: true });
@@ -401,7 +642,6 @@ export async function saveDeveloperCredentialsInCloud(creds = {}) {
     const devRef = doc(db, 'config', 'developer');
     const sanitized = sanitizeForFirestore({
       email: creds.email || 'syedmaazalam2007@gmail.com',
-      password: creds.password || 'Silicon123@',
       updatedAt: Date.now()
     });
     await setDoc(devRef, sanitized, { merge: true });
@@ -444,6 +684,19 @@ export async function deleteMatchFromCloud(matchId) {
   } catch (err) {
     console.error(`Failed to delete match ${matchId} from cloud:`, err);
     throw err;
+  }
+}
+
+/**
+ * Deletes specific event documents from a match's events subcollection in Cloud (used by Undo).
+ */
+export async function deleteEventsFromCloud(matchId, eventIds = []) {
+  if (!matchId || !eventIds || eventIds.length === 0) return;
+  try {
+    const deletions = eventIds.map(id => deleteDoc(doc(db, 'matches', matchId, 'events', id)));
+    await Promise.all(deletions);
+  } catch (err) {
+    console.error(`Failed to delete cloud events for match ${matchId}:`, err);
   }
 }
 

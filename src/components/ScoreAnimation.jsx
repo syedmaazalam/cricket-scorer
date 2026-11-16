@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity, AlertCircle, Info, Trophy } from 'lucide-react';
+import { Zap, Award, Flame, Sparkles, ShieldAlert, CircleDot, Activity, AlertCircle, Trophy } from 'lucide-react';
 
 export default function ScoreAnimation({ animationData }) {
   const [visible, setVisible] = useState(false);
@@ -73,7 +73,7 @@ export default function ScoreAnimation({ animationData }) {
   }
 
   return (
-    <div className="fixed top-16 left-0 right-0 pointer-events-none z-50 flex items-center justify-center p-2">
+    <div className="fixed top-3 left-0 right-0 pointer-events-none z-[100] flex items-center justify-center p-2">
       <div
         style={{
           backgroundColor: bgGradient,

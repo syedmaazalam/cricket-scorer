@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, ArrowRight, UserCheck, Shield, X } from 'lucide-react';
+import { Trophy, ArrowRight, X } from 'lucide-react';
 
 export default function InningsBreakModal({
   isOpen,

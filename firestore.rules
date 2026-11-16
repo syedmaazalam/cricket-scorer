@@ -12,6 +12,7 @@ service cloud.firestore {
         request.auth.token.developer == true ||
         (request.auth.token.email != null && (
           request.auth.token.email == 'syedmaazalam@gmail.com' ||
+          request.auth.token.email == 'syedmaazalam2007@gmail.com' ||
           request.auth.token.email.matches('.*@smartcricket\\.app')
         ))
       );
@@ -22,46 +23,85 @@ service cloud.firestore {
     }
 
     // 1. Managers Collection
-    // Only the developer can list all managers.
-    // Individual manager profiles can be read and written by their owner or fallback.
+    // Only developers can list all managers.
+    // Individual manager documents can only be accessed or modified by their owner or a developer.
     match /managers/{managerId} {
       allow list: if isDeveloper();
-      allow get: if isDeveloper() || isOwner(managerId) || true;
-      allow write: if isDeveloper() || isOwner(managerId) || true;
+      allow get: if isDeveloper() || isOwner(managerId);
+      allow write: if isDeveloper() || isOwner(managerId);
     }
 
-    // 2. Matches Collection
-    // Public viewers and managers can read, list (search by code/name), and stream matches.
-    // Managers and scorers can create and update matches and stream ball events in real time.
+    // 2. Mail Collection (Secure Email Verification & Alert Relay)
+    // Prevents arbitrary open spam relay:
+    // Requires authenticated user or strict structural validation (single valid recipient and SmartCricket subject).
+    // Reading or manipulating mail queue documents is restricted to developers.
     match /mail/{mailId} {
-      allow create: if true;
+      allow create: if isAuthenticated() || (
+        request.resource.data.keys().hasAll(['to', 'message', 'createdAt']) &&
+        request.resource.data.to is list &&
+        request.resource.data.to.size() == 1 &&
+        request.resource.data.to[0] is string &&
+        request.resource.data.to[0].matches('.+@.+\\..+') &&
+        request.resource.data.message.keys().hasAll(['subject', 'text', 'html']) &&
+        request.resource.data.message.subject.matches('SmartCricket .*')
+      );
       allow read, update, delete: if isDeveloper();
     }
 
     // 3. System Config & Releases
+    // Read-only for public clients (app version checks); writeable only by developers.
     match /config/{configId} {
       allow read: if true;
-      allow write: if isDeveloper() || true;
+      allow write: if isDeveloper();
     }
 
+    // 4. Matches Collection & Real-Time Scoring
+    // Public viewers can read and stream matches without authentication (read-only for spectators).
+    // Scorers and managers must be authenticated (anonymously or via account) to create and score matches.
+    // Match document is writable only by the match owner.
     match /matches/{matchId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isDeveloper() || (isAuthenticated() && resource.data.managerId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isDeveloper() ||
+        resource.data.ownerUid == request.auth.uid ||
+        !('ownerUid' in resource.data) ||
+        resource.data.ownerUid == null ||
+        (
+          request.resource.data.ownerUid == request.auth.uid &&
+          ('leaseExpiresAt' in resource.data) &&
+          request.time.toMillis() > resource.data.leaseExpiresAt
+        )
+      );
+      allow delete: if isDeveloper() || (isAuthenticated() && (resource.data.managerId == request.auth.uid || resource.data.ownerUid == request.auth.uid));
 
-      // Events subcollection for real-time live scoring
+      // Events subcollection for real-time live scoring (Phase 2 Requirement 3)
+      // create only (no update or delete); doc ID must equal ${matchId}_${seq}; request.auth.uid == match.ownerUid
       match /events/{eventId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow create: if isAuthenticated() &&
+          request.resource.data.seq is int &&
+          eventId == matchId + '_' + string(request.resource.data.seq) &&
+          (
+            isDeveloper() ||
+            !exists(/databases/$(database)/documents/matches/$(matchId)) ||
+            get(/databases/$(database)/documents/matches/$(matchId)).data.ownerUid == request.auth.uid ||
+            !('ownerUid' in get(/databases/$(database)/documents/matches/$(matchId)).data) ||
+            get(/databases/$(database)/documents/matches/$(matchId)).data.ownerUid == null
+          );
+        allow update, delete: if false;
       }
 
       // Action logs subcollection
       match /actionLogs/{logId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow write: if isAuthenticated();
       }
 
       // Chat and developer-scorer messages subcollection
       match /messages/{messageId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow write: if isAuthenticated();
       }
     }
   }

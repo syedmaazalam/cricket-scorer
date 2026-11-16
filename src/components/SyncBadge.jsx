@@ -1,8 +1,11 @@
 import React from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function SyncBadge({ syncStatus }) {
   const { status, pendingCount, errorMessage } = syncStatus || { status: 'synced', pendingCount: 0 };
+  const isOnline = typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
+    ? navigator.onLine
+    : (status !== 'offline');
 
   if (status === 'syncing') {
     return (
@@ -20,10 +23,11 @@ export default function SyncBadge({ syncStatus }) {
     );
   }
 
-  if (status === 'offline' || pendingCount > 0) {
+  // Real offline: navigator is offline
+  if (!isOnline) {
     return (
       <div
-        title={errorMessage || 'Offline or waiting to sync'}
+        title={errorMessage || 'Offline - no internet connection'}
         style={{
           background: 'color-mix(in srgb, var(--bad) 14%, transparent)',
           borderColor: 'color-mix(in srgb, var(--bad) 35%, transparent)',
@@ -32,7 +36,25 @@ export default function SyncBadge({ syncStatus }) {
         className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-bold border shadow-sm select-none"
       >
         <WifiOff className="w-3.5 h-3.5" />
-        <span>Offline ({pendingCount})</span>
+        <span>Offline ({pendingCount > 0 ? pendingCount : 0})</span>
+      </div>
+    );
+  }
+
+  // Online, but sync error, retry, or pending queue
+  if (status === 'error' || status === 'offline' || pendingCount > 0) {
+    return (
+      <div
+        title={errorMessage || 'Sync pending or connection retry'}
+        style={{
+          background: 'color-mix(in srgb, var(--warn) 14%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--warn) 35%, transparent)',
+          color: 'var(--warn)'
+        }}
+        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-bold border shadow-sm select-none"
+      >
+        <AlertCircle className="w-3.5 h-3.5" />
+        <span>Sync Pending ({pendingCount})</span>
       </div>
     );
   }

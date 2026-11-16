@@ -1,34 +1,14 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Share2, Check, Trophy, Activity, BarChart2, Calendar, Sparkles, Info, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Share2, Check, Trophy, Info, Image as ImageIcon } from 'lucide-react';
 import { computeInningsStats, computeBatterDetails, computeBowlerDetails, computeMatchFieldingStats } from '../engine/stats.js';
-import { formatOvers, calculateCRR } from '../engine/rules.js';
+import { formatOvers } from '../engine/rules.js';
 import { getTopPlayers, getVisibleBreakdownItems } from '../engine/potm.js';
 import { getShareUrl } from '../engine/constants.js';
-import ThemeToggle from '../components/ThemeToggle.jsx';
 import PointingCriteriaModal from '../components/PointingCriteriaModal.jsx';
 import MatchCharts from '../components/MatchCharts.jsx';
 import MatchSummaryImageGenerator from '../components/MatchSummaryImageGenerator.jsx';
 import ScorecardPNGGenerator from '../components/ScorecardPNGGenerator.jsx';
-
-// Team crest shield component matching redesign prototype
-function TeamCrest({ name, color }) {
-  const initials = (name || 'SC')
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'SC';
-
-  return (
-    <svg width="50" height="58" viewBox="0 0 54 62" role="img" aria-label={`${name} crest`} style={{ flex: 'none' }}>
-      <path d="M27 2 50 10v22c0 14-10 24-23 28C14 56 4 46 4 32V10Z" fill={color} stroke="rgba(255,255,255,.65)" strokeWidth="2" />
-      <path d="M19 9l4 5 4-6 4 6 4-5-1 8H20Z" fill="#FFC83D" />
-      <text x="27" y="41" textAnchor="middle" fontSize="16" fontWeight="800" fill="#fff">
-        {initials}
-      </text>
-    </svg>
-  );
-}
+import TeamCrest from '../components/TeamCrest.jsx';
 
 export default function MatchSummary({ matchState, onBack }) {
   const [activeTab, setActiveTab] = useState(0); // 0 = Innings 1, 1 = Innings 2

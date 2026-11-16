@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, AlertTriangle, ShieldCheck, UserCheck, ArrowRight } from 'lucide-react';
+import { X, Clock, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function TimeDeclareModal({
   isOpen,

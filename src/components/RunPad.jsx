@@ -10,9 +10,7 @@ const triggerHaptic = (ms = 12) => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(ms);
     }
-  } catch (_) {
-    // Graceful no-op on unsupported browsers / permissions
-  }
+  } catch {}
 };
 
 export default function RunPad({
@@ -57,7 +55,7 @@ export default function RunPad({
       onScoreBall({
         runs,
         extraType: EXTRA_TYPES.NO_BALL,
-        extraRuns: 1,
+        extraRuns: 0,
         isWicket: false
       });
     } else if (extraMode === EXTRA_TYPES.BYE) {

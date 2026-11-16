@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Palette,
   Smartphone,
@@ -10,13 +10,22 @@ import {
   Shield,
   Mail,
   Download,
-  ExternalLink,
-  Sparkles,
-  Award
+  Upload,
+  Database,
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config.js';
-import { CURRENT_APP_VERSION, CURRENT_APP_VERSION_CODE } from '../components/UpdateNotificationBanner.jsx';
+import { CURRENT_APP_VERSION, CURRENT_APP_VERSION_CODE, isVersionNewer } from '../components/UpdateNotificationBanner.jsx';
+import {
+  exportSingleMatch,
+  exportAllMatches,
+  downloadOrShareBackup,
+  validateAndInspectBackup,
+  executeRestore
+} from '../services/backupService.js';
+import { getAllLocalMatches } from '../store/localDb.js';
 
 function Switch({ checked, onChange, ariaLabel }) {
   return (
@@ -85,12 +94,13 @@ function AccordionSection({ id, title, subtitle, icon: Icon, iconColor, isOpen, 
   );
 }
 
-export default function Settings({ onBack }) {
-  // Accordion State: 5 Dropdowns (Appearance, Scoring, Export, About, Check for Update)
+export default function Settings({ onBack: _onBack }) {
+  // Accordion State: 6 Dropdowns (Appearance, Scoring, Export, Backup, About, Check for Update)
   const [openSections, setOpenSections] = useState({
     appearance: true,
     scoring: false,
     export: false,
+    backup: false,
     about: false,
     updates: false
   });
@@ -121,6 +131,95 @@ export default function Settings({ onBack }) {
   const [includeFooter, setIncludeFooter] = useState(() => localStorage.getItem('setting_footer_credit') !== 'false');
   const [timeFormat, setTimeFormat] = useState(() => localStorage.getItem('setting_time_format') || '12h');
 
+  // Backup & Restore State (Phase 3)
+  const [localMatchesList, setLocalMatchesList] = useState([]);
+  const [selectedMatchForExport, setSelectedMatchForExport] = useState('');
+  const [restorePreview, setRestorePreview] = useState(null);
+  const [restoreProgress, setRestoreProgress] = useState(null);
+  const [restoreStatusMsg, setRestoreStatusMsg] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    async function loadMatches() {
+      try {
+        const matches = await getAllLocalMatches();
+        setLocalMatchesList(matches);
+        if (matches.length > 0) {
+          const activeMid = typeof localStorage !== 'undefined' ? localStorage.getItem('cricket_active_match_id') : null;
+          const matchedActive = matches.find(m => (m.matchId || m.id) === activeMid);
+          setSelectedMatchForExport(matchedActive ? (matchedActive.matchId || matchedActive.id) : (matches[0].matchId || matches[0].id));
+        }
+      } catch {}
+    }
+    loadMatches();
+  }, []);
+
+  const handleExportSingle = async (preferShare = false) => {
+    if (!selectedMatchForExport) {
+      alert('Please select a match to export.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const matchObj = localMatchesList.find(m => (m.matchId || m.id) === selectedMatchForExport);
+      const codeOrId = matchObj?.code || selectedMatchForExport;
+      const archive = await exportSingleMatch(selectedMatchForExport);
+      const filename = `SmartCricket_Match_${codeOrId}.json`;
+      await downloadOrShareBackup(filename, archive, { preferShare });
+    } catch (err) {
+      alert('Export failed: ' + (err?.message || err));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+      const archive = await exportAllMatches();
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `SmartCricket_All_Matches_${dateStr}.smartcricket`;
+      await downloadOrShareBackup(filename, archive, { preferShare: false });
+    } catch (err) {
+      alert('Backup all matches failed: ' + (err?.message || err));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleFileSelected = async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const inspection = await validateAndInspectBackup(text);
+      setRestorePreview(inspection);
+    } catch (err) {
+      alert('Backup inspection failed: ' + (err?.message || err));
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restorePreview) return;
+    setRestoreProgress({ percent: 0, stepName: 'Initializing restore...' });
+    try {
+      const result = await executeRestore(restorePreview, (prog) => {
+        setRestoreProgress(prog);
+      });
+      setRestoreStatusMsg(`Restore complete: ${result.restoredMatchesCount} matches added, ${result.resolvedConflictsCount} conflicts merged.`);
+      setRestorePreview(null);
+      const updated = await getAllLocalMatches();
+      setLocalMatchesList(updated);
+    } catch (err) {
+      alert('Restore failed: ' + (err?.message || err));
+    } finally {
+      setRestoreProgress(null);
+    }
+  };
+
   // Check for Updates State
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(null);
@@ -139,7 +238,7 @@ export default function Settings({ onBack }) {
       }
       document.documentElement.setAttribute('data-reduce-motion', String(reduceMotion));
       document.documentElement.setAttribute('data-text-scale', textSize);
-    } catch (_) {}
+    } catch {}
 
     const handleThemeSync = (e) => {
       if (e?.detail) {
@@ -169,7 +268,7 @@ export default function Settings({ onBack }) {
       localStorage.setItem('setting_theme_pref', newTheme);
       window.dispatchEvent(new CustomEvent('cricket_theme_changed', { detail: effective }));
       triggerSaved();
-    } catch (_) {}
+    } catch {}
   };
 
   // Glass blur toggle
@@ -192,7 +291,7 @@ export default function Settings({ onBack }) {
     localStorage.setItem('setting_reduce_motion', String(next));
     try {
       document.documentElement.setAttribute('data-reduce-motion', String(next));
-    } catch (_) {}
+    } catch {}
     triggerSaved();
   };
 
@@ -202,7 +301,7 @@ export default function Settings({ onBack }) {
     localStorage.setItem('setting_text_size', size);
     try {
       document.documentElement.setAttribute('data-text-scale', size);
-    } catch (_) {}
+    } catch {}
     triggerSaved();
   };
 
@@ -214,7 +313,7 @@ export default function Settings({ onBack }) {
     if (next && 'wakeLock' in navigator) {
       try {
         await navigator.wakeLock.request('screen');
-      } catch (_) {}
+      } catch {}
     }
     triggerSaved();
   };
@@ -251,7 +350,7 @@ export default function Settings({ onBack }) {
               apkUrl: OFFICIAL_APK_URL,
             };
           }
-        } catch (_) {}
+        } catch {}
       }
 
       // 3. Fallback: GitHub Release API if configured
@@ -269,14 +368,14 @@ export default function Settings({ onBack }) {
               releaseDate: gh.published_at ? new Date(gh.published_at).toLocaleDateString() : undefined
             };
           }
-        } catch (_) {}
+        } catch {}
       }
 
       if (remoteRelease) {
         const remoteCode = Number(remoteRelease.versionCode || 0);
         const remoteName = String(remoteRelease.versionName || '').trim();
         const isNewerCode = remoteCode > CURRENT_APP_VERSION_CODE;
-        const isNewerName = Boolean(remoteName && remoteName !== CURRENT_APP_VERSION && remoteName > CURRENT_APP_VERSION);
+        const isNewerName = isVersionNewer(remoteName, CURRENT_APP_VERSION);
         const isUpdateAvailable = isNewerCode || isNewerName || Boolean(remoteRelease.force);
 
         setUpdateStatus({
@@ -459,7 +558,7 @@ export default function Settings({ onBack }) {
                 setHapticFeedback(next);
                 localStorage.setItem('setting_haptics', String(next));
                 if (next && typeof navigator !== 'undefined' && navigator.vibrate) {
-                  try { navigator.vibrate(25); } catch (_) {}
+                  try { navigator.vibrate(25); } catch {}
                 }
                 triggerSaved();
               }}
@@ -641,6 +740,121 @@ export default function Settings({ onBack }) {
           </div>
         </AccordionSection>
 
+        {/* 4. BACKUP & RESTORE ACCORDION (Phase 3) */}
+        <AccordionSection
+          id="backup"
+          title="Backup & Restore"
+          subtitle="Export match archive, send to co-scorer, or restore data"
+          icon={Database}
+          iconColor="#3B82F6"
+          isOpen={openSections.backup}
+          onToggle={toggleSection}
+        >
+          {/* Status Message */}
+          {restoreStatusMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 text-xs font-bold flex items-center justify-between">
+              <span>{restoreStatusMsg}</span>
+              <button onClick={() => setRestoreStatusMsg(null)} className="opacity-70 hover:opacity-100">&times;</button>
+            </div>
+          )}
+
+          {/* Single Match Export */}
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-[var(--well)]/50 border border-[var(--bd)] pt-1">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[var(--t1)]">Export Match Backup (.json)</span>
+                <span className="text-[11px] text-[var(--t2)]">Save match backup to Downloads or Share with co-scorer</span>
+              </div>
+            </div>
+
+            {localMatchesList.length > 0 ? (
+              <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                <select
+                  value={selectedMatchForExport}
+                  onChange={(e) => setSelectedMatchForExport(e.target.value)}
+                  className="inp flex-1 text-xs font-semibold py-1.5"
+                >
+                  {localMatchesList.map((m) => {
+                    const mid = m.matchId || m.id;
+                    const code = m.code ? `#${m.code}` : mid.slice(0, 10);
+                    const teams = m.teams?.map(t => t.name).join(' vs ') || 'Match';
+                    return (
+                      <option key={mid} value={mid}>
+                        {code} - {teams}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isExporting}
+                    onClick={() => handleExportSingle(false)}
+                    className="btn s px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isExporting}
+                    onClick={() => handleExportSingle(true)}
+                    className="btn s px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Share</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-[var(--t2)] italic">No local matches available to export.</p>
+            )}
+          </div>
+
+          {/* Backup All Matches */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--well)]/50 border border-[var(--bd)]">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-[var(--t1)]">Backup All My Matches</span>
+              <span className="text-[11px] text-[var(--t2)]">Exports entire database archive (.smartcricket)</span>
+            </div>
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={handleExportAll}
+              className="btn p px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Backup All</span>
+            </button>
+          </div>
+
+          {/* Restore Matches */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--well)]/50 border border-[var(--bd)]">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-[var(--t1)]">Restore Matches</span>
+              <span className="text-[11px] text-[var(--t2)]">Restore full archive or single match from file</span>
+            </div>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json,.smartcricket"
+                onChange={handleFileSelected}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn s px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 border border-purple-500/40 text-purple-400"
+              >
+                <Upload className="w-3.5 h-3.5 text-purple-400" />
+                <span>Restore File</span>
+              </button>
+            </div>
+          </div>
+        </AccordionSection>
+
         {/* 4. ABOUT ACCORDION (Exclusively where developer name appears) */}
         <AccordionSection
           id="about"
@@ -772,6 +986,105 @@ export default function Settings({ onBack }) {
           </div>
         </AccordionSection>
       </div>
+
+      {/* Restore Preview & Confirmation Modal (Phase 3) */}
+      {restorePreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => { if (!restoreProgress) setRestorePreview(null); }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl p-5 bg-[var(--card)] border border-[var(--bd)] shadow-2xl text-[var(--t1)] max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--bd)]">
+              <h3 className="text-base font-extrabold flex items-center gap-2">
+                <Database className="w-4 h-4 text-blue-400" />
+                <span>Restore Matches Summary</span>
+              </h3>
+              {!restoreProgress && (
+                <button
+                  onClick={() => setRestorePreview(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--well)] text-[var(--t2)] hover:text-[var(--t1)]"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            <div className="py-3 flex flex-col gap-3 overflow-y-auto">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-400 font-bold">
+                {restorePreview.summaryText}
+              </div>
+
+              <div className="text-[11px] text-[var(--t2)]">
+                On conflict, the version with more deliveries (higher sequence) is preserved automatically. Existing matches with identical progress are skipped.
+              </div>
+
+              <div className="flex flex-col gap-1.5 mt-1">
+                <span className="text-[11px] font-bold text-[var(--t2)] uppercase tracking-wider">
+                  Matches in Archive ({restorePreview.matchDecisions?.length || 0})
+                </span>
+                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+                  {(restorePreview.matchDecisions || []).map((d, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-lg bg-[var(--well)] text-xs"
+                    >
+                      <span className="font-mono font-bold text-[var(--t1)]">#{d.code || d.matchId.slice(0, 8)}</span>
+                      <span className={`text-[11px] font-bold ${
+                        d.action === 'create_new' ? 'text-emerald-400' :
+                        d.action === 'update_with_incoming' ? 'text-amber-400' :
+                        d.action === 'skip_duplicate' ? 'text-slate-400' : 'text-blue-400'
+                      }`}>
+                        {d.action === 'create_new' ? 'Will Add' :
+                         d.action === 'update_with_incoming' ? 'Will Update (Newer)' :
+                         d.action === 'skip_duplicate' ? 'Duplicate (Skip)' : 'Keep Local (Newer)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Progress Indicator */}
+              {restoreProgress && (
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-[var(--bd)]">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span>{restoreProgress.stepName}</span>
+                    <span>{restoreProgress.percent}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[var(--well)] overflow-hidden">
+                    <div
+                      style={{ width: `${restoreProgress.percent}%` }}
+                      className="h-full bg-[var(--pri)] transition-all duration-200"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-[var(--bd)] flex gap-2 justify-end">
+              {!restoreProgress && (
+                <button
+                  type="button"
+                  onClick={() => setRestorePreview(null)}
+                  className="btn s px-4 py-2 text-xs font-bold"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={Boolean(restoreProgress)}
+                onClick={handleConfirmRestore}
+                className="btn p px-5 py-2 text-xs font-bold flex items-center gap-1.5"
+              >
+                {restoreProgress ? 'Restoring...' : 'Confirm & Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Privacy Policy Modal */}
       {showPrivacyModal && (

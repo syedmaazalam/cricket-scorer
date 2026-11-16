@@ -75,6 +75,7 @@ export function initNavigation(initialState) {
       activeMatchId: initialState.activeMatchId || null,
       liveCodeOrId: initialState.liveCodeOrId || null,
       isManager: Boolean(initialState.isManager),
+      initialPortal: initialState.initialPortal || (initialState.isManager ? 'create' : 'choose'),
       viewedMatchState: initialState.viewedMatchState || null
     }];
   } else {
@@ -83,6 +84,7 @@ export function initNavigation(initialState) {
       activeMatchId: null,
       liveCodeOrId: null,
       isManager: false,
+      initialPortal: 'choose',
       viewedMatchState: null
     }];
   }
@@ -113,6 +115,7 @@ export function pushScreen(screenState) {
     activeMatchId: screenState.activeMatchId || null,
     liveCodeOrId: screenState.liveCodeOrId || null,
     isManager: Boolean(screenState.isManager),
+    initialPortal: screenState.initialPortal || (screenState.isManager ? 'create' : 'choose'),
     viewedMatchState: screenState.viewedMatchState || null
   };
 
@@ -178,6 +181,7 @@ export function resetToHome() {
     activeMatchId: null,
     liveCodeOrId: null,
     isManager: false,
+    initialPortal: 'choose',
     viewedMatchState: null
   }];
   notifyNavigation();

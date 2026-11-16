@@ -76,7 +76,7 @@ export default function BatterDetailsModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-4 overflow-y-auto space-y-4">
+        <div className="p-4 pb-6 overflow-y-auto space-y-4 max-h-[75vh]">
           {/* Key Stat Cards Grid */}
           <div className="grid grid-cols-4 gap-2">
             <div
@@ -242,7 +242,7 @@ export default function BatterDetailsModal({
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1 items-center">
+                <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto p-1 pb-4 items-center">
                   {timeline.map((item, idx) => {
                     const chipCfg = getBallChipConfig(item, isDark);
                     const isSelected = selectedBallIndex === idx;

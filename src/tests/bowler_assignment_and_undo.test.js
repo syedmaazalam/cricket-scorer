@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { applyEvent, replayEvents, undoLastEvent, createInitialMatchState } from '../engine/reducer.js';
-import { EVENT_TYPES, EXTRA_TYPES, WICKET_TYPES } from '../engine/constants.js';
+import { applyEvent, undoLastEvent, createInitialMatchState } from '../engine/reducer.js';
+import { EVENT_TYPES, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
 
 describe('Chunk 1: Bowler Assignment, Mid-Over Correction & Cross-Over Undo', () => {

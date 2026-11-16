@@ -7,15 +7,22 @@ export default function DeveloperScorerChatModal({
   onClose,
   matchId,
   matchTitle = 'Match',
-  role = 'developer', // 'developer' | 'scorer'
+  role = 'spectator', // 'developer' | 'scorer' | 'spectator'
   senderName
 }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [spectatorName, setSpectatorName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('cricket_spectator_name') || '';
+    }
+    return '';
+  });
+  const [nameError, setNameError] = useState('');
   const messagesEndRef = useRef(null);
 
-  const defaultSenderName = role === 'developer' ? 'Developer (Maaz)' : 'Match Scorer';
+  const defaultSenderName = role === 'developer' ? 'Developer (Maaz)' : (role === 'scorer' ? 'Match Scorer' : (spectatorName.trim() || 'Spectator'));
   const effectiveSenderName = senderName || defaultSenderName;
   const effectiveMatchId = matchId || (typeof window !== 'undefined' ? (localStorage.getItem('cricket_active_match_id') || localStorage.getItem('cricket_live_code')) : null);
 
@@ -44,14 +51,24 @@ export default function DeveloperScorerChatModal({
     const clean = inputText.trim();
     if (!clean || isSending) return;
 
+    if (role === 'spectator' && !spectatorName.trim() && !senderName) {
+      setNameError('Please enter your display name to chat.');
+      return;
+    }
+
     try {
       setIsSending(true);
+      const effectiveName = role === 'spectator'
+        ? (spectatorName.trim() || 'Spectator')
+        : effectiveSenderName;
+
       await sendMatchMessage(effectiveMatchId, {
         sender: role,
-        senderName: effectiveSenderName,
+        senderName: effectiveName,
         text: clean
       });
       setInputText('');
+      setNameError('');
     } catch (err) {
       console.warn('Failed to send message:', err);
     } finally {
@@ -92,7 +109,11 @@ export default function DeveloperScorerChatModal({
                 <span>Chat: {matchTitle}</span>
               </h3>
               <p className="text-[10px] m-0" style={{ color: 'var(--muted)' }}>
-                {role === 'developer' ? 'Talking to Scorer as Developer' : 'Talking to Match Developer'}
+                {role === 'developer'
+                  ? 'Talking to Scorer as Developer'
+                  : role === 'scorer'
+                  ? 'Talking to Match Developer'
+                  : 'Live Match Chat (Spectator)'}
               </p>
             </div>
           </div>
@@ -205,6 +226,34 @@ export default function DeveloperScorerChatModal({
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Spectator Display Name Input */}
+        {role === 'spectator' && (
+          <div className="px-3 pt-2 pb-1.5 border-t flex items-center gap-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-alt)' }}>
+            <User className="w-3.5 h-3.5 text-[var(--muted)] shrink-0" />
+            <span className="text-[10px] text-[var(--muted)] font-bold uppercase shrink-0">Your Name:</span>
+            <input
+              type="text"
+              placeholder="Enter display name to chat..."
+              value={spectatorName}
+              onChange={(e) => {
+                setSpectatorName(e.target.value);
+                setNameError('');
+                try {
+                  localStorage.setItem('cricket_spectator_name', e.target.value);
+                } catch {}
+              }}
+              maxLength={30}
+              style={{ color: 'var(--text)' }}
+              className="flex-1 bg-transparent border-b border-[var(--border)] text-xs font-semibold focus:outline-none focus:border-[#22C55E] py-0.5"
+            />
+          </div>
+        )}
+        {nameError && (
+          <div className="px-3 py-1 text-[10px] font-bold text-red-500 bg-red-500/10">
+            {nameError}
+          </div>
+        )}
+
         {/* Compose Form */}
         <form
           onSubmit={handleSend}
@@ -213,7 +262,13 @@ export default function DeveloperScorerChatModal({
         >
           <input
             type="text"
-            placeholder={role === 'developer' ? 'Type message to scorer...' : 'Reply to developer...'}
+            placeholder={
+              role === 'developer'
+                ? 'Type message to scorer...'
+                : role === 'scorer'
+                ? 'Reply to developer...'
+                : 'Send a message to live chat...'
+            }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={{

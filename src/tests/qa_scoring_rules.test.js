@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { applyEvent, createInitialMatchState, replayEvents } from '../engine/reducer.js';
+import { applyEvent, createInitialMatchState } from '../engine/reducer.js';
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
 import { computeInningsStats } from '../engine/stats.js';
-import { calculateCRR, calculateRRR, formatOvers } from '../engine/rules.js';
+import { calculateCRR, calculateRRR } from '../engine/rules.js';
 
 function setupMatch(options = {}) {
   let state = createInitialMatchState();

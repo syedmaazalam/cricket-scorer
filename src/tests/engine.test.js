@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from '../engine/constants.js';
-import { getMaxWickets, isLegalDelivery, isBowlerWicket, calculateCRR, calculateRRR, formatOvers } from '../engine/rules.js';
+import { getMaxWickets } from '../engine/rules.js';
 import { createInitialMatchState, applyEvent, replayEvents, undoLastEvent } from '../engine/reducer.js';
 import { computeInningsStats, computeBatterDetails, computeBowlerDetails } from '../engine/stats.js';
-import { calculatePlayerPoints, getTopPlayers } from '../engine/potm.js';
+import { getTopPlayers } from '../engine/potm.js';
 
 describe('Cricket Scoring Engine', () => {
   const setupEvent = {

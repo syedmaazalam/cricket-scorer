@@ -1,6 +1,5 @@
 import { EVENT_TYPES, EXTRA_TYPES, MATCH_STATUS, WICKET_TYPES } from './constants.js';
-import { isLegalDelivery, doesBatterEarnRuns, isWicketValidOnFreeHit, isWicketValidOnNoBall, isWicketValidOnWide, getMaxWickets, formatOvers } from './rules.js';
-import { computeInningsStats } from './stats.js';
+import { isLegalDelivery, isWicketValidOnFreeHit, isWicketValidOnNoBall, isWicketValidOnWide, getMaxWickets } from './rules.js';
 
 /**
  * Creates the initial empty state for a match.
@@ -94,9 +93,17 @@ function checkInningsEnd(state) {
       // Innings 1 ended
       state.status = MATCH_STATUS.INNINGS_BREAK;
       state.target = currentInnings.score + 1;
+      // Explicitly clear crease on innings break so Innings 1 batters never leak into Innings 2
+      state.striker = null;
+      state.nonStriker = null;
+      state.currentBowler = null;
     } else {
       // Innings 2 ended -> Match finished
       state.status = MATCH_STATUS.COMPLETED;
+      state.needsBowlerChange = false;
+      state.isOverComplete = false;
+      state.needsNewBatter = false;
+      state.vacantBatterSlot = null;
       const inn1 = state.innings[0];
       const inn2 = currentInnings;
 
@@ -471,7 +478,30 @@ export function applyEvent(state, event) {
 
     case EVENT_TYPES.NEW_BATTER: {
       const slot = event.payload.slot || next.vacantBatterSlot || 'striker';
-      const batterName = event.payload.batter;
+      const batterName = typeof event.payload.batter === 'string' ? event.payload.batter.trim() : '';
+      if (!batterName) return state;
+
+      // Disallow assigning the batter already on the crease at the other end
+      if (slot === 'striker' && next.nonStriker === batterName) {
+        return state;
+      }
+      if (slot === 'nonStriker' && next.striker === batterName) {
+        return state;
+      }
+
+      // Squad validation: prevent opposing bowling team player from batting
+      const curInn = next.innings[next.currentInningsIndex];
+      if (curInn && next.teams) {
+        const battingTeam = next.teams.find(t => t.name === curInn.battingTeam);
+        const bowlingTeam = next.teams.find(t => t.name === curInn.bowlingTeam);
+        if (bowlingTeam?.players?.includes(batterName) && !battingTeam?.players?.includes(batterName)) {
+          return state;
+        }
+        if (battingTeam && battingTeam.players && !battingTeam.players.includes(batterName)) {
+          battingTeam.players.push(batterName);
+        }
+      }
+
       if (slot === 'striker') {
         next.striker = batterName;
       } else {
@@ -483,15 +513,6 @@ export function applyEvent(state, event) {
       }
       next.needsNewBatter = false;
       next.vacantBatterSlot = null;
-
-      // Ensure new batter is in batting team's squad list
-      const curInn = next.innings[next.currentInningsIndex];
-      if (curInn && batterName && next.teams) {
-        const battingTeam = next.teams.find(t => t.name === curInn.battingTeam);
-        if (battingTeam && battingTeam.players && !battingTeam.players.includes(batterName)) {
-          battingTeam.players.push(batterName);
-        }
-      }
       break;
     }
 
@@ -530,7 +551,7 @@ export function applyEvent(state, event) {
     }
 
     case EVENT_TYPES.EDIT_PLAYER: {
-      const { oldName, newName, role } = event.payload;
+      const { oldName, newName } = event.payload;
       if (oldName && newName && oldName !== newName) {
         if (next.teams) {
           next.teams.forEach(t => {
@@ -585,30 +606,55 @@ export function applyEvent(state, event) {
           next.innings[1].bowlingTeam = inn1BatTeam;
         }
 
-        next.striker = event.payload.striker || null;
-        next.nonStriker = event.payload.nonStriker || null;
-        next.currentBowler = event.payload.bowler || null;
+        const rawStriker = typeof event.payload.striker === 'string' ? event.payload.striker.trim() : null;
+        const rawNonStriker = typeof event.payload.nonStriker === 'string' ? event.payload.nonStriker.trim() : null;
+        const rawBowler = typeof event.payload.bowler === 'string' ? event.payload.bowler.trim() : null;
+
+        let newStriker = rawStriker || null;
+        let newNonStriker = rawNonStriker || null;
+        if (newStriker && newNonStriker && newStriker === newNonStriker) {
+          newNonStriker = null;
+        }
+
+        const defendingTeam = next.teams?.find(t => t.name === inn1BatTeam);
+        const chasingTeam = next.teams?.find(t => t.name === inn1BowlTeam);
+
+        // Guard against assigning a defending team (Innings 1 batting team) player as a batter in Innings 2
+        if (defendingTeam?.players && chasingTeam?.players) {
+          if (newStriker && defendingTeam.players.includes(newStriker) && !chasingTeam.players.includes(newStriker)) {
+            newStriker = null;
+          }
+          if (newNonStriker && defendingTeam.players.includes(newNonStriker) && !chasingTeam.players.includes(newNonStriker)) {
+            newNonStriker = null;
+          }
+        }
+
+        next.striker = newStriker;
+        next.nonStriker = newNonStriker;
+        next.currentBowler = rawBowler || null;
         next.previousBowler = null;
         next.isFreeHit = false;
         next.isOverComplete = false;
         next.needsBowlerChange = false;
-        next.needsNewBatter = false;
-        next.vacantBatterSlot = null;
+        next.needsNewBatter = !newStriker || !newNonStriker;
+        next.vacantBatterSlot = !newStriker ? 'striker' : (!newNonStriker ? 'nonStriker' : null);
 
         // Ensure newly picked striker/nonStriker/bowler are in the respective team squads
         if (next.teams) {
-          const chasingTeam = next.teams.find(t => t.name === inn1BowlTeam);
           if (chasingTeam && chasingTeam.players) {
             if (next.striker && !chasingTeam.players.includes(next.striker)) chasingTeam.players.push(next.striker);
             if (next.nonStriker && !chasingTeam.players.includes(next.nonStriker)) chasingTeam.players.push(next.nonStriker);
           }
-          const defendingTeam = next.teams.find(t => t.name === inn1BatTeam);
           if (defendingTeam && defendingTeam.players) {
             if (next.currentBowler && !defendingTeam.players.includes(next.currentBowler)) defendingTeam.players.push(next.currentBowler);
           }
         }
       } else {
         next.status = MATCH_STATUS.COMPLETED;
+        next.needsBowlerChange = false;
+        next.isOverComplete = false;
+        next.needsNewBatter = false;
+        next.vacantBatterSlot = null;
       }
       break;
     }

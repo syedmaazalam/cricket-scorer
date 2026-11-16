@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Plus, AlertCircle, Shield, RotateCcw, X } from 'lucide-react';
+import { UserCheck, Plus, Shield, RotateCcw, X } from 'lucide-react';
 
 export default function BowlerModal({
   isOpen,

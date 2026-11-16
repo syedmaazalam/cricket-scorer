@@ -1,8 +1,18 @@
-import { doc, writeBatch } from 'firebase/firestore';
-import { db, ensureAnonymousAuth } from '../firebase/config.js';
-import { getUnsyncedEvents, markEventSynced, saveMatchSnapshot, getMatchSnapshot } from './localDb.js';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { App as CapApp } from '@capacitor/app';
+import { db, auth, ensureAnonymousAuth } from '../firebase/config.js';
+import {
+  getOfflineQueue,
+  removeOfflineQueueEntries,
+  peekOfflineQueueCount,
+  saveMatchSnapshot,
+  getMatchSnapshot
+} from './localDb.js';
 
-let isSyncing = false;
+let isDraining = false;
+let retryAttempt = 0;
+let retryTimeoutId = null;
+let isSystemInitialized = false;
 const listeners = new Set();
 
 /**
@@ -34,10 +44,12 @@ export function getDeviceId() {
 }
 
 /**
- * Generates an idempotent event ID: {matchId}_{seq}_{deviceId}
+ * Phase 1 Requirement 1:
+ * Generates a deterministic, idempotent event ID: {matchId}_{seq}
+ * Used directly as the Firestore document ID to ensure retries never duplicate.
  */
 export function createEventId(matchId, seq) {
-  return `${matchId}_${seq}_${getDeviceId()}`;
+  return `${matchId}_${seq}`;
 }
 
 /**
@@ -49,70 +61,108 @@ export function subscribeSyncStatus(callback) {
 }
 
 function notifyListeners(status) {
-  listeners.forEach(fn => fn(status));
+  listeners.forEach(fn => {
+    try {
+      fn(status);
+    } catch {}
+  });
 }
 
 /**
- * Synchronizes pending local events to Firestore in sequence.
- * Idempotent: write uses event.id as document ID.
+ * Phase 1 Requirement 5:
+ * Compares local max sequence number with cloud max sequence number prior to flushing.
+ * Logs and surfaces any gap to listeners.
  */
-export async function syncPendingEvents(matchId, currentMatchState) {
-  if (!matchId) return;
-  if (isSyncing) return;
+async function verifySequenceContinuity(matchId, localMaxSeq) {
+  if (!matchId) return null;
+  try {
+    const matchRef = doc(db, 'matches', matchId);
+    const snap = await getDoc(matchRef);
+    if (!snap.exists()) return null;
 
-  if (!navigator.onLine) {
-    const pending = await getUnsyncedEvents(matchId);
-    notifyListeners({ status: 'offline', pendingCount: pending.length });
+    const cloudData = snap.data() || {};
+    const cloudMaxSeq = Number(cloudData.lastSeq || cloudData.maxSeq || 0);
+
+    if (cloudMaxSeq > localMaxSeq) {
+      console.warn(`[Sync Gap] Cloud max seq (${cloudMaxSeq}) > local max seq (${localMaxSeq}) for match ${matchId}. Gap detected!`);
+      notifyListeners({
+        status: 'gap_detected',
+        matchId,
+        cloudMaxSeq,
+        localMaxSeq,
+        gap: cloudMaxSeq - localMaxSeq
+      });
+      return { hasGap: true, cloudMaxSeq, localMaxSeq };
+    }
+    return { hasGap: false, cloudMaxSeq, localMaxSeq };
+  } catch (err) {
+    console.warn('[Sync] Could not inspect cloud max seq (offline or unauthenticated):', err);
+    return null;
+  }
+}
+
+/**
+ * Phase 1 Requirements 3, 4, 5:
+ * Single-flight queue drainer with mutex lock, seq-order batching, confirmed-commit deletion,
+ * and exponential backoff with jitter.
+ */
+export async function triggerQueueDrain(targetMatchId = null) {
+  // Single-flight lock: only one drain runs at a time
+  if (isDraining) {
     return;
   }
 
+  // Clear pending scheduled retry if manually triggered
+  if (retryTimeoutId) {
+    clearTimeout(retryTimeoutId);
+    retryTimeoutId = null;
+  }
+
+  isDraining = true;
+
   try {
-    isSyncing = true;
-    await ensureAnonymousAuth();
+    // 1. Fetch pending entries from offline_queue (ordered by seq asc)
+    const queueEntries = await getOfflineQueue(targetMatchId);
 
-    const pendingEvents = await getUnsyncedEvents(matchId);
-
-    if (pendingEvents.length === 0) {
+    if (!queueEntries || queueEntries.length === 0) {
+      retryAttempt = 0;
       notifyListeners({ status: 'synced', pendingCount: 0 });
-      isSyncing = false;
       return;
     }
 
-    notifyListeners({ status: 'syncing', pendingCount: pendingEvents.length });
+    // Sort strictly by sequence number ascending
+    queueEntries.sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
-    // Fallback to local snapshot if state is partially loaded
-    let effectiveState = currentMatchState;
-    if (!effectiveState?.teams || effectiveState.teams.length === 0) {
-      try {
-        const snap = await getMatchSnapshot(matchId);
-        if (snap) effectiveState = { ...snap, ...effectiveState };
-      } catch (e) {}
-    }
+    notifyListeners({ status: 'syncing', pendingCount: queueEntries.length });
 
-    // Attach manager information if available
-    let managerMeta = {};
-    try {
-      const activeManager = JSON.parse(localStorage.getItem('cricket_manager_user') || 'null');
-      if (activeManager && activeManager.uid) {
-        managerMeta = {
-          managerId: activeManager.uid,
-          managerName: activeManager.name || 'Manager',
-          managerEmail: activeManager.email || ''
-        };
-      }
-    } catch (e) {}
+    // 2. Ensure auth & connection
+    await ensureAnonymousAuth();
 
-    // Firestore batch writes (batches of up to 20 for safety)
-    const chunkSize = 20;
-    for (let i = 0; i < pendingEvents.length; i += chunkSize) {
-      const chunk = pendingEvents.slice(i, i + chunkSize);
+    // 3. Check sequence gap before flushing (Requirement 5)
+    const activeMatchId = targetMatchId || queueEntries[0].matchId;
+    const localMaxSeq = queueEntries[queueEntries.length - 1].seq;
+    await verifySequenceContinuity(activeMatchId, localMaxSeq);
+
+    // 4. Drain in seq order with batched writes (up to 25 events per batch)
+    const chunkSize = 25;
+    for (let i = 0; i < queueEntries.length; i += chunkSize) {
+      const chunk = queueEntries.slice(i, i + chunkSize);
       const batch = writeBatch(db);
+      const batchMatchId = chunk[0].matchId || activeMatchId;
 
-      for (const ev of chunk) {
-        const evRef = doc(db, 'matches', matchId, 'events', ev.id);
+      for (const entry of chunk) {
+        const ev = entry.event || entry;
+        // Document ID is strictly deterministic: ${matchId}_${seq}
+        const evRef = doc(db, 'matches', batchMatchId, 'events', ev.id);
         const eventDocData = sanitizeForFirestore({
+          v: ev.v || 1,
           id: ev.id,
           seq: ev.seq,
+          prevEventId: ev.prevEventId || null,
+          scorerUid: ev.scorerUid || (auth.currentUser?.uid || null),
+          scorerId: ev.scorerId || ev.deviceId || getDeviceId(),
+          ballId: ev.ballId || null,
+          matchId: batchMatchId,
           type: ev.type,
           payload: ev.payload || {},
           ts: ev.ts || Date.now(),
@@ -121,12 +171,33 @@ export async function syncPendingEvents(matchId, currentMatchState) {
         batch.set(evRef, eventDocData, { merge: true });
       }
 
-      // Update match document summary with full metadata in same batch
-      const matchRef = doc(db, 'matches', matchId);
+      // Update match document summary with latest metadata and lastSeq in same batch
+      const lastInChunk = chunk[chunk.length - 1].event || chunk[chunk.length - 1];
+      const matchRef = doc(db, 'matches', batchMatchId);
+
+      let effectiveState = null;
+      try {
+        effectiveState = await getMatchSnapshot(batchMatchId);
+      } catch {}
+
       const curInn = effectiveState?.innings?.[effectiveState?.currentInningsIndex || 0];
       const matchCode = (effectiveState?.code || '').trim().toUpperCase();
 
+      // Attach manager information if available
+      let managerMeta = {};
+      try {
+        const activeManager = JSON.parse(localStorage.getItem('cricket_manager_user') || 'null');
+        if (activeManager && activeManager.uid) {
+          managerMeta = {
+            managerId: activeManager.uid,
+            managerName: activeManager.name || 'Manager',
+            managerEmail: activeManager.email || ''
+          };
+        }
+      } catch {}
+
       const matchDocData = sanitizeForFirestore({
+        lastSeq: lastInChunk.seq,
         code: matchCode,
         status: effectiveState?.status || 'in_progress',
         overs: effectiveState?.overs || 20,
@@ -147,45 +218,125 @@ export async function syncPendingEvents(matchId, currentMatchState) {
         },
         innings: effectiveState?.innings || [],
         ...managerMeta,
+        ownerUid: effectiveState?.ownerUid || auth.currentUser?.uid || null,
+        scorerUid: auth.currentUser?.uid || null,
+        scorerId: getDeviceId(),
+        leaseExpiresAt: Date.now() + 45000,
         updatedAt: Date.now()
       });
 
       batch.set(matchRef, matchDocData, { merge: true });
 
+      // CONFIRMED COMMIT
       await batch.commit();
 
-      // Mark locally as synced
-      for (const ev of chunk) {
-        await markEventSynced(ev.id);
-      }
+      // DELETE QUEUE ENTRIES ONLY AFTER CONFIRMED COMMIT
+      const committedIds = chunk.map(c => c.id);
+      await removeOfflineQueueEntries(committedIds, batchMatchId);
     }
 
-    // Save snapshot locally
-    if (effectiveState) {
-      await saveMatchSnapshot(matchId, effectiveState);
-    }
-
+    // Success: reset retry counter
+    retryAttempt = 0;
     notifyListeners({ status: 'live', pendingCount: 0 });
   } catch (error) {
-    console.error('Firestore sync error:', error);
-    const pending = await getUnsyncedEvents(matchId);
+    console.warn('[Sync] Drain encountered error, scheduling exponential backoff:', error);
+    retryAttempt++;
+
+    // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s, capped at 30s + 0-1000ms jitter
+    const baseDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retryAttempt, 5)));
+    const jitter = Math.random() * 1000;
+    const delay = Math.round(baseDelay + jitter);
+
+    const pendingCount = await peekOfflineQueueCount(targetMatchId);
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     notifyListeners({
-      status: 'offline',
-      pendingCount: pending.length,
-      errorMessage: error.message || String(error)
+      status: isOnline ? 'error' : 'offline',
+      pendingCount,
+      retryAttempt,
+      nextRetryMs: delay,
+      errorMessage: error?.message || String(error)
     });
+
+    // Schedule retry with backoff
+    retryTimeoutId = setTimeout(() => {
+      triggerQueueDrain(targetMatchId);
+    }, delay);
   } finally {
-    isSyncing = false;
+    isDraining = false;
   }
 }
 
-// Auto-sync listener when browser reconnects
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    notifyListeners({ status: 'syncing', pendingCount: 0 });
-  });
+/**
+ * Backward-compatible helper used across existing codebase.
+ * Enqueues / triggers queue drain.
+ */
+export async function syncPendingEvents(matchId, currentMatchState) {
+  if (matchId && currentMatchState) {
+    await saveMatchSnapshot(matchId, currentMatchState);
+  }
+  return triggerQueueDrain(matchId);
+}
 
-  window.addEventListener('offline', () => {
-    notifyListeners({ status: 'offline', pendingCount: 0 });
-  });
+/**
+ * Phase 1 Requirement 4:
+ * Sets up multi-trigger queue flush system across:
+ * - App boot
+ * - Window 'online'
+ * - 'visibilitychange' (visible)
+ * - Capacitor App resume
+ * - Capacitor Network status change
+ */
+export function initSyncSystem(defaultMatchId = null, force = false) {
+  if (isSystemInitialized && !force) {
+    triggerQueueDrain(defaultMatchId);
+    return;
+  }
+  isSystemInitialized = true;
+
+  // 1. Trigger on boot
+  triggerQueueDrain(defaultMatchId);
+
+  if (typeof window !== 'undefined') {
+    // 2. Window online
+    window.addEventListener('online', () => {
+      triggerQueueDrain(defaultMatchId);
+    });
+
+    window.addEventListener('offline', () => {
+      notifyListeners({ status: 'offline', pendingCount: -1 });
+    });
+
+    // 3. Document visibility change (user returns to browser tab)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        triggerQueueDrain(defaultMatchId);
+      }
+    });
+
+    // 4. Capacitor App resume (native mobile app returns from background)
+    try {
+      CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          triggerQueueDrain(defaultMatchId);
+        }
+      });
+    } catch {}
+
+    // 5. Capacitor Network plugin status change
+    try {
+      const netPlugin = window.Capacitor?.Plugins?.Network;
+      if (netPlugin?.addListener) {
+        netPlugin.addListener('networkStatusChange', (status) => {
+          if (status?.connected) {
+            triggerQueueDrain(defaultMatchId);
+          }
+        });
+      }
+    } catch {}
+  }
+}
+
+// Auto-initialize listeners on module load if in browser
+if (typeof window !== 'undefined') {
+  initSyncSystem();
 }

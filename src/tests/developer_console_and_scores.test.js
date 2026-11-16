@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
-import { replayEvents, createInitialMatchState, applyEvent } from '../engine/reducer.js';
+import { replayEvents } from '../engine/reducer.js';
 import { EVENT_TYPES } from '../engine/constants.js';
 import fs from 'fs';
 import path from 'path';
@@ -209,11 +209,10 @@ describe('Developer Console & Score Derivation Tests', () => {
         { type: 'UNKNOWN_CORRUPTED_EVENT', payload: { corrupt: true } }
       ];
 
-      let error = null;
       try {
         replayEvents(corruptedEvents);
-      } catch (e) {
-        error = e;
+      } catch {
+        // Expected resilience against corruption
       }
 
       // If replayEvents handles unknown events or throws, validation ensures state integrity
@@ -341,16 +340,17 @@ describe('Developer Console & Score Derivation Tests', () => {
     });
   });
 
-  // Test 4: Developer Auth ("Silicon123@"), Abdullah Motivational Messages & 2-Second Popups
+  // Test 4: Developer Auth Security, Abdullah Motivational Messages & 2-Second Popups
   describe('Developer Auth, Abdullah Motivational Messages & 2-Second Event Popups', () => {
-    it('Verifies developer console password is Silicon123@', () => {
+    it('Verifies developer console rejects hardcoded passwords and enforces Firebase Auth', () => {
       const devDashboardCode = fs.readFileSync(
         path.resolve(__dirname, '../pages/DeveloperDashboard.jsx'),
         'utf-8'
       );
-      // Password must match Silicon123@ and authenticate immediately
-      expect(devDashboardCode).toContain('Silicon123@');
-      expect(devDashboardCode).toContain("sessionStorage.setItem('dev_auth', 'true')");
+      // Hardcoded master passwords and sessionStorage auth bypasses must NEVER exist
+      expect(devDashboardCode).not.toContain('Silicon123@');
+      expect(devDashboardCode).not.toContain("sessionStorage.setItem('dev_auth', 'true')");
+      expect(devDashboardCode).toContain('signInWithEmailAndPassword');
     });
 
     it('Verifies isAbdullah helper detects Abdullah case-insensitively', async () => {

@@ -17,7 +17,7 @@ export default function ThemeToggle({ className = '' }) {
       document.documentElement.setAttribute('data-theme', newTheme);
       document.documentElement.classList.toggle('dark', newTheme === 'dark');
       localStorage.setItem('cricket_theme', newTheme);
-    } catch (_) {}
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function ThemeToggle({ className = '' }) {
     applyTheme(nextTheme);
     try {
       window.dispatchEvent(new CustomEvent('cricket_theme_changed', { detail: nextTheme }));
-    } catch (_) {}
+    } catch {}
   };
 
   const isDark = theme === 'dark';

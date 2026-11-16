@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Home from './pages/Home.jsx';
 import Setup from './pages/Setup.jsx';
 import Scoring from './pages/Scoring.jsx';
@@ -31,29 +31,80 @@ export default function App() {
           page: 'live',
           matchId: null,
           liveCode: pendingCode.trim().toUpperCase(),
-          isManager: false
+          isManager: false,
+          initialPortal: 'stream'
         };
       }
 
-      const path = window.location.pathname || '';
-      const pathMatch = path.match(/\/(?:match|m)\/([^/?#]+)/i);
-      if (pathMatch && pathMatch[1]) {
+      const path = (window.location.pathname || '').trim();
+
+      if (path === '/developer') {
+        return { page: 'developer', matchId: null, liveCode: null, isManager: false, initialPortal: 'choose' };
+      }
+
+      if (path === '/scorer') {
+        return { page: 'home', matchId: null, liveCode: null, isManager: true, initialPortal: 'create' };
+      }
+
+      if (path === '/setup') {
+        return { page: 'setup', matchId: null, liveCode: null, isManager: true, initialPortal: 'create' };
+      }
+
+      const liveMatch = path.match(/^\/live\/([^/?#]+)/i);
+      if (liveMatch && liveMatch[1]) {
         return {
           page: 'live',
           matchId: null,
-          liveCode: pathMatch[1].trim().toUpperCase(),
-          isManager: false
+          liveCode: liveMatch[1].trim().toUpperCase(),
+          isManager: false,
+          initialPortal: 'stream'
+        };
+      }
+
+      const matchRoute = path.match(/^\/match\/([^/?#]+)/i);
+      if (matchRoute && matchRoute[1]) {
+        const idOrCode = matchRoute[1].trim();
+        const isManagerSaved = typeof localStorage !== 'undefined' && localStorage.getItem('cricket_is_manager') === 'true';
+        return {
+          page: isManagerSaved ? 'scoring' : 'live',
+          matchId: idOrCode,
+          liveCode: idOrCode.toUpperCase(),
+          isManager: isManagerSaved,
+          initialPortal: isManagerSaved ? 'create' : 'stream'
+        };
+      }
+
+      const summaryMatch = path.match(/^\/summary\/([^/?#]+)/i);
+      if (summaryMatch && summaryMatch[1]) {
+        return {
+          page: 'summary',
+          matchId: summaryMatch[1].trim(),
+          liveCode: summaryMatch[1].trim().toUpperCase(),
+          isManager: false,
+          initialPortal: 'stream'
+        };
+      }
+
+      const scorecardMatch = path.match(/^\/scorecard\/([^/?#]+)/i);
+      if (scorecardMatch && scorecardMatch[1]) {
+        return {
+          page: 'scorecard',
+          matchId: scorecardMatch[1].trim(),
+          liveCode: scorecardMatch[1].trim().toUpperCase(),
+          isManager: false,
+          initialPortal: 'stream'
         };
       }
     }
 
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     if (params.get('dev') === 'true') {
       return {
         page: 'developer',
         matchId: null,
         liveCode: null,
-        isManager: false
+        isManager: false,
+        initialPortal: 'choose'
       };
     }
 
@@ -63,7 +114,8 @@ export default function App() {
         page: 'summary',
         matchId: null,
         liveCode: summaryCode.toUpperCase(),
-        isManager: false
+        isManager: false,
+        initialPortal: 'stream'
       };
     }
 
@@ -73,11 +125,12 @@ export default function App() {
         page: 'live',
         matchId: null,
         liveCode: watchCode.toUpperCase(),
-        isManager: false
+        isManager: false,
+        initialPortal: 'stream'
       };
     }
 
-    // User requirement: While opening the web, direct directly to the main page (home)
+    // Default: home
     return { page: 'home', matchId: null, liveCode: null, isManager: false };
   };
 
@@ -86,9 +139,36 @@ export default function App() {
   const [activeMatchId, setActiveMatchId] = useState(initial.matchId);
   const [liveCodeOrId, setLiveCodeOrId] = useState(initial.liveCode);
   const [isManager, setIsManager] = useState(initial.isManager);
+  const [homePortal, setHomePortal] = useState(initial.initialPortal || 'choose');
   const [viewedMatchState, setViewedMatchState] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showExitToast, setShowExitToast] = useState(false);
+
+  const updateBrowserUrl = (screen) => {
+    if (typeof window === 'undefined' || !window.history?.replaceState) return;
+    let targetPath = '/';
+    if (screen.page === 'developer') {
+      targetPath = '/developer';
+    } else if (screen.page === 'setup') {
+      targetPath = '/setup';
+    } else if (screen.page === 'scoring' && screen.activeMatchId) {
+      targetPath = `/match/${screen.activeMatchId}`;
+    } else if (screen.page === 'live' && (screen.liveCodeOrId || screen.activeMatchId)) {
+      targetPath = `/live/${screen.liveCodeOrId || screen.activeMatchId}`;
+    } else if (screen.page === 'summary' && (screen.liveCodeOrId || screen.activeMatchId)) {
+      targetPath = `/summary/${screen.liveCodeOrId || screen.activeMatchId}`;
+    } else if (screen.page === 'scorecard' && (screen.liveCodeOrId || screen.activeMatchId)) {
+      targetPath = `/scorecard/${screen.liveCodeOrId || screen.activeMatchId}`;
+    } else if (screen.page === 'home') {
+      targetPath = (screen.isManager || screen.initialPortal === 'create') ? '/scorer' : '/';
+    }
+
+    if (window.location.pathname !== targetPath) {
+      try {
+        window.history.pushState({ ...screen }, '', targetPath);
+      } catch {}
+    }
+  };
 
   useEffect(() => {
     setIsNavigating(true);
@@ -113,18 +193,31 @@ export default function App() {
       setActiveMatchId(currentScreen.activeMatchId);
       setLiveCodeOrId(currentScreen.liveCodeOrId);
       setIsManager(currentScreen.isManager);
+      if (currentScreen.initialPortal) {
+        setHomePortal(currentScreen.initialPortal);
+      } else if (currentScreen.isManager) {
+        setHomePortal('create');
+      }
       if (currentScreen.viewedMatchState !== undefined) {
         setViewedMatchState(currentScreen.viewedMatchState);
       }
+      updateBrowserUrl(currentScreen);
     });
     const unsubToast = subscribeToExitToast((show) => {
       setShowExitToast(show);
     });
 
+    const handlePopState = () => {
+      const nextRoute = getInitialRouting();
+      pushScreen(nextRoute);
+    };
+    window.addEventListener('popstate', handlePopState);
+
     return () => {
       cleanupHardware();
       unsubNav();
       unsubToast();
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
@@ -205,6 +298,11 @@ export default function App() {
     matchState,
     syncStatus,
     scorerOfflineInfo,
+    leaseConflict,
+    tabLockConflict,
+    isReconciling,
+    loadFullMatchEvents,
+    takeOverScoring,
     startMatch,
     recordBall,
     editBall,
@@ -321,10 +419,14 @@ export default function App() {
     }
   };
 
-  const handleOpenScorecard = (incomingState) => {
-    const nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
+  const handleOpenScorecard = async (incomingState) => {
+    let nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
       ? incomingState
       : viewedMatchState;
+    if (isSpectator && typeof loadFullMatchEvents === 'function') {
+      const full = await loadFullMatchEvents();
+      if (full) nextState = full;
+    }
     if (nextState) {
       setViewedMatchState(nextState);
     }
@@ -337,10 +439,14 @@ export default function App() {
     });
   };
 
-  const handleOpenSummary = (incomingState) => {
-    const nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
+  const handleOpenSummary = async (incomingState) => {
+    let nextState = (incomingState && (incomingState.code || incomingState.innings?.length > 0))
       ? incomingState
       : viewedMatchState;
+    if (isSpectator && typeof loadFullMatchEvents === 'function') {
+      const full = await loadFullMatchEvents();
+      if (full) nextState = full;
+    }
     if (nextState) {
       setViewedMatchState(nextState);
     }
@@ -357,13 +463,37 @@ export default function App() {
     handleBackPress();
   };
 
-  const handleGoHome = () => {
-    if (window.history.pushState) {
-      const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
-      window.history.pushState({ path: cleanUrl }, '', cleanUrl);
-    }
-    setViewedMatchState(null);
-    resetToHome();
+  const handleBackFromScoring = () => {
+    pushScreen({
+      page: 'home',
+      activeMatchId: null,
+      liveCodeOrId: null,
+      isManager: true,
+      initialPortal: 'create',
+      viewedMatchState: null
+    });
+  };
+
+  const handleBackFromSetup = () => {
+    pushScreen({
+      page: 'home',
+      activeMatchId: null,
+      liveCodeOrId: null,
+      isManager: true,
+      initialPortal: 'create',
+      viewedMatchState: null
+    });
+  };
+
+  const handleBackFromLive = () => {
+    pushScreen({
+      page: 'home',
+      activeMatchId: null,
+      liveCodeOrId: null,
+      isManager: false,
+      initialPortal: 'stream',
+      viewedMatchState: null
+    });
   };
 
   // Determine active match state for scorecard & summary
@@ -405,6 +535,7 @@ export default function App() {
       </div>
       {page === 'home' && (
         <Home
+          initialPortal={homePortal}
           onNavigate={(p) => pushScreen({ page: p, activeMatchId, liveCodeOrId, isManager, viewedMatchState })}
           onResumeMatch={handleResumeMatch}
           onWatchLive={handleWatchLive}
@@ -440,7 +571,7 @@ export default function App() {
       {page === 'setup' && (
         <Setup
           onStartMatch={handleStartMatch}
-          onBack={handleBack}
+          onBack={handleBackFromSetup}
         />
       )}
 
@@ -448,6 +579,10 @@ export default function App() {
         <Scoring
           matchState={matchState}
           syncStatus={syncStatus}
+          leaseConflict={leaseConflict}
+          tabLockConflict={tabLockConflict}
+          isReconciling={isReconciling}
+          onTakeOverScoring={takeOverScoring}
           onRecordBall={recordBall}
           onEditBall={editBall}
           onSwapBatter={swapBatter}
@@ -459,7 +594,8 @@ export default function App() {
           onAddBallToPreviousOver={addBallToPreviousOver}
           onReopenPreviousOver={reopenPreviousOver}
           onUndo={undo}
-          onNavigate={handleBack}
+          onNavigate={handleBackFromScoring}
+          onBack={handleBackFromScoring}
           onOpenScorecard={() => handleOpenScorecard(matchState)}
           onOpenSummary={() => handleOpenSummary(matchState)}
         />
@@ -485,7 +621,7 @@ export default function App() {
           matchCodeOrId={activeMatchId || liveCodeOrId}
           matchState={matchState}
           scorerOfflineInfo={scorerOfflineInfo}
-          onBack={handleBack}
+          onBack={handleBackFromLive}
           onOpenScorecard={handleOpenScorecard}
           onOpenSummary={handleOpenSummary}
           onMatchResolved={(id, code) => {

@@ -7,14 +7,14 @@ export default function AddPreviousOverBallModal({
   onClose,
   previousBowler,
   striker,
-  nonStriker,
+  nonStriker: _nonStriker,
   onAddBall,
   onReopenOver
 }) {
   const [runs, setRuns] = useState(0);
   const [extraType, setExtraType] = useState(null);
   const [isWicket, setIsWicket] = useState(false);
-  const [wicketType, setWicketType] = useState(WICKET_TYPES.BOWLED);
+  const [wicketType] = useState(WICKET_TYPES.BOWLED);
 
   if (!isOpen) return null;
 

@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Check, AlertCircle } from 'lucide-react';
+import { X, Edit3, Check } from 'lucide-react';
 import { EXTRA_TYPES, WICKET_TYPES } from '../engine/constants.js';
+
+function normalizeDeliveryType(rawExtraType, isLegal = true) {
+  if (rawExtraType === undefined || rawExtraType === null || rawExtraType === '') {
+    return isLegal ? null : EXTRA_TYPES.WIDE;
+  }
+  const val = String(rawExtraType).toLowerCase().trim();
+  if (val === 'wide' || val === 'wd') return EXTRA_TYPES.WIDE;
+  if (val === 'noball' || val === 'no_ball' || val === 'nb' || val === 'no-ball') return EXTRA_TYPES.NO_BALL;
+  if (val === 'bye' || val === 'b') return EXTRA_TYPES.BYE;
+  if (val === 'legbye' || val === 'leg_bye' || val === 'lb' || val === 'leg-bye') return EXTRA_TYPES.LEG_BYE;
+  if (val === 'penalty') return EXTRA_TYPES.PENALTY;
+  return null;
+}
 
 export default function EditBallModal({
   isOpen,
@@ -8,7 +21,7 @@ export default function EditBallModal({
   initialBall = null,
   allBalls = [],
   onSaveBall,
-  strikerSquad = [],
+  strikerSquad: _strikerSquad = [],
   bowlingSquad = []
 }) {
   const [selectedBallId, setSelectedBallId] = useState(null);
@@ -34,7 +47,7 @@ export default function EditBallModal({
     setSelectedBallId(target.ballId || target.seq);
     setBowler(target.bowler || '');
     setRuns(Number(target.runs) || 0);
-    setExtraType(target.extraType || null);
+    setExtraType(normalizeDeliveryType(target.extraType, target.isLegal));
     setExtraRuns(Number(target.extraRuns) || 0);
     setIsWicket(Boolean(target.isWicket || target.wicket));
     setWicketType(target.wicket?.type || target.wicketType || WICKET_TYPES.BOWLED);
@@ -56,7 +69,7 @@ export default function EditBallModal({
       setSelectedBallId(found.ballId || found.seq);
       setBowler(found.bowler || '');
       setRuns(Number(found.runs) || 0);
-      setExtraType(found.extraType || null);
+      setExtraType(normalizeDeliveryType(found.extraType, found.isLegal));
       setExtraRuns(Number(found.extraRuns) || 0);
       setIsWicket(Boolean(found.isWicket || found.wicket));
       setWicketType(found.wicket?.type || found.wicketType || WICKET_TYPES.BOWLED);
@@ -174,8 +187,34 @@ export default function EditBallModal({
                 <span className="text-[10px] uppercase font-bold" style={{ color: 'var(--muted)' }}>
                   Delivery Details
                 </span>
-                <div className="font-black text-sm text-blue-400">
-                  {currentBall.shortLabel || `${currentBall.runs || 0} runs`}
+                <div className="flex items-center gap-2">
+                  <span
+                    data-testid="delivery-type-pill"
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      extraType === EXTRA_TYPES.WIDE
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : extraType === EXTRA_TYPES.NO_BALL
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        : extraType === EXTRA_TYPES.BYE
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : extraType === EXTRA_TYPES.LEG_BYE
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    }`}
+                  >
+                    {extraType === EXTRA_TYPES.WIDE
+                      ? 'Wide'
+                      : extraType === EXTRA_TYPES.NO_BALL
+                      ? 'No Ball'
+                      : extraType === EXTRA_TYPES.BYE
+                      ? 'Bye'
+                      : extraType === EXTRA_TYPES.LEG_BYE
+                      ? 'Leg Bye'
+                      : 'Legal'}
+                  </span>
+                  <div className="font-black text-sm text-blue-400">
+                    {currentBall.shortLabel || `${currentBall.runs || 0} runs`}
+                  </div>
                 </div>
               </div>
 
