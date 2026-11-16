@@ -11,8 +11,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.developer == true ||
         (request.auth.token.email != null && (
-          request.auth.token.email == 'syedmaazalam@gmail.com' ||
-          request.auth.token.email == 'syedmaazalam2007@gmail.com' ||
+          request.auth.token.email == 'developer@example.com' ||
           request.auth.token.email.matches('.*@smartcricket\\.app')
         ))
       );
@@ -75,13 +74,11 @@ service cloud.firestore {
       );
       allow delete: if isDeveloper() || (isAuthenticated() && (resource.data.managerId == request.auth.uid || resource.data.ownerUid == request.auth.uid));
 
-      // Events subcollection for real-time live scoring (Phase 2 Requirement 3)
-      // create only (no update or delete); doc ID must equal ${matchId}_${seq}; request.auth.uid == match.ownerUid
+      // Events subcollection for real-time live scoring (Phase 2 Requirement 3 & Bug 28)
       match /events/{eventId} {
         allow read: if true;
-        allow create: if isAuthenticated() &&
+        allow create, update: if isAuthenticated() &&
           request.resource.data.seq is int &&
-          eventId == matchId + '_' + string(request.resource.data.seq) &&
           (
             isDeveloper() ||
             !exists(/databases/$(database)/documents/matches/$(matchId)) ||
@@ -89,7 +86,7 @@ service cloud.firestore {
             !('ownerUid' in get(/databases/$(database)/documents/matches/$(matchId)).data) ||
             get(/databases/$(database)/documents/matches/$(matchId)).data.ownerUid == null
           );
-        allow update, delete: if false;
+        allow delete: if isDeveloper();
       }
 
       // Action logs subcollection
@@ -98,10 +95,19 @@ service cloud.firestore {
         allow write: if isAuthenticated();
       }
 
-      // Chat and developer-scorer messages subcollection
+      // Chat and developer-scorer messages subcollection (Security: strictly authenticated & validated message length)
       match /messages/{messageId} {
         allow read: if true;
-        allow write: if isAuthenticated();
+        allow create: if isAuthenticated() &&
+          request.resource.data.keys().hasAll(['sender', 'text']) &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 500;
+        allow update: if isAuthenticated() && (
+          isDeveloper() ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        );
+        allow delete: if isDeveloper();
       }
     }
   }

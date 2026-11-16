@@ -641,7 +641,7 @@ export async function saveDeveloperCredentialsInCloud(creds = {}) {
   try {
     const devRef = doc(db, 'config', 'developer');
     const sanitized = sanitizeForFirestore({
-      email: creds.email || 'syedmaazalam2007@gmail.com',
+      email: creds.email || 'developer@example.com',
       updatedAt: Date.now()
     });
     await setDoc(devRef, sanitized, { merge: true });
