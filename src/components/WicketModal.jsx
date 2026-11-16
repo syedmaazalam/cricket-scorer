@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { WICKET_TYPES } from '../engine/constants.js';
 import { isWicketValidOnFreeHit } from '../engine/rules.js';
@@ -14,19 +14,78 @@ export default function WicketModal({
   isFreeHit,
   onConfirmWicket
 }) {
-  const [wicketType, setWicketType] = useState(WICKET_TYPES.CAUGHT);
+  const [wicketType, setWicketType] = useState(() => (isFreeHit ? WICKET_TYPES.RUN_OUT : WICKET_TYPES.CAUGHT));
   const [playerOut, setPlayerOut] = useState(striker);
   const [fielder, setFielder] = useState('');
   const [isDirectHit, setIsDirectHit] = useState(false);
   const [nextBatter, setNextBatter] = useState('');
 
+  const modalRef = useRef(null);
+
+  // Bug 25: Free hit clears "Caught" as default and auto-selects "Run Out"
+  useEffect(() => {
+    if (isOpen) {
+      if (isFreeHit) {
+        setWicketType(WICKET_TYPES.RUN_OUT);
+      } else {
+        setWicketType(WICKET_TYPES.CAUGHT);
+      }
+      setPlayerOut(striker);
+      setFielder('');
+      setIsDirectHit(false);
+      setNextBatter('');
+    }
+  }, [isOpen, isFreeHit, striker]);
+
+  // Bug 40: Esc closes modal and trap focus inside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = modalRef.current?.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
+  // Validation
   const isCaughtWithoutFielder = wicketType === WICKET_TYPES.CAUGHT && !fielder;
+  // Bug 25: Disable Confirm Wicket until a valid dismissal (Run Out / Retired Out) is chosen on Free Hit
+  const isInvalidFreeHitDismissal = isFreeHit && !isWicketValidOnFreeHit(wicketType);
+  const isSubmitDisabled = isCaughtWithoutFielder || isInvalidFreeHitDismissal;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isCaughtWithoutFielder) {
+    if (isSubmitDisabled) {
       return;
     }
     const directHit = wicketType === WICKET_TYPES.RUN_OUT ? Boolean(isDirectHit) : false;
@@ -63,31 +122,41 @@ export default function WicketModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-3">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-3"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="record-wicket-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md border rounded-3xl p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-md border rounded-3xl p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150 focus-visible:outline-none"
       >
         <div style={{ borderColor: 'var(--border)' }} className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-rose-500" />
-            <h3 className="font-black text-lg" style={{ color: 'var(--text)' }}>Record Wicket</h3>
+            <h3 id="record-wicket-title" className="font-black text-lg" style={{ color: 'var(--text)' }}>
+              Record Wicket
+            </h3>
           </div>
           <button
             onClick={onClose}
             style={{ color: 'var(--muted)' }}
-            className="p-1 rounded-full hover:opacity-80"
+            className="p-1 rounded-full hover:opacity-80 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {isFreeHit && (
-          <div className="flex items-center gap-2 bg-amber-500/15 border border-amber-500/30 rounded-xl p-2.5 text-xs text-amber-500">
+          <div className="flex items-center gap-2 bg-amber-500/15 border border-amber-500/30 rounded-xl p-2.5 text-xs text-amber-500 font-semibold animate-in fade-in">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>Free hit active: Only Run Out / Retired Out is a valid dismissal.</span>
           </div>
@@ -99,56 +168,67 @@ export default function WicketModal({
             <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--muted)' }}>
               Player Dismissed
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Player Dismissed">
               <button
                 type="button"
+                role="radio"
+                aria-checked={playerOut === striker}
                 onClick={() => setPlayerOut(striker)}
                 style={{
                   backgroundColor: playerOut === striker ? 'rgba(225, 29, 72, 0.15)' : 'var(--card-alt)',
                   borderColor: playerOut === striker ? '#e11d48' : 'var(--border)',
                   color: playerOut === striker ? '#e11d48' : 'var(--text)'
                 }}
-                className="py-2 px-3 rounded-xl border text-sm font-semibold transition-all"
+                className={`py-2 px-3 rounded-xl border text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none ${
+                  playerOut === striker ? 'ring-2 ring-rose-500 font-bold' : ''
+                }`}
               >
                 {striker} <span className="text-[10px] block opacity-70">(Striker)</span>
               </button>
 
               <button
                 type="button"
+                role="radio"
+                aria-checked={playerOut === nonStriker}
                 onClick={() => setPlayerOut(nonStriker)}
                 style={{
                   backgroundColor: playerOut === nonStriker ? 'rgba(225, 29, 72, 0.15)' : 'var(--card-alt)',
                   borderColor: playerOut === nonStriker ? '#e11d48' : 'var(--border)',
                   color: playerOut === nonStriker ? '#e11d48' : 'var(--text)'
                 }}
-                className="py-2 px-3 rounded-xl border text-sm font-semibold transition-all"
+                className={`py-2 px-3 rounded-xl border text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none ${
+                  playerOut === nonStriker ? 'ring-2 ring-rose-500 font-bold' : ''
+                }`}
               >
                 {nonStriker} <span className="text-[10px] block opacity-70">(Non-Striker)</span>
               </button>
             </div>
           </div>
 
-          {/* Dismissal Type */}
+          {/* Dismissal Type - Bug 27: The clicked dismissal pill highlights and others un-highlight */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--muted)' }}>
               Dismissal Type
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Dismissal Type">
               {dismissalTypes.map(({ id, label }) => {
+                const isSelected = wicketType === id;
                 const isBlockedByFreeHit = isFreeHit && !isWicketValidOnFreeHit(id);
                 return (
                   <button
                     key={id}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     disabled={isBlockedByFreeHit}
                     onClick={() => setWicketType(id)}
                     style={{
-                      backgroundColor: wicketType === id ? 'var(--primary)' : 'var(--card-alt)',
-                      borderColor: wicketType === id ? 'var(--primary)' : 'var(--border)',
-                      color: wicketType === id ? '#FFFFFF' : 'var(--text)'
+                      backgroundColor: isSelected ? 'var(--primary)' : 'var(--card-alt)',
+                      borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                      color: isSelected ? '#FFFFFF' : 'var(--text)'
                     }}
-                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                      wicketType === id ? 'shadow-md shadow-rose-900/50' : ''
+                    className={`py-2 rounded-xl text-xs font-semibold border transition-all focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:outline-none ${
+                      isSelected ? 'shadow-md shadow-rose-900/50 ring-2 ring-rose-500 font-bold scale-[1.02]' : 'hover:opacity-85'
                     } ${isBlockedByFreeHit ? 'opacity-30 cursor-not-allowed line-through' : ''}`}
                   >
                     {label}
@@ -156,6 +236,11 @@ export default function WicketModal({
                 );
               })}
             </div>
+            {isInvalidFreeHitDismissal && (
+              <span className="text-[11px] text-amber-500 font-semibold mt-1.5 block">
+                Please select Run Out or Retired Out (only valid dismissals on Free Hit).
+              </span>
+            )}
           </div>
 
           {/* Fielder Selector (if caught / run out / stumped) */}
@@ -172,7 +257,7 @@ export default function WicketModal({
                   borderColor: (wicketType === WICKET_TYPES.CAUGHT && !fielder) ? 'var(--red)' : 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none"
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 <option value="">Select fielder / wicketkeeper</option>
                 {bowlingTeamPlayers.map((p) => (
@@ -195,7 +280,7 @@ export default function WicketModal({
                 borderColor: 'var(--border)',
                 color: 'var(--text)'
               }}
-              className="flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer text-xs font-semibold hover:opacity-90 transition-colors"
+              className="flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer text-xs font-semibold hover:opacity-90 transition-colors focus-within:ring-2 focus-within:ring-rose-500"
             >
               <input
                 type="checkbox"
@@ -221,7 +306,7 @@ export default function WicketModal({
                   borderColor: 'var(--border)',
                   color: 'var(--text)'
                 }}
-                className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none"
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 <option value="">Choose next batter</option>
                 {availableBatters.map((p) => (
@@ -240,15 +325,15 @@ export default function WicketModal({
                 color: 'var(--text)',
                 borderColor: 'var(--border)'
               }}
-              className="flex-1 py-3 rounded-2xl border font-semibold text-sm hover:opacity-90"
+              className="flex-1 py-3 rounded-2xl border font-semibold text-sm hover:opacity-90 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isCaughtWithoutFielder}
-              className={`flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-red-700 text-white font-bold text-sm shadow-lg shadow-rose-900/40 hover:brightness-110 ${
-                isCaughtWithoutFielder ? 'opacity-50 cursor-not-allowed' : ''
+              disabled={isSubmitDisabled}
+              className={`flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-red-700 text-white font-bold text-sm shadow-lg shadow-rose-900/40 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none ${
+                isSubmitDisabled ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               Confirm Wicket

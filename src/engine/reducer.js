@@ -247,10 +247,12 @@ export function applyEvent(state, event) {
       }
 
       // Check Free Hit rules: only run-outs / obstructing / hit ball twice / retired are valid on Free Hit
+      let wasInvalidWicketOnFreeHit = false;
       if (next.isFreeHit && calculatedWicket && normalizedWicket) {
         if (!isWicketValidOnFreeHit(normalizedWicket.type)) {
           calculatedWicket = false; // Disallowed dismissal on free hit
           normalizedWicket = null;
+          wasInvalidWicketOnFreeHit = true;
         }
       }
 
@@ -408,10 +410,10 @@ export function applyEvent(state, event) {
       if (extraType === EXTRA_TYPES.NO_BALL) {
         next.isFreeHit = true;
       } else if (next.isFreeHit) {
-        if (isLegal) {
+        if (isLegal && !wasInvalidWicketOnFreeHit) {
           next.isFreeHit = false;
         }
-        // If wide on free hit, free hit remains true
+        // If wide, no-ball, or invalid wicket on free hit, free hit remains true
       }
 
       // Check Innings End conditions

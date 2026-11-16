@@ -420,12 +420,21 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
           <div className="grid grid-cols-1 gap-4">
             {/* Option 1: Create a Match (Manager Portal - STRICTLY REQUIRES MANAGER LOGIN) */}
             <div
+              tabIndex={0}
+              role="button"
+              aria-label="Enter Scorer Portal to create and score matches"
               onClick={handleSelectCreateMatch}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleSelectCreateMatch();
+                }
+              }}
               style={{
                 backgroundColor: 'var(--card)',
                 borderColor: 'var(--border)'
               }}
-              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#22C55E] hover:shadow-xl hover:-translate-y-0.5 transition-all group"
+              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#22C55E] hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#22C55E] transition-all group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3.5">
@@ -463,12 +472,21 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
 
             {/* Option 2: Stream a Match (Viewer Portal - ZERO LOGIN REQUIRED) */}
             <div
+              tabIndex={0}
+              role="button"
+              aria-label="Enter Live Stream to watch scoreboards and commentary"
               onClick={handleSelectStreamMatch}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleSelectStreamMatch();
+                }
+              }}
               style={{
                 backgroundColor: 'var(--card)',
                 borderColor: 'var(--border)'
               }}
-              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#3B82F6] hover:shadow-xl hover:-translate-y-0.5 transition-all group"
+              className="card glass-card p-5 sm:p-6 rounded-2xl border flex flex-col gap-3.5 cursor-pointer shadow-md hover:border-[#3B82F6] hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#3B82F6] transition-all group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3.5">
