@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, ArrowRight, X } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function InningsBreakModal({
   isOpen,
@@ -29,6 +30,8 @@ export default function InningsBreakModal({
   const [customStriker, setCustomStriker] = useState('');
   const [customNonStriker, setCustomNonStriker] = useState('');
   const [customBowler, setCustomBowler] = useState('');
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   useEffect(() => {
     if (batSquad && batSquad.length > 0) {
@@ -71,14 +74,21 @@ export default function InningsBreakModal({
   const targetBattingTeam = battingTeam || inn1?.bowlingTeam || 'Chasing Team';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="innings-break-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 relative"
+        className="w-full max-w-md rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 relative focus-visible:outline-none"
       >
         {onClose && (
           <button

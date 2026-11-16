@@ -196,14 +196,20 @@ export default function AbdullahMotivationModal({ eventData, onClose }) {
   const canDismiss = secondsRemaining === 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn select-none">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn select-none"
+      role="presentation"
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={badgeText}
         style={{
           backgroundColor: 'var(--card)',
           borderColor: accentColor,
           color: 'var(--text)'
         }}
-        className="w-full max-w-sm rounded-2xl border-2 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-scaleUp"
+        className="w-full max-w-sm rounded-2xl border-2 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-scaleUp focus-visible:outline-none"
       >
         {/* Top Badge */}
         <div

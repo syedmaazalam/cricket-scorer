@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Trophy, FileText, FileSpreadsheet, X, Sparkles } from 'lucide-react';
 import { formatOvers, getMaxWickets } from '../engine/rules.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function CelebrationModal({
   matchState,
@@ -12,6 +13,11 @@ export default function CelebrationModal({
   const [isDismissed, setIsDismissed] = useState(false);
 
   const isCompleted = matchState?.status === 'completed' || Boolean(matchState?.winner);
+  const isOpen = isCompleted && !isDismissed;
+  const modalRef = useModalA11y(isOpen, () => {
+    setIsDismissed(true);
+    onClose?.();
+  });
 
   // Confetti particles physics canvas
   useEffect(() => {
@@ -117,16 +123,23 @@ export default function CelebrationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-md animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-md animate-in fade-in duration-300"
+      role="presentation"
+    >
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-10" />
 
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="celebration-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="relative z-20 w-full max-w-md rounded-xl border p-5 sm:p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 animate-in zoom-in-95 duration-200"
+        className="relative z-20 w-full max-w-md rounded-xl border p-5 sm:p-6 shadow-2xl flex flex-col items-center text-center gap-3.5 animate-in zoom-in-95 duration-200 focus-visible:outline-none"
       >
         <button
           onClick={() => {

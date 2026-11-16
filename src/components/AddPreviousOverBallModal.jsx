@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, RotateCcw } from 'lucide-react';
 import { EXTRA_TYPES, WICKET_TYPES } from '../engine/constants.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function AddPreviousOverBallModal({
   isOpen,
@@ -15,6 +16,8 @@ export default function AddPreviousOverBallModal({
   const [extraType, setExtraType] = useState(null);
   const [isWicket, setIsWicket] = useState(false);
   const [wicketType] = useState(WICKET_TYPES.BOWLED);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -34,14 +37,21 @@ export default function AddPreviousOverBallModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-prev-ball-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-sm rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5"
+        className="w-full max-w-sm rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 focus-visible:outline-none"
       >
         <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">

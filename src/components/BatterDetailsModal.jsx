@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, TrendingUp, Target, User, Zap } from 'lucide-react';
 import { computeBatterDetails } from '../engine/stats.js';
 import { getBallChipConfig, useIsDark } from '../engine/ballChipStyles.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function BatterDetailsModal({
   batterName,
@@ -11,6 +12,8 @@ export default function BatterDetailsModal({
   const [selectedBallIndex, setSelectedBallIndex] = useState(null);
   const isDark = useIsDark();
 
+  const modalRef = useModalA11y(Boolean(batterName), onClose);
+
   if (!batterName) return null;
 
   const details = computeBatterDetails(innings, batterName);
@@ -19,14 +22,21 @@ export default function BatterDetailsModal({
   const { summary, headToHead, timeline } = details;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-fadeIn"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${batterName} Details`}
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-lg max-h-[90vh] rounded-xl border shadow-2xl flex flex-col overflow-hidden transition-all"
+        className="w-full max-w-lg max-h-[90vh] rounded-xl border shadow-2xl flex flex-col overflow-hidden transition-all focus-visible:outline-none"
       >
         {/* Header */}
         <div

@@ -895,3 +895,19 @@ body {
   border-radius: 9999px;
   flex-shrink: 0;
 }
+
+/* Visible focus outlines for accessibility (Bug 40) */
+:focus-visible {
+  outline: 2px solid var(--pri) !important;
+  outline-offset: 2px !important;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--pri) !important;
+  outline-offset: 2px !important;
+}

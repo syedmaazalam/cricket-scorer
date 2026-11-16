@@ -55,10 +55,16 @@ export default function ThemeToggle({ className = '' }) {
   return (
     <button
       onClick={toggleTheme}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleTheme();
+        }
+      }}
       type="button"
       title={isDark ? 'Dark Theme (Click to switch to Light)' : 'Light Theme (Click to switch to Dark)'}
       aria-label={isDark ? 'Dark Theme (Click to switch to Light)' : 'Light Theme (Click to switch to Dark)'}
-      className={`ib transition-all ${className}`}
+      className={`ib transition-all focus-visible:ring-2 focus-visible:ring-[var(--pri)] focus-visible:outline-none ${className}`}
       data-testid="theme-toggle-button"
     >
       {isDark ? (

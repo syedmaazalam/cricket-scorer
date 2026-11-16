@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, setDoc } from 'firebase/firestore';
 import { EVENT_TYPES } from '../engine/constants.js';
 import { createInitialMatchState, applyEvent, replayEvents } from '../engine/reducer.js';
 import { db, auth, ensureAnonymousAuth } from '../firebase/config.js';
@@ -718,6 +718,19 @@ export function useMatch(matchId, isViewerMode = false) {
     await saveEventLocally(updatedEvent, false);
     await saveMatchSnapshot(activeMid, replayed);
     syncPendingEvents(activeMid, replayed);
+
+    // Bug 28: Save and broadcast edited ball state directly to Live Spectator view (compacted root doc and Firestore event doc)
+    try {
+      updateCompactedRootDocThrottled(activeMid, replayed, true);
+      if (db && updatedEvent.id) {
+        const eventDocRef = doc(db, 'matches', activeMid, 'events', updatedEvent.id);
+        setDoc(eventDocRef, { ...updatedEvent, synced: 1 }, { merge: true }).catch((err) => {
+          console.warn('Could not update cloud event doc directly:', err);
+        });
+      }
+    } catch (e) {
+      console.warn('Error broadcasting edited ball to live spectator view:', e);
+    }
 
     // Action Log
     const logEntry = {

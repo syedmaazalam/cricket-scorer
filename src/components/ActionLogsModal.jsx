@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { History, X, Clock, Download } from 'lucide-react';
 import { getActionLogsLocally } from '../store/localDb.js';
 import { getActionLogsFromCloud } from '../firebase/matches.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function ActionLogsModal({ isOpen, onClose, matchId }) {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen || !matchId) return;
@@ -42,14 +45,21 @@ export default function ActionLogsModal({ isOpen, onClose, matchId }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="action-logs-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-xl rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-3 animate-in fade-in zoom-in-95 relative max-h-[90vh]"
+        className="w-full max-w-xl rounded-3xl p-5 sm:p-6 border shadow-2xl flex flex-col gap-3 animate-in fade-in zoom-in-95 relative max-h-[90vh] focus-visible:outline-none"
       >
         <button
           onClick={onClose}

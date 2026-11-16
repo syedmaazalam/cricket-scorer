@@ -208,24 +208,8 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
     return () => clearTimeout(delayTimer);
   }, [searchInput, localMatches, activePortal]);
 
-  // Handle clicking "Create a Match" -> strictly requires manager login
+  // Handle clicking "Create a Match" -> Bug 30: Never auto-login as "Offline Manager". Always prompt first.
   const handleSelectCreateMatch = () => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine && !managerUser) {
-      const offlineMgr = {
-        uid: 'offline_' + Math.random().toString(36).substring(2, 9),
-        name: 'Offline Manager',
-        email: 'offline@scorer.local',
-        isOffline: true
-      };
-      setManagerUser(offlineMgr);
-      try {
-        localStorage.setItem('cricket_manager_user', JSON.stringify(offlineMgr));
-        localStorage.setItem('cricket_is_manager', 'true');
-      } catch {}
-      setActivePortal('create');
-      return;
-    }
-
     if (!managerUser) {
       setIsAuthModalOpen(true);
     } else {
@@ -530,7 +514,7 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
       {/* ========================================================================= */}
       {activePortal === 'create' && (
         <div className="flex flex-col gap-4 mt-1 animate-in fade-in duration-200">
-          {/* Prominent CTA "Create New Match" */}
+          {/* Prominent CTA "Create New Match" - Bug 38: Activates with Enter and Space */}
           <button
             type="button"
             onClick={() => {
@@ -540,12 +524,22 @@ export default function Home({ onNavigate, onResumeMatch, onWatchLive, onOpenDev
                 onNavigate('setup');
               }
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (!managerUser) {
+                  setIsAuthModalOpen(true);
+                } else {
+                  onNavigate('setup');
+                }
+              }
+            }}
             style={{
               background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
               color: '#FFFFFF',
               boxShadow: '0 4px 16px rgba(34, 197, 94, 0.35)'
             }}
-            className="w-full p-4 sm:p-5 rounded-2xl font-bold text-base flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] shadow-lg"
+            className="w-full p-4 sm:p-5 rounded-2xl font-bold text-base flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#22C55E]"
           >
             <div className="flex items-center gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">

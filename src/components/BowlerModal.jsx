@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserCheck, Plus, Shield, RotateCcw, X } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function BowlerModal({
   isOpen,
@@ -14,6 +15,8 @@ export default function BowlerModal({
 }) {
   const [customBowlerName, setCustomBowlerName] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -36,14 +39,21 @@ export default function BowlerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150 focus-visible:outline-none"
       >
         {/* Header */}
         <div style={{ borderColor: 'var(--border)' }} className="border-b pb-3 flex items-start justify-between">

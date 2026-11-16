@@ -220,7 +220,7 @@ export function applyEvent(state, event) {
         nextBatter = null
       } = event.payload;
 
-      const isLegal = isLegalDelivery(extraType);
+      let isLegal = isLegalDelivery(extraType);
       let calculatedWicket = Boolean(isWicket || wicket || wicketType);
 
       // Normalize wicket object
@@ -284,6 +284,16 @@ export function applyEvent(state, event) {
         totalBallRuns = runs;
       }
 
+      // Check for Retired Hurt (Bug 26: Must NOT count as a team wicket or a legal ball)
+      const isRetiredHurtDelivery = Boolean(
+        (normalizedWicket && normalizedWicket.type === WICKET_TYPES.RETIRED_HURT) ||
+        event.payload?.wicketType === WICKET_TYPES.RETIRED_HURT
+      );
+      if (isRetiredHurtDelivery) {
+        isLegal = false;
+        calculatedWicket = false; // Does not count towards team wickets!
+      }
+
       curInn.score += totalBallRuns;
 
       if (isLegal) {
@@ -302,7 +312,8 @@ export function applyEvent(state, event) {
         extraRuns,
         isLegal,
         isWicket: calculatedWicket,
-        wicket: calculatedWicket ? normalizedWicket : null,
+        isRetiredHurt: isRetiredHurtDelivery,
+        wicket: isRetiredHurtDelivery ? (normalizedWicket || { type: WICKET_TYPES.RETIRED_HURT, playerOut: event.payload.dismissedPlayer || next.striker }) : (calculatedWicket ? normalizedWicket : null),
         isDirectHit: Boolean(normalizedWicket?.isDirectHit || event.payload.isDirectHit),
         isOverthrow: Boolean(event.payload.isOverthrow),
         overthrowRuns: Number(event.payload.overthrowRuns) || 0,
@@ -310,7 +321,7 @@ export function applyEvent(state, event) {
         scoreAtBall: curInn.score,
         legalBallsSoFar: curInn.legalBalls,
         timestamp: eventTimestamp,
-        shortLabel: formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
+        shortLabel: isRetiredHurtDelivery ? 'RetHurt' : formatBallLabel(runs, extraType, extraRuns, calculatedWicket, normalizedWicket?.type)
       };
       curInn.balls.push(ballRecord);
       next.lastBallSummary = ballRecord.shortLabel;
@@ -344,9 +355,37 @@ export function applyEvent(state, event) {
         curNonStriker = temp;
       }
 
-      // Handle Wickets
+      // Handle Wickets & Retired Hurt
       let batterDismissedSlot = null;
-      if (calculatedWicket && normalizedWicket) {
+      if (isRetiredHurtDelivery) {
+        const playerOut = (normalizedWicket?.playerOut) || event.payload?.dismissedPlayer || next.striker;
+        next.retiredHurtBatters = next.retiredHurtBatters || [];
+        if (!next.retiredHurtBatters.includes(playerOut)) {
+          next.retiredHurtBatters.push(playerOut);
+        }
+
+        if (playerOut === curStriker) {
+          batterDismissedSlot = 'striker';
+        } else if (playerOut === curNonStriker) {
+          batterDismissedSlot = 'nonStriker';
+        } else if (playerOut === next.striker) {
+          batterDismissedSlot = 'striker';
+        } else {
+          batterDismissedSlot = 'nonStriker';
+        }
+
+        if (nextBatter) {
+          if (batterDismissedSlot === 'striker') curStriker = nextBatter;
+          else curNonStriker = nextBatter;
+          next.needsNewBatter = false;
+          next.vacantBatterSlot = null;
+        } else {
+          next.needsNewBatter = true;
+          next.vacantBatterSlot = batterDismissedSlot;
+          if (batterDismissedSlot === 'striker') curStriker = null;
+          else curNonStriker = null;
+        }
+      } else if (calculatedWicket && normalizedWicket) {
         curInn.wickets += 1;
         const playerOut = normalizedWicket.playerOut || next.striker;
         if (playerOut === curStriker) {
@@ -706,7 +745,7 @@ export function applyEvent(state, event) {
         bowler = null
       } = event.payload;
 
-      const isLegal = isLegalDelivery(extraType);
+      let isLegal = isLegalDelivery(extraType);
       let calculatedWicket = Boolean(isWicket || wicket || wicketType);
       let normalizedWicket = wicket ? { ...wicket } : null;
       if (calculatedWicket && !normalizedWicket) {
@@ -788,6 +827,9 @@ export function applyEvent(state, event) {
  * Generates a short, user-friendly badge label for a ball.
  */
 function formatBallLabel(runs, extraType, extraRuns, isWicket, wicketType) {
+  if (wicketType === WICKET_TYPES.RETIRED_HURT) {
+    return 'RetHurt';
+  }
   if (isWicket) {
     if (wicketType === WICKET_TYPES.RUN_OUT) return `W (RO)`;
     return 'W';

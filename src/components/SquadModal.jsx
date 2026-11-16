@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Users, Edit2, Check, Search } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function SquadModal({
   isOpen,
@@ -13,6 +14,8 @@ export default function SquadModal({
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editedName, setEditedName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen || !matchState) return null;
 
@@ -38,14 +41,21 @@ export default function SquadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md animate-fadeIn"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="squad-modal-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-lg max-h-[85vh] rounded-[24px] border shadow-2xl flex flex-col overflow-hidden transition-all"
+        className="w-full max-w-lg max-h-[85vh] rounded-[24px] border shadow-2xl flex flex-col overflow-hidden transition-all focus-visible:outline-none"
       >
         {/* Header */}
         <div

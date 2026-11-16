@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { UserPlus, Plus, RotateCcw } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function NewBatterModal({
   isOpen,
   vacantSlot = 'striker',
   availableBatters = [],
   onSelectBatter,
-  onUndoWicket
+  onUndoWicket,
+  onClose
 }) {
   const [customBatterName, setCustomBatterName] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
+
+  const modalRef = useModalA11y(isOpen, onClose || onUndoWicket);
 
   if (!isOpen) return null;
 
@@ -28,19 +32,26 @@ export default function NewBatterModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-batter-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-md rounded-3xl p-5 border shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150 focus-visible:outline-none"
       >
         <div style={{ borderColor: 'var(--border)' }} className="border-b pb-3">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: 'var(--primary)' }} />
-            <h3 className="font-black text-lg" style={{ color: 'var(--text)' }}>
+            <h3 id="new-batter-title" className="font-black text-lg" style={{ color: 'var(--text)' }}>
               Select Incoming Batter
             </h3>
           </div>

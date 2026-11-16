@@ -24,11 +24,14 @@ import {
 import { saveManagerProfileToCloud } from '../firebase/matches.js';
 import { saveManagerLocally, getAllLocalManagers } from '../store/localDb.js';
 import { sendVerificationEmailOtp } from '../services/emailService.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 // Toggle for 6-digit OTP verification: turned off per user request, can be re-enabled later.
 export const ENABLE_OTP_VERIFICATION = false;
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
+  const modalRef = useModalA11y(isOpen, onClose);
+
   // Steps: 'form' | 'otp' | 'forgot_password' | 'forgot_otp'
   const [authStep, setAuthStep] = useState('form');
   const [isRegister, setIsRegister] = useState(true);
@@ -531,14 +534,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-md animate-fadeIn select-none">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-md animate-fadeIn select-none"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-all"
+        className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-all focus-visible:outline-none"
       >
         {/* Header */}
         <div
@@ -553,7 +563,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
               <ShieldCheck className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-bold m-0" style={{ color: 'var(--text)' }}>
+              <h3 id="auth-modal-title" className="text-sm font-bold m-0" style={{ color: 'var(--text)' }}>
                 {authStep === 'otp'
                   ? 'Verify Registration OTP'
                   : authStep === 'forgot_password' || authStep === 'forgot_otp'

@@ -196,7 +196,18 @@ export function computeInningsStats(inningsData) {
     if (ball.striker === partnership.batter1) partnership.b1Runs += runs;
     if (ball.striker === partnership.batter2) partnership.b2Runs += runs;
 
-    if (isWicket && wicket) {
+    const isRetiredHurtWicket = Boolean(ball.isRetiredHurt || (wicket && wicket.type === 'retired_hurt'));
+
+    if (isRetiredHurtWicket && wicket) {
+      const outPlayer = getBatter(wicket.playerOut);
+      if (outPlayer) {
+        outPlayer.isOut = false;
+        outPlayer.dismissed = false;
+        outPlayer.retiredHurt = true;
+        outPlayer.dismissalType = 'retired_hurt';
+        outPlayer.dismissal = 'retired hurt';
+      }
+    } else if (isWicket && wicket) {
       const outPlayer = getBatter(wicket.playerOut);
       if (outPlayer) {
         outPlayer.isOut = true;
@@ -213,7 +224,6 @@ export function computeInningsStats(inningsData) {
         else if (wicket.type === 'stumped') dismissalText = `st ${wicket.fielder || 'wk'} b ${ball.bowler}`;
         else if (wicket.type === 'hit_wicket') dismissalText = `hit wicket b ${ball.bowler}`;
         else if (wicket.type === 'run_out') dismissalText = `run out (${wicket.fielder || (wicket.isDirectHit ? 'direct' : 'fielder')})`;
-        else if (wicket.type === 'retired_hurt') dismissalText = 'retired hurt';
         else if (wicket.type === 'retired_out') dismissalText = 'retired out';
 
         outPlayer.dismissal = dismissalText;

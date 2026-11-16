@@ -19,6 +19,7 @@ import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore'
 import { sendMatchMessage, subscribeMatchMessages, setMatchMessageInactive, deriveMatchDisplayScore, getMatchStatusMeta } from '../firebase/matches.js';
 import { replayEvents } from '../engine/reducer.js';
 import { formatOvers, calculateCRR } from '../engine/rules.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function DeveloperWatchAndChatModal({
   isOpen,
@@ -31,10 +32,13 @@ export default function DeveloperWatchAndChatModal({
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
   const lastSeenMsgCountRef = useRef(0);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   const matchId = match?.matchId;
   const matchCode = match?.code;
@@ -141,14 +145,18 @@ export default function DeveloperWatchAndChatModal({
 
     try {
       setIsSending(true);
+      setSendError('');
       await sendMatchMessage(matchId, {
         sender: 'developer',
         senderName: 'Developer (Maaz)',
         text: clean
       });
+      // Bug 34: Clear input only after confirmed send
       setInputText('');
     } catch (err) {
       console.warn('Failed to send message:', err);
+      // Bug 34: Show error if sending fails
+      setSendError(err?.message || 'Failed to send message.');
     } finally {
       setIsSending(false);
     }
@@ -167,14 +175,21 @@ export default function DeveloperWatchAndChatModal({
   const team2 = matchState?.teams?.[1]?.name || 'Team 2';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn select-none"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="watch-chat-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-5xl h-[88vh] max-h-[780px] rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden animate-scaleUp"
+        className="w-full max-w-5xl h-[88vh] max-h-[780px] rounded-2xl border-2 shadow-2xl flex flex-col overflow-hidden animate-scaleUp focus-visible:outline-none"
       >
         {/* Top Header Bar */}
         <div
@@ -498,6 +513,14 @@ export default function DeveloperWatchAndChatModal({
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* Bug 34: Error Banner if send fails */}
+            {sendError && (
+              <div className="px-3 py-1.5 bg-red-500/15 border-t border-red-500/30 text-red-500 text-xs font-semibold flex items-center justify-between">
+                <span>{sendError}</span>
+                <button type="button" onClick={() => setSendError('')} className="font-bold px-1 text-red-400">x</button>
+              </div>
+            )}
 
             {/* Compose Input Form */}
             <form

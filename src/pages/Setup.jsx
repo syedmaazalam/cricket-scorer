@@ -388,9 +388,16 @@ export default function Setup({ onStartMatch, onBack }) {
           )}
 
           <button
+            type="button"
             onClick={handleStep1Next}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleStep1Next();
+              }
+            }}
             style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF' }}
-            className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 mt-2"
+            className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)]"
           >
             <span>Proceed to Squads</span>
             <ArrowRight className="w-4 h-4" />

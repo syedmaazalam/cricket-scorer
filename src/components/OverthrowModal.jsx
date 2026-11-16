@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CornerUpRight, Check, AlertCircle } from 'lucide-react';
 import { EXTRA_TYPES } from '../engine/constants.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function OverthrowModal({
   isOpen,
@@ -13,6 +14,8 @@ export default function OverthrowModal({
   const [deliveryType, setDeliveryType] = useState('OFF_BAT'); // 'OFF_BAT' | 'WIDE' | 'NO_BALL' | 'BYE' | 'LEG_BYE'
   const [runsRan, setRunsRan] = useState(1);
   const [overthrowRuns, setOverthrowRuns] = useState(4);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -67,14 +70,21 @@ export default function OverthrowModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="overthrow-modal-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-md rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto focus-visible:outline-none"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--border)' }}>
@@ -83,7 +93,7 @@ export default function OverthrowModal({
               <CornerUpRight className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-black text-sm uppercase tracking-wider">Record Overthrow Delivery</h3>
+              <h3 id="overthrow-modal-title" className="font-black text-sm uppercase tracking-wider">Record Overthrow Delivery</h3>
               <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
                 Fielding error conceded additional runs
               </p>
@@ -194,7 +204,7 @@ export default function OverthrowModal({
             <div className="flex items-center justify-between text-xs pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
               <span className="font-semibold" style={{ color: 'var(--muted)' }}>Total Runs Conceded:</span>
               <span className="font-black text-sm text-[#22C55E]">
-                {totalScore} Runs ({runsRan} Ran + {overthrowRuns} Overthrow{deliveryType === 'WIDE' || deliveryType === 'NO_BALL' ? ' + 1 Extra' : ''})
+                {totalScore} Runs ({runsRan === 1 ? '1 Run' : `${runsRan} Runs`} + {overthrowRuns} Overthrow{deliveryType === 'WIDE' || deliveryType === 'NO_BALL' ? ' + 1 Extra' : ''})
               </span>
             </div>
 
@@ -215,8 +225,8 @@ export default function OverthrowModal({
                 <AlertCircle className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span style={{ color: 'var(--text)' }}>
                   {isSwap
-                    ? `Batters swap ends (Odd total ran: ${physicalRuns})`
-                    : `Batters stay at same ends (Even total ran: ${physicalRuns})`}
+                    ? `Batters swap ends (Odd total runs: ${physicalRuns})`
+                    : `Batters stay at same ends (Even total runs: ${physicalRuns})`}
                 </span>
               </div>
             </div>

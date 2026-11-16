@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Clock, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function TimeDeclareModal({
   isOpen,
@@ -10,6 +11,8 @@ export default function TimeDeclareModal({
   const [selectedBatterSlot, setSelectedBatterSlot] = useState('striker'); // 'striker' | 'nonStriker'
   const [retireType, setRetireType] = useState('time_declare'); // 'time_declare' | 'out'
   const [incomingBatter, setIncomingBatter] = useState('');
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen || !matchState) return null;
 
@@ -47,14 +50,21 @@ export default function TimeDeclareModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="time-declare-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-[24px] border shadow-2xl overflow-hidden transition-all"
+        className="w-full max-w-md rounded-[24px] border shadow-2xl overflow-hidden transition-all focus-visible:outline-none"
       >
         {/* Header */}
         <div

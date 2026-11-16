@@ -1,8 +1,11 @@
 import React from 'react';
 import { Award, X } from 'lucide-react';
 import { POINTING_CRITERIA } from '../engine/potm.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function PointingCriteriaModal({ isOpen, onClose }) {
+  const modalRef = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
@@ -12,7 +15,8 @@ export default function PointingCriteriaModal({ isOpen, onClose }) {
       role="presentation"
     >
       <div
-        className="card"
+        ref={modalRef}
+        className="card focus-visible:outline-none"
         role="dialog"
         aria-modal="true"
         aria-label="Pointing System Criteria"

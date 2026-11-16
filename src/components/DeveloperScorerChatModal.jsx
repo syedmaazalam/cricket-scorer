@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare, ShieldCheck, User, X, RefreshCw, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, ShieldCheck, User, X, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 import { sendMatchMessage, subscribeMatchMessages, setMatchMessageInactive } from '../firebase/matches.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 export default function DeveloperScorerChatModal({
   isOpen,
@@ -13,6 +14,7 @@ export default function DeveloperScorerChatModal({
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [spectatorName, setSpectatorName] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('cricket_spectator_name') || '';
@@ -21,6 +23,8 @@ export default function DeveloperScorerChatModal({
   });
   const [nameError, setNameError] = useState('');
   const messagesEndRef = useRef(null);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   const defaultSenderName = role === 'developer' ? 'Developer (Maaz)' : (role === 'scorer' ? 'Match Scorer' : (spectatorName.trim() || 'Spectator'));
   const effectiveSenderName = senderName || defaultSenderName;
@@ -58,6 +62,7 @@ export default function DeveloperScorerChatModal({
 
     try {
       setIsSending(true);
+      setSendError('');
       const effectiveName = role === 'spectator'
         ? (spectatorName.trim() || 'Spectator')
         : effectiveSenderName;
@@ -67,10 +72,13 @@ export default function DeveloperScorerChatModal({
         senderName: effectiveName,
         text: clean
       });
+      // Bug 34: Clear input only after confirmed send
       setInputText('');
       setNameError('');
     } catch (err) {
       console.warn('Failed to send message:', err);
+      // Bug 34: Show error if sending fails
+      setSendError(err?.message || 'Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -86,14 +94,21 @@ export default function DeveloperScorerChatModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm animate-fadeIn"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chat-modal-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-lg h-[540px] max-h-[90vh] rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-scaleUp"
+        className="w-full max-w-lg h-[540px] max-h-[90vh] rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-scaleUp focus-visible:outline-none"
       >
         {/* Header */}
         <div
@@ -105,7 +120,7 @@ export default function DeveloperScorerChatModal({
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xs sm:text-sm font-bold m-0 flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+              <h3 id="chat-modal-title" className="text-xs sm:text-sm font-bold m-0 flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                 <span>Chat: {matchTitle}</span>
               </h3>
               <p className="text-[10px] m-0" style={{ color: 'var(--muted)' }}>
@@ -127,6 +142,23 @@ export default function DeveloperScorerChatModal({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Bug 34: Error Banner when send fails */}
+        {sendError && (
+          <div className="px-3.5 py-2 bg-red-500/15 border-b border-red-500/30 text-red-500 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{sendError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSendError('')}
+              className="text-red-400 hover:text-red-300 font-bold px-1"
+            >
+              x
+            </button>
+          </div>
+        )}
 
         {/* Message Thread */}
         <div className="flex-1 p-3.5 overflow-y-auto flex flex-col gap-2.5">

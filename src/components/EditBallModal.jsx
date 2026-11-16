@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit3, Check } from 'lucide-react';
 import { EXTRA_TYPES, WICKET_TYPES } from '../engine/constants.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 function normalizeDeliveryType(rawExtraType, isLegal = true) {
   if (rawExtraType === undefined || rawExtraType === null || rawExtraType === '') {
@@ -39,6 +40,8 @@ export default function EditBallModal({
   const [isOverthrow, setIsOverthrow] = useState(false);
   const [overthrowRuns, setOverthrowRuns] = useState(0);
 
+  const modalRef = useModalA11y(isOpen, onClose);
+
   // When initialBall changes or modal opens, initialize state
   useEffect(() => {
     const target = initialBall || (allBalls.length > 0 ? allBalls[allBalls.length - 1] : null);
@@ -46,7 +49,9 @@ export default function EditBallModal({
 
     setSelectedBallId(target.ballId || target.seq);
     setBowler(target.bowler || '');
-    setRuns(Number(target.runs) || 0);
+    // Bug 29: Pre-select "Runs off Bat" directly from the ball's stored value
+    const targetRuns = target.runs !== undefined ? Number(target.runs) : (Number(target.runsOffBat) || 0);
+    setRuns(Number.isFinite(targetRuns) ? targetRuns : 0);
     setExtraType(normalizeDeliveryType(target.extraType, target.isLegal));
     setExtraRuns(Number(target.extraRuns) || 0);
     setIsWicket(Boolean(target.isWicket || target.wicket));
@@ -68,7 +73,9 @@ export default function EditBallModal({
     if (found) {
       setSelectedBallId(found.ballId || found.seq);
       setBowler(found.bowler || '');
-      setRuns(Number(found.runs) || 0);
+      // Bug 29: Pre-select "Runs off Bat" directly from selected ball's stored value
+      const ballRuns = found.runs !== undefined ? Number(found.runs) : (Number(found.runsOffBat) || 0);
+      setRuns(Number.isFinite(ballRuns) ? ballRuns : 0);
       setExtraType(normalizeDeliveryType(found.extraType, found.isLegal));
       setExtraRuns(Number(found.extraRuns) || 0);
       setIsWicket(Boolean(found.isWicket || found.wicket));
@@ -113,14 +120,21 @@ export default function EditBallModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      role="presentation"
+    >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-ball-title"
         style={{
           backgroundColor: 'var(--card)',
           borderColor: 'var(--border)',
           color: 'var(--text)'
         }}
-        className="w-full max-w-md rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-md rounded-3xl border p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5 max-h-[92vh] overflow-y-auto focus-visible:outline-none"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--border)' }}>
@@ -129,7 +143,7 @@ export default function EditBallModal({
               <Edit3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-black text-sm uppercase tracking-wider">Edit Ball Score</h3>
+              <h3 id="edit-ball-title" className="font-black text-sm uppercase tracking-wider">Edit Ball Score</h3>
               <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
                 Correct score, extras, or dismissal for this delivery
               </p>
